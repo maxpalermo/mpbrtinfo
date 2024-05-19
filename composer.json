@@ -1,0 +1,26 @@
+{
+    "name": "mpsoft/mpbrtinfo",
+    "description": "Bartolini Tracking Info",
+    "authors": [
+        {
+            "name": "Massimiliano Palermo",
+            "email": "maxx.palermo@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "MpSoft\\MpBrtInfo\\": "src/"
+        },
+        "classmap": [],
+        "exclude-from-classmap": [],
+        "files": []
+    },
+    "config": {
+        "preferred-install": "dist",
+        "prepend-autoloader": false
+    },
+    "type": "prestashop-module"
+}

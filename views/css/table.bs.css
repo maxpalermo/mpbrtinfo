@@ -1,0 +1,55 @@
+.bootstrap table.table-eventi {
+    border: 1px solid #eaedef;
+    border-radius: 5px;
+    padding: 0.5rem;
+}
+
+.bootstrap table.table-eventi tbody.list tr td:nth-child(1) {
+    width: 30%;
+    max-width: 30%;
+    color: #306290;
+    font-weight: 500;
+    text-align: right;
+}
+
+.bootstrap table.table-eventi tbody.list tr th {
+    width: 30%;
+    max-width: 30%;
+    color: #f0f0f0;
+    font-weight: bold;
+    font-size: 1.0rem;
+    border: 1px solid #303030;
+}
+
+._modal-eventi {
+    width: 65% !important;
+}
+
+.modal-eventi .table {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 1rem;
+    background-color: transparent;
+    display: table;
+    box-sizing: border-box;
+    text-indent: initial;
+    border-spacing: 2px;
+    border-color: gray;
+    border-collapse: collapse
+}
+
+.modal-eventi .table.table-dark tbody td {
+    padding: 4px;
+    border: 1px solid #404040;
+}
+
+.modal-eventi .table-dark {
+    color: #fff;
+    background-color: #212529 !important;
+}
+
+.modal-eventi .table-dark td,
+.modal-eventi .table-dark th,
+.modal-eventi .table-dark thead th {
+    border-color: #32383e;
+}
