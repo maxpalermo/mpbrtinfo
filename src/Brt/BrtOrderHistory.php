@@ -40,6 +40,8 @@ class BrtOrderHistory
 
     public function updateBrtOrderHistory()
     {
+        return true;
+
         $order = new \Order($this->id_order);
         $order_state = new \OrderState($this->id_order_state);
         $order_history = new \OrderHistory($this->id_order_history);
@@ -97,49 +99,49 @@ class BrtOrderHistory
 
     public function isTransitOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_TRANSIT, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isDeliveredOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_DELIVERED, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isErrorOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_ERROR, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isFermoPointOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_FERMOPOINT, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isRefusedOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_REFUSED, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isWaitingOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_WAITING, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
 
         return in_array($this->id_order_state, $array);
     }
 
     public function isSentOs()
     {
-        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::CONFIG_EVENT_SENT, true);
+        $array = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
 
         return in_array($this->id_order_state, $array);
     }

@@ -24,29 +24,27 @@
     var current_shipment_id = '';
     var current_shipment_year = "{date('Y')}";
 
-    function getBrtInfo(id_order, id_carrier, target) {
+    function getBrtInfo(order_id, tracking, target) {
         current_target = target;
-        current_id_order = id_order;
-        current_id_carrier = id_carrier;
+        current_id_order = order_id;
+        //current_id_carrier = id_carrier;
 
         let data = {
             ajax: true,
-            action: 'getBrtInfo',
-            id_order: id_order,
-            id_carrier: id_carrier,
+            action: 'postInfoBySpedizioneId',
+            order_id: order_id,
+            spedizione_id: tracking,
         };
 
         var current_icon = $(target).find('img').attr('src');
         $(target).find('img').attr('src', '{$spinner}');
 
-        $.post( "{$ajax_controller}&action=getBrtInfo", data, function(response)
+        $.post( "{$ajax_controller}", data, function(response)
         {
-            $(".modal.fade.modal-brt").remove();
-            let info = response;
+            $("#BrtBolla").remove();
+            $("body #content").append(response.content);
 
-            $('body #main #content .bootstrap:first').append(info.dialog);
-            let modal = $(".modal.fade.modal-brt");
-            $(modal).modal('show');
+            $("#BrtBolla").modal('show');
             $(target).find('img').attr('src', current_icon);
         });
     }
@@ -82,6 +80,13 @@
 
     $(function() {
         $("#toolbar-nav li:last").after($("<li>").append($("#brt-toolbar-button").detach()));
+
+        $(".brt-info-button").on("click", function() {
+            let tracking = $(this).data('tracking');
+            let order_id = $(this).data('order_id');
+            getBrtInfo(order_id, tracking, this);
+        });
+
         $("#brt-toolbar-button").on('click', function(evt) {
             if (confirm("{l s='Cercare le informazioni sulle spedizioni?' mod='mpbrtinfo'}") == false)
             {

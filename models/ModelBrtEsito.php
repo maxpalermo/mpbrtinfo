@@ -74,6 +74,12 @@ class ModelBrtEsito extends ObjectModel
             ->orderBy('testo1');
         $rows = $db->executeS($sql);
 
+        if ($rows) {
+            foreach ($rows as $row) {
+                $rows[$row['id_esito']] = $row['testo1'] . ' ' . $row['testo2'];
+            }
+        }
+
         return $rows;
     }
 

@@ -156,4 +156,20 @@ class ModelBrtConfig extends ConfigurationCore
 
         return $year;
     }
+
+    public static function getEsiti()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('id_esito,testo1,testo2')
+            ->from('mpbrtinfo_esito')
+            ->orderBy('id_esito ASC');
+        $result = $db->executeS($sql);
+        $esiti = [];
+        foreach ($result as $row) {
+            $esiti[$row['id_esito']] = $row['testo1'] . ' ' . $row['testo2'];
+        }
+
+        return $esiti;
+    }
 }

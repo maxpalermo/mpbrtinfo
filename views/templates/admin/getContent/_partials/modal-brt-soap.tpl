@@ -2,10 +2,10 @@
     <div class="modal-dialog modal-dialog-centered" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="ModalBrtSoapTitle">TEST SOAP</h5>
                 <button class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
+                <h5 class="modal-title" id="ModalBrtSoapTitle">TEST SOAP</h5>
             </div>
             <div class="modal-body">
                 <div class="form-group">
@@ -280,7 +280,7 @@
                 }),
                 body: JSON.stringify({
                     ajax: 1,
-                    action: 'TrackingInfoByIdCollo',
+                    action: 'fetchInfoBySpedizioneId',
                     spedizione_anno: spedizione_anno,
                     spedizione_id: spedizione_id
                 })
@@ -288,13 +288,10 @@
             .then(response => response.json())
             .then(data => {
                 $("#rmn div.panel").empty();
-                if ("response" in data) {
-                    console.log("RESPONSE", data.response);
-                    ul = "<ul>" +
-                        "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
-                        "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
-                        "</ul>";
-                    $("#rmn div.panel").append(ul + "\n");
+                if ("content" in data) {
+                    $("#BrtBolla").remove();
+                    $("body #main #content").append(data.content);
+                    $('#BrtBolla').modal('show');
                 }
             });
     }

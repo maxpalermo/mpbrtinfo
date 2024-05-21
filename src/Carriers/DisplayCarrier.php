@@ -69,16 +69,16 @@ class DisplayCarrier
         $carrier_name = $carrier->name;
         $this->tracking = $this->getTracking($id_order, $id_carrier);
 
-        $event_sent = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, true);
-        $event_delivered = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED, true);
-        $event_error = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR, true);
-        $event_fermopoint = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT, true);
-        $event_refused = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED, true);
-        $event_transit = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT, true);
-        $event_waiting = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING, true);
+        $event_sent = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT));
+        $event_delivered = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED));
+        $event_error = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR));
+        $event_fermopoint = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT));
+        $event_refused = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED));
+        $event_transit = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT));
+        $event_waiting = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING));
 
         $current_os = (int) $order->current_state;
-        $displayIcon = \ModelBrtConfig::getIcon('');
+        $displayIcon = \ModelBrtConfig::getIcon($current_os);
 
         if (!$this->isBrtCarrier($id_carrier)) {
             return $this->displayCarrierIcon($id_order, $id_carrier);
@@ -100,18 +100,46 @@ class DisplayCarrier
             $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
         }
 
+        $tracking = $this->getTracking($id_order);
+
         $params = [
             'carrier' => [
                 'icon' => $displayIcon,
                 'id_order' => $id_order,
                 'id_carrier' => $id_carrier,
-                'tracking' => '', // $tracking,
+                'tracking' => $tracking,
                 'name' => $carrier_name,
                 'carrier_url' => $carrier->url,
             ],
         ];
 
         return $this->tpl->renderTplAdmin('brtIcon/brt_carrier', $params);
+    }
+
+    public function getTracking($id_order, $id_carrier = '')
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('tracking_number')
+            ->from('order_carrier')
+            ->where('id_order=' . (int) $id_order)
+            ->orderBy('id_order_carrier DESC');
+
+        if ($id_carrier) {
+            $sql->where('id_carrier=' . (int) $id_carrier);
+        }
+        $tracking = $db->getValue($sql);
+
+        return $tracking;
+    }
+
+    protected function toArray($value)
+    {
+        if (!is_array($value)) {
+            return [$value];
+        }
+
+        return $value;
     }
 
     protected function displayError()
@@ -187,19 +215,6 @@ class DisplayCarrier
         }
 
         return $displayIcon;
-    }
-
-    public function getTracking($id_order, $id_carrier)
-    {
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-
-        $sql->select('tracking_number')
-            ->from('order_carrier')
-            ->where('id_order=' . (int) $id_order)
-            ->where('id_carrier=' . (int) $id_carrier);
-
-        return $db->getValue($sql);
     }
 
     public function isBrtCarrier($id_carrier)

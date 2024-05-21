@@ -168,25 +168,25 @@
                 <li class="active">
                     <a href="#dash_order_brt_fermopoint" data-toggle="tab">
                         <i class="icon-map-marker"></i>
-                        <span class="hidden-inline-xs">Ordini al Fermopoint</span>
+                        <span class="hidden-inline-xs">Ordini al Fermopoint <span class="badge badge-pill badge-info">{count($orders_fermopoint)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_delivered" data-toggle="tab">
                         <i class="icon-home"></i>
-                        <span class="hidden-inline-xs">Ordini consegnati</span>
+                        <span class="hidden-inline-xs">Ordini consegnati <span class="badge badge-pill badge-info">{count($orders_delivered)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_transit" data-toggle="tab">
                         <i class="icon-truck"></i>
-                        <span class="hidden-inline-xs">Ordini in transito</span>
+                        <span class="hidden-inline-xs">Ordini in transito <span class="badge badge-pill badge-info">{count($orders_transit)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_refused" data-toggle="tab">
                         <i class="icon-ban"></i>
-                        <span class="hidden-inline-xs">Ordini rifiutati</span>
+                        <span class="hidden-inline-xs">Ordini rifiutati <span class="badge badge-pill badge-info">{count($orders_refused)}</span></span>
                     </a>
                 </li>
             </ul>
@@ -199,57 +199,27 @@
                     <table class="table data_table" id="table_order_brt_fermopoint">
                         <thead>
                             <tr>
+                                <th class="text-left">Id Ordine</th>
                                 <th class="text-left">Cliente</th>
-                                <th class="text-center">email</th>
-                                <th class="text-center">Telefono</th>
-                                <th class="text-center">Cellulare</th>
-                                <th class="text-center">Totale Ordine</th>
-                                <th class="text-center">Stato</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
                                 <th class="text-center">Data</th>
                                 <th class="text-right"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="text-left" id="firstname_lastname"><a href="/clienti/capellistore/admin_shop/index.php/sell/customers/?_token=Rn2z0nBZdIqOJ-dP1h8fmyv5IxXuorxcknBmMhUygTY&amp;id_customer=2&amp;viewcustomer">John DOE</a></td>
-                                <td class="text-center" id="total_products">1</td>
-                                <td class="text-center" id="total_paid"> <span class="badge badge-success"> 14,90&nbsp;€</span></td>
-                                <td class="text-center" id="date_add">01/01/2024</td>
-                                <td class="text-center" id="status">BRT - Consegnato</td>
-                                <td class="text-right" id="details"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=4&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
-                            </tr>
-                            <tr>
-                                <td class="text-left" id="firstname_lastname"><a href="/clienti/capellistore/admin_shop/index.php/sell/customers/?_token=Rn2z0nBZdIqOJ-dP1h8fmyv5IxXuorxcknBmMhUygTY&amp;id_customer=2&amp;viewcustomer">John DOE</a></td>
-                                <td class="text-center" id="total_products">2</td>
-                                <td class="text-center" id="total_paid"> <span class="badge badge-success"> 61,80&nbsp;€</span></td>
-                                <td class="text-center" id="date_add">05/06/2023</td>
-                                <td class="text-center" id="status">BRT - Spedito</td>
-                                <td class="text-right" id="details"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=1&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
-                            </tr>
-                            <tr>
-                                <td class="text-left" id="firstname_lastname"><a href="/clienti/capellistore/admin_shop/index.php/sell/customers/?_token=Rn2z0nBZdIqOJ-dP1h8fmyv5IxXuorxcknBmMhUygTY&amp;id_customer=2&amp;viewcustomer">John DOE</a></td>
-                                <td class="text-center" id="total_products">2</td>
-                                <td class="text-center" id="total_paid"> <span class="badge badge-success"> 69,90&nbsp;€</span></td>
-                                <td class="text-center" id="date_add">05/06/2023</td>
-                                <td class="text-center" id="status">BRT - Consegnato</td>
-                                <td class="text-right" id="details"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=2&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
-                            </tr>
-                            <tr>
-                                <td class="text-left" id="firstname_lastname"><a href="/clienti/capellistore/admin_shop/index.php/sell/customers/?_token=Rn2z0nBZdIqOJ-dP1h8fmyv5IxXuorxcknBmMhUygTY&amp;id_customer=2&amp;viewcustomer">John DOE</a></td>
-                                <td class="text-center" id="total_products">1</td>
-                                <td class="text-center" id="total_paid"> <span class="badge badge-success"> 14,90&nbsp;€</span></td>
-                                <td class="text-center" id="date_add">05/06/2023</td>
-                                <td class="text-center" id="status">BRT - Consegnato</td>
-                                <td class="text-right" id="details"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=3&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
-                            </tr>
-                            <tr>
-                                <td class="text-left" id="firstname_lastname"><a href="/clienti/capellistore/admin_shop/index.php/sell/customers/?_token=Rn2z0nBZdIqOJ-dP1h8fmyv5IxXuorxcknBmMhUygTY&amp;id_customer=2&amp;viewcustomer">John DOE</a></td>
-                                <td class="text-center" id="total_products">1</td>
-                                <td class="text-center" id="total_paid"> <span class="badge badge-success"> 20,90&nbsp;€</span></td>
-                                <td class="text-center" id="date_add">05/06/2023</td>
-                                <td class="text-center" id="status">BRT - Transito</td>
-                                <td class="text-right" id="details"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=5&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
-                            </tr>
+                            {foreach $orders_fermopoint as $row}
+                                <tr>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                </tr>
+                            {/foreach}
                         </tbody>
                     </table>
                 </div>
@@ -260,12 +230,11 @@
                     <table class="table data_table" id="table_order_brt_delivered">
                         <thead>
                             <tr>
+                                <th class="text-left">Id Ordine</th>
                                 <th class="text-left">Cliente</th>
-                                <th class="text-center">email</th>
-                                <th class="text-center">Telefono</th>
-                                <th class="text-center">Cellulare</th>
-                                <th class="text-center">Totale Ordine</th>
-                                <th class="text-center">Stato</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
                                 <th class="text-center">Data</th>
                                 <th class="text-right"></th>
                             </tr>
@@ -273,14 +242,13 @@
                         <tbody>
                             {foreach $orders_delivered as $row}
                                 <tr>
-                                    <td class="text-left" id="brt_delivered_customer">{$row.firstname} {$row.lastname}</td>
-                                    <td class="text-left" id="brt_delivered_email">{$row.email}</td>
-                                    <td class="text-left" id="brt_delivered_phone">{$row.phone}</td>
-                                    <td class="text-left" id="brt_delivered_phone_mobile">{$row.phone_mobile}</td>
-                                    <td class="text-right" id="brt_delivered_total">{Tools::displayPrice($row.total_price_tax_incl,$currency)}</td>
-                                    <td class="text-left" id="brt_delivered_state">{$row.state_name}</td>
-                                    <td class="text-center" id="brt_delivered_date">{$row.date_add}</td>
-                                    <td class="text-center" id="brt_delivered_btn"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order=5&amp;vieworder&amp;token=3b8279b99177efb71e2e17c1c651c785" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                                 </tr>
                             {/foreach}
                         </tbody>
@@ -293,20 +261,27 @@
                     <table class="table data_table" id="table_order_brt_transit">
                         <thead>
                             <tr>
+                                <th class="text-left">Id Ordine</th>
                                 <th class="text-left">Cliente</th>
-                                <th class="text-center">Prodotti</th>
-                                <th class="text-center">Totale Tasse escluse</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
                                 <th class="text-center">Data</th>
-                                <th class="text-center">Stato</th>
                                 <th class="text-right"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td class="text-center" colspan="6"><br>
-                                    <div class="alert alert-info">Devi attivare l'opzione "Salva le visualizzazioni globali delle pagine" dal modulo "Recupero dei dati per le statistiche" per poter visualizzare i prodotti più visti, oppure usare il modulo Google Analytics.</div>
-                                </td>
-                            </tr>
+                            {foreach $orders_transit as $row}
+                                <tr>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                </tr>
+                            {/foreach}
                         </tbody>
                     </table>
                 </div>
@@ -314,23 +289,30 @@
             <div class="tab-pane" id="dash_order_brt_refused">
                 <h3>Ordini Brt Rifiutati</h3>
                 <div class="table-responsive">
-                    <table class="table data_table" id="table_order_brt_refused">
-                        <thead>
+                    <thead>
+                        <tr>
+                            <th class="text-left">Id Ordine</th>
+                            <th class="text-left">Cliente</th>
+                            <th class="text-left">Email</th>
+                            <th class="text-right">Totale</th>
+                            <th class="text-center">Stato Ordine</th>
+                            <th class="text-center">Data</th>
+                            <th class="text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {foreach $orders_refused as $row}
                             <tr>
-                                <th class="text-left">Cliente</th>
-                                <th class="text-center">Prodotti</th>
-                                <th class="text-center">Totale Tasse escluse</th>
-                                <th class="text-center">Data</th>
-                                <th class="text-center">Stato</th>
-                                <th class="text-right"></th>
+                                <td class="text-left">{$row.id_order}</td>
+                                <td class="text-left">{$row.customer}</td>
+                                <td class="text-left">{$row.email}</td>
+                                <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                <td class="text-center">{$row.date_add}</td>
+                                <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="text-center" colspan="3">Nessun risultato</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                        {/foreach}
+                    </tbody>
                 </div>
             </div>
         </div>

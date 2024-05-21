@@ -1,4 +1,5 @@
-{*
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -15,7 +16,30 @@
  * @author    Massimiliano Palermo <maxx.palermo@gmail.com>
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
- *}
-<button type="button" class="btn brt-info-button" data-tracking="{$carrier.tracking}" data-order_id="{$carrier.id_order}" title="{l s='Carrier' mod='mpbrtinfo'}:{$carrier.name}{if $carrier.tracking} - Tracking: {$carrier.tracking}{/if}">
-    <img src="{$carrier.icon}" style="width: 48px; object-fit: contain;">
-<a>
+ */
+
+namespace MpSoft\MpBrtInfo\Bolla;
+
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
+class Nota
+{
+    protected $descrizione;
+
+    public function __construct($nota)
+    {
+        $this->descrizione = $nota['DESCRIZIONE'];
+    }
+
+    public function getDescrizione()
+    {
+        return $this->descrizione;
+    }
+
+    public function setDescrizione($descrizione)
+    {
+        $this->descrizione = $descrizione;
+    }
+}

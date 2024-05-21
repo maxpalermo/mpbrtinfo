@@ -19,6 +19,7 @@
  */
 
 namespace MpSoft\MpBrtInfo\Soap;
+use MpSoft\MpBrtInfo\Helpers\BrtParseInfo;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -45,7 +46,6 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
     public function getSoapTrackingByShipmentId($lang_iso = '', $spedizione_anno = '', $spedizione_id = '')
     {
         $response = [];
-        $spedizione_id = '';
 
         $request = new \stdClass();
         $request->LINGUA_ISO639_ALPHA2 = $lang_iso;
@@ -67,8 +67,6 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
             return false;
         }
 
-        return [
-            'tracking' => $response,
-        ];
+        return BrtParseInfo::parseTrackingInfo($response, \ModelBrtConfig::getEsiti());
     }
 }

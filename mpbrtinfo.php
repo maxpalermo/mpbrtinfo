@@ -77,14 +77,7 @@ class MpBrtInfo extends Module
             'actionAdminOrdersListingResultsModifier',
             'actionAdminOrdersListingFieldsModifier',
             'actionGetAdminToolbarButtons',
-            'displayBackOfficeHeader',
             'displayBackOfficeFooter',
-            'displayBackOfficeTop',
-            'displayAdminOrder',
-            'displayAdminOrderTop',
-            'displayAdminView',
-            'displayAdminEndContent',
-            'actionOrderHistoryAddAfter',
             'dashboardZoneTwo',
             'dashboardData',
         ];
@@ -234,27 +227,21 @@ class MpBrtInfo extends Module
         return $value;
     }
 
-    public function hookDisplayBackOfficeHeader($params)
-    {
-        if (preg_match('/AdminOrders/i', Tools::getValue('controller'))) {
-            $this->soapAlerts = MpSoft\MpBrtInfo\Soap\BrtSoapAlerts::getInstance();
-            $this->soapAlerts->displayMessages($this->context->controller);
-            $this->soapAlerts->clearAll();
-        }
-    }
-
     public function hookDashboardZoneTwo()
     {
-        $fermopoint = ModelBrtOrderState::getOrderState('fermopoint');
-        $delivered = ModelBrtOrderState::getOrderState('delivered');
-        $transit = ModelBrtOrderState::getOrderState('transit');
-        $refused = ModelBrtOrderState::getOrderState('refused');
+        $fermopoint = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::FERMOPOINT);
+        $delivered = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::DELIVERED);
+        $transit = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::TRANSIT);
+        $refused = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::REFUSED);
+        $waiting = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::WAITING);
 
         $params = [
-            'orders_fermopoint' => ModelBrtOrderState::getOrdersByIdState($fermopoint),
-            'orders_delivered' => ModelBrtOrderState::getOrdersByIdState($delivered),
-            'orders_transit' => ModelBrtOrderState::getOrdersByIdState($transit),
-            'orders_refused' => ModelBrtOrderState::getOrdersByIdState($refused),
+            'orders_fermopoint' => $fermopoint,
+            'orders_delivered' => $delivered,
+            'orders_transit' => $transit,
+            'orders_refused' => $refused,
+            'orders_waiting' => $waiting,
+            'token' => Tools::getAdminTokenLite('AdminDashboard'),
         ];
 
         $smarty = Context::getContext()->smarty;
@@ -274,36 +261,6 @@ class MpBrtInfo extends Module
         $controller = $params['controller'];
         if (preg_match('/AdminOrders/i', $controller)) {
             Tools::dieObject($params);
-        }
-    }
-
-    public function hookActionOrderHistoryAddAfter($params)
-    {
-        /** @var OrderHistory */
-        $object = $params['order_history'];
-        $id_order_history = (int) $object->id;
-        $id_order = (int) $object->id_order;
-        $id_order_state = (int) $object->id_order_state;
-        $brtHistory = new MpSoft\MpBrtInfo\Brt\BrtOrderHistory($id_order_history, $id_order, $id_order_state);
-        $message = $brtHistory->updateBrtOrderHistory();
-        if ($message) {
-            $os = new OrderState($object->id_order_state, $this->context->language->id);
-            if ($message == 'SHIPPED') {
-                $result = $this->l('shipped.');
-            } elseif ($message == 'DELIVERED') {
-                $result = $this->l('delivered.');
-            } else {
-                $result = $this->l('unknown.');
-            }
-            $message = sprintf(
-                $this->l('Order History Updated to %s (%s)'),
-                $os->name,
-                $result
-            );
-
-            $this->context->controller->confirmations[] = $message;
-
-            return $message;
         }
     }
 
@@ -374,16 +331,6 @@ class MpBrtInfo extends Module
         return $new_array;
     }
 
-    public function hookDisplayAdminOrder($params)
-    {
-        // nothing
-    }
-
-    public function hookDisplayAdminOrderTop($params)
-    {
-        // Nothing;
-    }
-
     public function hookDisplayBackOfficeFooter(&$params)
     {
         $controller = Tools::getValue('controller');
@@ -394,6 +341,7 @@ class MpBrtInfo extends Module
             return;
         }
         $ajax_controller = $this->context->link->getAdminLink($this->adminClassName);
+        $ajax_controller = $this->context->link->getModuleLink($this->name, 'CronJobs');
 
         $data = [
             'id_order' => 0,
@@ -601,7 +549,7 @@ class MpBrtInfo extends Module
                             [
                                 'id' => 'ID',
                                 'value' => 'ID',
-                                'label' => $this->l('ID Ordine'),
+                                'label' => $this->l('ID Collo'),
                             ],
                         ],
                     ],
