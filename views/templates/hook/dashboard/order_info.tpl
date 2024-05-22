@@ -204,6 +204,7 @@
                                 <th class="text-left">Email</th>
                                 <th class="text-right">Totale</th>
                                 <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
                                 <th class="text-center">Data</th>
                                 <th class="text-right"></th>
                             </tr>
@@ -216,6 +217,7 @@
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
                                     <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                                 </tr>
@@ -235,6 +237,7 @@
                                 <th class="text-left">Email</th>
                                 <th class="text-right">Totale</th>
                                 <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
                                 <th class="text-center">Data</th>
                                 <th class="text-right"></th>
                             </tr>
@@ -247,6 +250,7 @@
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
                                     <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                                 </tr>
@@ -266,6 +270,7 @@
                                 <th class="text-left">Email</th>
                                 <th class="text-right">Totale</th>
                                 <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
                                 <th class="text-center">Data</th>
                                 <th class="text-right"></th>
                             </tr>
@@ -278,6 +283,7 @@
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
                                     <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                                 </tr>
@@ -296,6 +302,7 @@
                             <th class="text-left">Email</th>
                             <th class="text-right">Totale</th>
                             <th class="text-center">Stato Ordine</th>
+                            <th class="text-center">Tracking</th>
                             <th class="text-center">Data</th>
                             <th class="text-right"></th>
                         </tr>
@@ -308,6 +315,7 @@
                                 <td class="text-left">{$row.email}</td>
                                 <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
                                 <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                <td class="text-center">{$row.tracking_number}</td>
                                 <td class="text-center">{$row.date_add}</td>
                                 <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
                             </tr>

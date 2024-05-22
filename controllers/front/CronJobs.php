@@ -39,6 +39,8 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     public $name;
     protected $esiti;
 
+    const FETCH_LIMIT = 150;
+
     protected function getJsonFetch()
     {
         $post_json = file_get_contents('php://input');
@@ -366,7 +368,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
             $id_order_state_delivered = [$id_order_state_delivered];
         }
 
-        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, 250);
+        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
         foreach ($orders as $id_order) {
             $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
             if (!$tracking) {
@@ -396,6 +398,9 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                 if ($esito['esito'] == 0) {
                     $tracking = $esito['spedizione_id'];
                     ModelBrtTrackingNumber::setAsSent($id_order, $tracking);
+                    if ($tracking) {
+                        $log .= sprintf('Ordine %s: Tracking ricevuto - %s', $id_order, $tracking) . "\n";
+                    }
                 } else {
                     $tracking = '';
                     $esito = $esiti[$esito['esito']];
@@ -431,7 +436,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
             }
         }
 
-        $this->response(['log' => $log, 'errors' => implode("\n", $errors)]);
+        $this->response(['log' => $log, 'errors' => json_encode($errors)]);
     }
 
     public function fetchInfoBySpedizioneId($anno, $spedizione_id)

@@ -59,8 +59,9 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'required' => true,
             ],
             'id_brt_state' => [
-                'type' => self::TYPE_INT,
-                'validate' => 'isInt',
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'size' => 16,
                 'required' => false,
             ],
             'id_collo' => [
@@ -76,7 +77,8 @@ class ModelBrtTrackingNumber extends ObjectModel
             ],
             'tracking_number' => [
                 'type' => self::TYPE_STRING,
-                'validate' => 'isString',
+                'validate' => 'isAnything',
+                'size' => 128,
                 'required' => false,
             ],
             'current_state' => [
@@ -143,44 +145,27 @@ class ModelBrtTrackingNumber extends ObjectModel
 
     public static function getOrdersByLastCurrentState(string $order_state)
     {
+        $id_lang = (int) Context::getContext()->language->id;
         $sql = new DbQuery();
-        $sql->select('id_order, current_state, date_add')
-            ->from(self::$definition['table'])
-            ->groupBy('id_order')
-            ->having("current_state = '" . pSQL($order_state) . "'")
-            ->having('date_add = MAX(date_add)')
-            ->orderBy('date_add DESC');
 
-        $orders = Db::getInstance()->executeS($sql);
-        if ($orders) {
-            $id_orders = array_column($orders, 'id_order');
-            $id_lang = (int) Context::getContext()->language->id;
-            $sql = new DbQuery();
-            $sql->select('a.id_order, a.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, a.date_add, a.current_state, os.name as order_state')
-                ->from('orders', 'a')
-                ->leftJoin('customer', 'c', 'a.id_customer = c.id_customer and c.id_customer is not null')
-                ->leftJoin('order_state_lang', 'os', 'a.current_state = os.id_order_state and os.id_lang = ' . $id_lang . ' and os.id_order_state is not null')
-                ->where('a.id_order in (' . implode(',', $id_orders) . ')')
-                ->orderBy('a.id_order DESC')
-                ->limit(50);
-            $orderList = Db::getInstance()->executeS($sql);
-            if ($orderList) {
-                foreach ($orderList as &$order) {
-                    foreach ($orders as $key => $brt_order) {
-                        if ($order['id_order'] == $brt_order['id_order']) {
-                            $order['date_add'] = $brt_order['date_add'];
-                            unset($orders[$key]);
+        $sql->select('a.id_order, a.id_order_state, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, os.name as order_state')
+            ->from(self::$definition['table'], 'a')
+            ->leftJoin('orders', 'o', 'a.id_order = o.id_order and o.id_order is not null')
+            ->leftJoin('customer', 'c', 'o.id_customer = c.id_customer and c.id_customer is not null')
+            ->leftJoin('order_state_lang', 'os', 'a.id_order_state = os.id_order_state and os.id_lang = ' . $id_lang . ' and os.id_order_state is not null')
+            ->groupBy('a.id_order')
+            ->having("a.current_state = '" . pSQL($order_state) . "'")
+            ->having('a.date_add = MAX(a.date_add)')
+            ->orderBy('a.date_add DESC')
+            ->limit(50);
+        $sql = $sql->build();
+        $rows = Db::getInstance()->executeS($sql);
 
-                            break;
-                        }
-                    }
-                }
-
-                return $orderList;
-            }
+        if (!$rows) {
+            return [];
         }
 
-        return [];
+        return $rows;
     }
 
     public static function getTrackingNumberByIdOrder($id_order)
@@ -237,15 +222,23 @@ class ModelBrtTrackingNumber extends ObjectModel
 
     public static function setAsSent($id_order, $tracking)
     {
-        $id_order_state_sent = (int) Configuration::get('MPBRTINFO_ORDER_STATE_SENT');
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        $id_order_state = (int) $order->current_state;
+        $id_order_state_sent = Configuration::get('MPBRTINFO_ORDER_STATE_SENT');
+        $current_state = $tracking ? 'TRANSIT' : 'SENT';
+
         $model = new ModelBrtTrackingNumber();
         $model->id_order = (int) $id_order;
-        $model->id_order_state = $id_order_state_sent;
+        $model->id_order_state = $id_order_state;
         $model->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
         $model->id_collo = '';
         $model->rmn = $id_order;
         $model->tracking_number = $tracking;
-        $model->current_state = 'SENT';
+        $model->current_state = $current_state;
         $model->anno_spedizione = date('Y');
         $model->date_add = date('Y-m-d H:i:s');
 
