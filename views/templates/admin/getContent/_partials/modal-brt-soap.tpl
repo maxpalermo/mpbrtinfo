@@ -197,14 +197,14 @@
             })
             .then(response => response.json())
             .then(data => {
-                $("#idc div.panel").empty();
+                $("#rmn div.panel").empty();
                 if ("response" in data) {
                     console.log("RESPONSE", data.response);
                     ul = "<ul>" +
                         "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
                         "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
                         "</ul>";
-                    $("#idc div.panel").append(ul + "\n");
+                    $("#rmn div.panel").append(ul + "\n");
                 }
             });
     }
@@ -227,14 +227,14 @@
             })
             .then(response => response.json())
             .then(data => {
-                $("#rmn div.panel").empty();
+                $("#rma div.panel").empty();
                 if ("response" in data) {
                     console.log("RESPONSE", data.response);
                     ul = "<ul>" +
                         "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
                         "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
                         "</ul>";
-                    $("#rmn div.panel").append(ul + "\n");
+                    $("#rma div.panel").append(ul + "\n");
                 }
             });
     }
@@ -257,14 +257,14 @@
             })
             .then(response => response.json())
             .then(data => {
-                $("#rmn div.panel").empty();
+                $("#idc div.panel").empty();
                 if ("response" in data) {
                     console.log("RESPONSE", data.response);
                     ul = "<ul>" +
                         "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
                         "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
                         "</ul>";
-                    $("#rmn div.panel").append(ul + "\n");
+                    $("#idc div.panel").append(ul + "\n");
                 }
             });
     }
@@ -287,7 +287,23 @@
             })
             .then(response => response.json())
             .then(data => {
-                $("#rmn div.panel").empty();
+                $("#info div.panel").empty();
+
+                if ('errors' in data) {
+                    ul = $("<ul>");
+                    $.each(data.errors, function(key, value) {
+                        ul.append($("<li>", {
+                            text: value.error
+                        }));
+                    });
+
+                    alert = $("<div>", { class: 'alert alert-danger' }).append(ul);
+                    console.log(alert);
+
+                    $("#info div.panel").append(alert);
+                    return false;
+                }
+
                 if ("content" in data) {
                     $("#BrtBolla").remove();
                     $("body #main #content").append(data.content);

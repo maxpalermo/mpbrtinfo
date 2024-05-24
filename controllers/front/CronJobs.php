@@ -473,6 +473,9 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $spedizione_id = $fetch['spedizione_id'];
 
         $bolla = $this->fetchInfoBySpedizioneId($anno, $spedizione_id);
+        if (is_array($bolla) && isset($bolla['error'])) {
+            $this->response(['errors' => $bolla['error']]);
+        }
         $tpl = new TemplateBolla($bolla);
 
         $this->response(['content' => $tpl->display()]);
