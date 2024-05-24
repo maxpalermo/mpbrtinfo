@@ -42,7 +42,7 @@ class BrtOrder
         return $orders;
     }
 
-    public static function getOrdersIdExcludingOrderStates($id_order_states, $limit = 20)
+    public static function getOrdersIdExcludingOrderStates($id_order_states, $orderHistory = [], $limit = 20)
     {
         $db = \Db::getInstance();
         $carriers = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS);
@@ -62,10 +62,38 @@ class BrtOrder
             }
         }
 
+        $id_orders = array_map('intval', $id_order_states);
+        $id_order_history = array_map('intval', $orderHistory);
+
+        $excluded = array_merge($id_orders, $id_order_history);
+
         $sql = 'SELECT `id_order` '
             . 'FROM `' . _DB_PREFIX_ . 'orders` '
-            . 'WHERE `current_state` NOT IN (' . implode(',', array_map('intval', $id_order_states)) . ') '
+            . 'WHERE `current_state` NOT IN (' . implode(',', $excluded) . ') '
             . 'AND `id_carrier` IN (' . $carriers . ') '
+            . 'ORDER BY id_order DESC ';
+        if ($limit) {
+            $sql .= 'LIMIT ' . (int) $limit;
+        }
+        $result = \Db::getInstance()->executeS($sql);
+        $orders = [];
+        foreach ($result as $row) {
+            $orders[] = $row['id_order'];
+        }
+
+        return $orders;
+    }
+
+    public static function getOrdersHistoryIdExcludingOrderStates($id_order_states, $limit = 20)
+    {
+        $db = \Db::getInstance();
+        $id_order_states = array_map('intval', $id_order_states);
+
+        $sql = 'SELECT `id_order`, `id_brt_state`, `id_order_state`, `date_add` '
+            . 'FROM `' . _DB_PREFIX_ . \ModelBrtTrackingNumber::$definition['table'] . '` '
+            . 'WHERE `id_order_state` NOT IN (' . implode(',', $id_order_states) . ') '
+            . 'GROUP BY `id_order` '
+            . 'HAVING `date_add` = MAX(`date_add`) '
             . 'ORDER BY id_order DESC ';
         if ($limit) {
             $sql .= 'LIMIT ' . (int) $limit;

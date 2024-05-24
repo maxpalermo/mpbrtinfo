@@ -19,7 +19,7 @@
  */
 
 namespace MpSoft\MpBrtInfo\Soap;
-use MpSoft\MpBrtInfo\Helpers\BrtParseInfo;
+use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -55,7 +55,14 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
         try {
             $response = $this->exec('BRT_TrackingByBRTshipmentID', ['arg0' => $request]);
             if (isset($response['return'])) {
+                $order_id = \Tools::getValue('order_id', 0);
                 $response = $response['return'];
+                $bolla = BrtParseInfo::parseTrackingInfo($response, \ModelBrtConfig::getEsiti());
+                if ($order_id) {
+                    $bolla->updateState($order_id);
+                }
+
+                return $bolla;
             } else {
                 $this->errors[] = $response;
 
@@ -66,7 +73,5 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
 
             return false;
         }
-
-        return BrtParseInfo::parseTrackingInfo($response, \ModelBrtConfig::getEsiti());
     }
 }

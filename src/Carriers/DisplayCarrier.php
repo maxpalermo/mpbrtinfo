@@ -61,13 +61,30 @@ class DisplayCarrier
         if (!\Validate::isLoadedObject($order)) {
             return $this->displayError();
         }
-        $id_carrier = $order->id_carrier;
-        $carrier = new \Carrier($id_carrier, $this->id_lang);
+        $carrier = new \Carrier($order->id_carrier);
         if (!\Validate::isLoadedObject($carrier)) {
             return $this->displayError();
         }
-        $carrier_name = $carrier->name;
-        $this->tracking = $this->getTracking($id_order, $id_carrier);
+
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('*')
+            ->from(\ModelBrtTrackingNumber::$definition['table'])
+            ->where('id_order=' . (int) $id_order)
+            ->orderBy(\ModelBrtTrackingNumber::$definition['primary'] . ' DESC');
+        $row = $db->getRow($sql);
+        if ($row) {
+            if ($row['tracking_number']) {
+                $tracking = $row['tracking_number'];
+                $id_collo = '';
+            }
+            if ($row['id_collo']) {
+                $tracking = '';
+                $id_collo = $row['id_collo'];
+            }
+        } else {
+            return $this->displayCarrierIcon($id_order, $carrier->id);
+        }
 
         $event_sent = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT));
         $event_delivered = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED));
@@ -77,12 +94,8 @@ class DisplayCarrier
         $event_transit = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT));
         $event_waiting = $this->toArray(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING));
 
-        $current_os = (int) $order->current_state;
+        $current_os = (int) $row['id_order_state'];
         $displayIcon = \ModelBrtConfig::getIcon($current_os);
-
-        if (!$this->isBrtCarrier($id_carrier)) {
-            return $this->displayCarrierIcon($id_order, $id_carrier);
-        }
 
         if (in_array($current_os, $event_delivered)) {
             $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
@@ -100,15 +113,21 @@ class DisplayCarrier
             $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
         }
 
-        $tracking = $this->getTracking($id_order);
+        if ($id_collo) {
+            $tracking = $id_collo;
+        }
+
+        if (!$tracking) {
+            return $this->displayCarrierIcon($id_order, $order->id_carrier);
+        }
 
         $params = [
             'carrier' => [
                 'icon' => $displayIcon,
                 'id_order' => $id_order,
-                'id_carrier' => $id_carrier,
+                'id_carrier' => $carrier->id,
                 'tracking' => $tracking,
-                'name' => $carrier_name,
+                'name' => $carrier->name,
                 'carrier_url' => $carrier->url,
             ],
         ];

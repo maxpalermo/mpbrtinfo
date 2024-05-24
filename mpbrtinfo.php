@@ -24,6 +24,9 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/models/autoload.php';
 
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
+
 if (!defined('_BRTINFO_DIR_')) {
     define('_BRTINFO_DIR_', dirname(__FILE__) . '/');
 }
@@ -234,6 +237,7 @@ class MpBrtInfo extends Module
         $transit = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::TRANSIT);
         $refused = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::REFUSED);
         $waiting = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::WAITING);
+        $error = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::ERROR);
 
         $params = [
             'orders_fermopoint' => $fermopoint,
@@ -241,7 +245,8 @@ class MpBrtInfo extends Module
             'orders_transit' => $transit,
             'orders_refused' => $refused,
             'orders_waiting' => $waiting,
-            'token' => Tools::getAdminTokenLite('AdminDashboard'),
+            'orders_error' => $error,
+            'token' => Tools::getAdminTokenLite('AdminOrders'),
         ];
 
         $smarty = Context::getContext()->smarty;
@@ -434,7 +439,6 @@ class MpBrtInfo extends Module
         $order_states = OrderState::getOrderStates($this->id_lang);
         $carriers = Carrier::getCarriers($this->id_lang);
         $cronJobsClass = $this->context->link->getModuleLink($this->name, 'CronJobs');
-        $ajax_controller = $this->context->link->getAdminLink($this->adminClassName);
 
         foreach ($carriers as &$carrier) {
             $carrier['id_carrier'] = $carrier['name'];
@@ -660,7 +664,7 @@ class MpBrtInfo extends Module
                         'col' => 3,
                         'type' => 'select',
                         'label' => $this->l('Evento errore di spedizione'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_SENT,
+                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR,
                         'desc' => $this->l('Seleziona l\'evento errore di spedizione'),
                         'required' => true,
                         'options' => [
@@ -709,11 +713,11 @@ class MpBrtInfo extends Module
         $tpl = $smarty->fetch($tpl_icons);
 
         $tpl_eventi = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-eventi.tpl';
-        $smarty->assign('eventi', ModelBrtEvento::getEventi());
+        $smarty->assign('eventi', (new AjaxInsertEventiSQL)->getList());
         $tables = $smarty->fetch($tpl_eventi);
 
         $tpl_esiti = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-esiti.tpl';
-        $smarty->assign('esiti', ModelBrtEsito::getEsiti());
+        $smarty->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
         $tables .= $smarty->fetch($tpl_esiti);
 
         return $message . $modal . $tpl . $form . $tables;

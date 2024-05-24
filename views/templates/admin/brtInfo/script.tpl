@@ -78,6 +78,39 @@
         });
     }
 
+    function fetchBrtInfo() {
+        let data = {
+            ajax: true,
+            action: 'fetchInfo'
+        };
+
+        let url = "{$ajax_controller}";
+
+        $("#brt-toolbar-button").find('i').removeClass().addClass('process-icon-loading');
+
+        $.post(url, data, function(response) {
+            console.log(response);
+            console.log(response.logs);
+            console.log(response.errors);
+            $("#brt-toolbar-button").find('i').removeClass().addClass('process-icon-truck');
+            alert("Operazione completata:\n - Spedizioni trovate: " + response.tot_logs + "\n - Spedizioni non trovate: " + response.tot_errors + "\n");
+        });
+    }
+
+    function parseJson(json) {
+        let html = "<ul>";
+        $.each(json, function(key, value) {
+            if (typeof value === 'object') {
+                html += "<li>" + key + ": <strong>" + parseJson(value) + "</strong>\n";
+            } else {
+                html += "<li>" + key + ": <strong>" + value + "</strong>\n";
+            }
+        });
+        html += "</ul>";
+
+        return html;
+    }
+
     $(function() {
         $("#toolbar-nav li:last").after($("<li>").append($("#brt-toolbar-button").detach()));
 
@@ -88,13 +121,12 @@
         });
 
         $("#brt-toolbar-button").on('click', function(evt) {
-            if (confirm("{l s='Cercare le informazioni sulle spedizioni?' mod='mpbrtinfo'}") == false)
-            {
+                if (confirm("{l s='Aggiornare le spedizioni Bartolini?' mod='mpbrtinfo'}") == false) {
                 evt.preventDefault();
                 return false;
             }
 
-            return true;
+            fetchBrtInfo();
         });
     });
 </script>

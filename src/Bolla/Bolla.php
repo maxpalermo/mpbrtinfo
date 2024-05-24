@@ -19,6 +19,7 @@
  */
 
 namespace MpSoft\MpBrtInfo\Bolla;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -58,29 +59,31 @@ class Bolla
     protected $timestamp;
     /** @var string */
     protected $versione;
+    protected static $event_list = [];
 
     public function __construct($bolla)
     {
-        $this->assicurazione = isset($bolla['bolla']['ASSICURAZIONE']) ? new Assicurazione($bolla['bolla']['ASSICURAZIONE']) : null;
-        $this->contrassegno = isset($bolla['bolla']['CONTRASSEGNO']) ? new Contrassegno($bolla['bolla']['CONTRASSEGNO']) : null;
-        $this->dati_consegna = isset($bolla['bolla']['DATI_CONSEGNA']) ? new DatiConsegna($bolla['bolla']['DATI_CONSEGNA']) : null;
-        $this->dati_spedizione = isset($bolla['bolla']['DATI_SPEDIZIONE']) ? new DatiSpedizione($bolla['bolla']['DATI_SPEDIZIONE']) : null;
-        $this->destinatario = isset($bolla['bolla']['DESTINATARIO']) ? new Destinatario($bolla['bolla']['DESTINATARIO']) : null;
-        $this->merce = isset($bolla['bolla']['MERCE']) ? new Merce($bolla['bolla']['MERCE']) : null;
-        $this->mittente = isset($bolla['bolla']['MITTENTE']) ? new Mittente($bolla['bolla']['MITTENTE']) : null;
-        $this->riferimenti = isset($bolla['bolla']['RIFERIMENTI']) ? new Riferimenti($bolla['bolla']['RIFERIMENTI']) : null;
-        $this->contatore_eventi = isset($bolla['contatore eventi']) ? $bolla['contatore eventi'] : 0;
-        $this->contatore_note = isset($bolla['contatore note']) ? $bolla['contatore note'] : 0;
-        $this->esito = isset($bolla['esito']) ? $bolla['esito'] : -99;
-        $this->esito_desc = isset($bolla['esito desc']) ? $bolla['esito desc'] : '';
-        $this->timestamp = isset($bolla['timestamp']) ? $bolla['timestamp'] : '';
-        $this->versione = isset($bolla['versione']) ? $bolla['versione'] : '';
-        if (isset($bolla['eventi'])) {
-            $this->addEventi($bolla['eventi']);
+        $this->assicurazione = isset($bolla['BOLLA']['ASSICURAZIONE']) ? new Assicurazione($bolla['BOLLA']['ASSICURAZIONE']) : null;
+        $this->contrassegno = isset($bolla['BOLLA']['CONTRASSEGNO']) ? new Contrassegno($bolla['BOLLA']['CONTRASSEGNO']) : null;
+        $this->dati_consegna = isset($bolla['BOLLA']['DATI_CONSEGNA']) ? new DatiConsegna($bolla['BOLLA']['DATI_CONSEGNA']) : null;
+        $this->dati_spedizione = isset($bolla['BOLLA']['DATI_SPEDIZIONE']) ? new DatiSpedizione($bolla['BOLLA']['DATI_SPEDIZIONE']) : NULL;
+        $this->destinatario = ISSET($Bolla['BOLLA']['DESTINATARIO']) ? new Destinatario($bolla['BOLLA']['DESTINATARIO']) : null;
+        $this->merce = isset($bolla['BOLLA']['MERCE']) ? new Merce($bolla['BOLLA']['MERCE']) : null;
+        $this->mittente = isset($bolla['BOLLA']['MITTENTE']) ? new Mittente($bolla['BOLLA']['MITTENTE']) : null;
+        $this->riferimenti = isset($bolla['BOLLA']['RIFERIMENTI']) ? new Riferimenti($bolla['BOLLA']['RIFERIMENTI']) : null;
+        $this->contatore_eventi = isset($bolla['CONTATORE EVENTI']) ? $bolla['CONTATORE EVENTI'] : 0;
+        $this->contatore_note = isset($bolla['CONTATORE_NOTE']) ? $bolla['CONTATORE_NOTE'] : 0;
+        $this->esito = isset($bolla['ESITO']) ? $bolla['ESITO'] : -99;
+        $this->esito_desc = isset($bolla['ESITO_DESC']) ? $bolla['ESITO_DESC'] : '';
+        $this->timestamp = isset($bolla['TIMESTAMP']) ? $bolla['TIMESTAMP'] : '';
+        $this->versione = isset($bolla['VERSIONE']) ? $bolla['VERSIONE'] : '';
+        if (isset($bolla['LISTA_EVENTI'])) {
+            $this->addEventi($bolla['LISTA_EVENTI']);
         }
-        if (isset($bolla['note'])) {
-            $this->addNote($bolla['note']);
+        if (isset($bolla['NOTE'])) {
+            $this->addNote($bolla['NOTE']);
         }
+        self::$event_list = (new AjaxInsertEventiSQL())->getList();
     }
 
     // Getter methods
@@ -285,53 +288,71 @@ class Bolla
         return $evento->getColor();
     }
 
+    public function updateState($id_order)
+    {
+        $evento = $this->getLastEvent();
+        $rmn = $this->getRiferimenti()->getRiferimentoMittenteNumerico();
+        $id_collo = $this->getDatiSpedizione()->getSpedizioneId();
+        self::changeIdOrderState($id_order, $evento, $rmn, $id_collo);
+    }
+
     public static function changeIdOrderState(int $id_order, Evento $evento, $rmn, $id_collo)
     {
-        $id_state_sent = \Configuration::get('MP_BRT_INFO_EVENT_SENT');
-        $id_state_transit = \Configuration::get('MP_BRT_INFO_EVENT_TRANSIT');
-        $id_state_waiting = \Configuration::get('MP_BRT_INFO_EVENT_WAITING');
-        $id_state_delivered = \Configuration::get('MP_BRT_INFO_EVENT_DELIVERED');
-        $id_state_error = \Configuration::get('MP_BRT_INFO_EVENT_ERROR');
-        $id_state_fermopoint = \Configuration::get('MP_BRT_INFO_EVENT_FERMOPOINT');
-        $id_state_refused = \Configuration::get('MP_BRT_INFO_EVENT_REFUSED');
+        $id_state_sent = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+        $id_state_transit = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
+        $id_state_waiting = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
+        $id_state_delivered = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        $id_state_error = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
+        $id_state_fermopoint = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
+        $id_state_refused = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
         $id_order_state = 0;
         $order_state = '';
+        $event_list = self::$event_list;
 
         if ($evento->isSent()) {
             $id_order_state = $id_state_sent;
-            $order_state = \ModelBrtTrackingNumber::SENT;
         } elseif ($evento->isTransit()) {
             $id_order_state = $id_state_transit;
-            $order_state = \ModelBrtTrackingNumber::TRANSIT;
         } elseif ($evento->isWaiting() && $evento->isFermopoint()) {
             $id_order_state = $id_state_fermopoint;
-            $order_state = \ModelBrtTrackingNumber::FERMOPOINT;
         } elseif ($evento->isDelivered() && $evento->isFermopoint()) {
             $id_order_state = $id_state_delivered;
-            $order_state = \ModelBrtTrackingNumber::DELIVERED;
         } elseif ($evento->isWaiting()) {
             $id_order_state = $id_state_waiting;
-            $order_state = \ModelBrtTrackingNumber::WAITING;
         } elseif ($evento->isDelivered()) {
             $id_order_state = $id_state_delivered;
-            $order_state = \ModelBrtTrackingNumber::DELIVERED;
         } elseif ($evento->isError()) {
             $id_order_state = $id_state_error;
-            $order_state = \ModelBrtTrackingNumber::ERROR;
         } elseif ($evento->isFermopoint()) {
             $id_order_state = $id_state_fermopoint;
-            $order_state = \ModelBrtTrackingNumber::FERMOPOINT;
         } elseif ($evento->isRefused()) {
             $id_order_state = $id_state_refused;
-            $order_state = \ModelBrtTrackingNumber::REFUSED;
         } else {
             $id_order_state = 0;
-            $order_state = '';
         }
 
         if ($id_order_state == 0) {
             return false;
         }
+
+        $order_state = $event_list[$evento->getId()] ?? '';
+        $last_brt_state = \ModelBrtTrackingNumber::getLastState($id_order);
+
+        if ($last_brt_state && $last_brt_state == $order_state['id_evento']) {
+            return false;
+        }
+
+        $model = new \ModelBrtTrackingNumber();
+        $model->id_order = $id_order;
+        $model->id_order_state = $id_order_state;
+        $model->id_brt_state = $order_state['id_evento'];
+        $model->tracking_number = '';
+        $model->rmn = $rmn;
+        $model->id_collo = $id_collo;
+        $model->current_state = $order_state['name'];
+        $model->anno_spedizione = date('Y', strtotime($evento->getData() . ' ' . $evento->getOra()));
+        $model->date_add = date('Y-m-d H:i:s');
+        $model->add();
 
         $order = new \Order($id_order);
         $current_state = $order->getCurrentState();
@@ -340,18 +361,6 @@ class Bolla
         }
 
         $order->setCurrentState($id_order_state);
-
-        $model = new \ModelBrtTrackingNumber();
-        $model->id_order = $id_order;
-        $model->id_order_state = $id_order_state;
-        $model->id_brt_state = $evento->getId();
-        $model->tracking_number = '';
-        $model->rmn = $rmn;
-        $model->id_collo = $id_collo;
-        $model->current_state = $order_state;
-        $model->anno_spedizione = date('Y', strtotime($evento->getData() . ' ' . $evento->getOra()));
-        $model->date_add = date('Y-m-d H:i:s');
-        $model->add();
 
         return sprintf('Ordine %s: stato cambiato da %s a %s', $id_order, $current_state, $id_order_state);
     }

@@ -18,9 +18,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-namespace MpSoft\MpBrtInfo\Helpers;
-
-use MpSoft\MpBrtInfo\Bolla\Bolla;
+namespace MpSoft\MpBrtInfo\Bolla;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -39,8 +37,8 @@ class BrtParseInfo
         $esito_desc = '';
         if ($esito == -99) {
             return [
-                'esito' => -99,
-                'esito_desc' => 'Errore di comunicazione con il server BRT',
+                'ESITO' => -99,
+                'ESITO_DESC' => 'Errore di comunicazione con il server BRT',
             ];
         }
         if (isset($esiti[$esito])) {
@@ -52,8 +50,8 @@ class BrtParseInfo
         $eventi = isset($tracking['LISTA_EVENTI']) ? $tracking['LISTA_EVENTI'] : [];
         if (!$eventi) {
             return [
-                'esito' => -98,
-                'esito_desc' => 'Errore di comunicazione con il server BRT: Nessun evento inviato',
+                'ESITO' => -98,
+                'ESITO_DESC' => 'Errore di comunicazione con il server BRT: Nessun evento inviato',
             ];
         }
         $eventi = array_splice($eventi, 0, $contatore_eventi);
@@ -61,8 +59,8 @@ class BrtParseInfo
         $note = isset($tracking['LISTA_NOTE']) ? $tracking['LISTA_NOTE'] : [];
         if (!$note) {
             return [
-                'esito' => -97,
-                'esito_desc' => 'Errore di comunicazione con il server BRT: Nessuna nota inviata',
+                'ESITO' => -97,
+                'ESITO_DESC' => 'Errore di comunicazione con il server BRT: Nessuna nota inviata',
             ];
         }
         $note = array_splice($note, 0, $contatore_note);
@@ -72,20 +70,20 @@ class BrtParseInfo
 
         if ($esito == 0) {
             $info = [
-                'bolla' => $bolla,
-                'contatore_eventi' => $contatore_eventi,
-                'contatore_note' => $contatore_note,
-                'esito' => $esito,
-                'esito_desc' => $esito_desc,
-                'eventi' => $eventi,
-                'note' => $note,
-                'timestamp' => $timestamp,
-                'versione' => $versione,
+                'BOLLA' => $bolla,
+                'CONTATORE EVENTI' => $contatore_eventi,
+                'CONTATORE NOTE' => $contatore_note,
+                'ESITO' => $esito,
+                'ESITO_DESC' => $esito_desc,
+                'LISTA_EVENTI' => $eventi,
+                'NOTE' => $note,
+                'TIMESTAMP' => $timestamp,
+                'VERSIONE' => $versione,
             ];
         } else {
             $info = [
-                'esito' => $esito,
-                'esito_desc' => $esito_desc,
+                'ESITO' => $esito,
+                'ESITO_DESC' => $esito_desc,
             ];
         }
 

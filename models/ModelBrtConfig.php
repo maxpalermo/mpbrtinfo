@@ -48,12 +48,12 @@ class ModelBrtConfig extends ConfigurationCore
 
     public static function getCheckEvents()
     {
-        $transit = self::getConfigValue(self::MP_BRT_INFO_EVENT_TRANSIT, true);
-        $error = self::getConfigValue(self::MP_BRT_INFO_EVENT_ERROR, true);
-        $fermopoint = self::getConfigValue(self::MP_BRT_INFO_EVENT_FERMOPOINT, true);
-        $refused = self::getConfigValue(self::MP_BRT_INFO_EVENT_REFUSED, true);
-        $waiting = self::getConfigValue(self::MP_BRT_INFO_EVENT_WAITING, true);
-        $sent = self::getConfigValue(self::MP_BRT_INFO_EVENT_SENT, true);
+        $transit = self::getConfigValue(self::MP_BRT_INFO_EVENT_TRANSIT);
+        $error = self::getConfigValue(self::MP_BRT_INFO_EVENT_ERROR);
+        $fermopoint = self::getConfigValue(self::MP_BRT_INFO_EVENT_FERMOPOINT);
+        $refused = self::getConfigValue(self::MP_BRT_INFO_EVENT_REFUSED);
+        $waiting = self::getConfigValue(self::MP_BRT_INFO_EVENT_WAITING);
+        $sent = self::getConfigValue(self::MP_BRT_INFO_EVENT_SENT);
         $events = array_merge($transit, $error, $fermopoint, $refused, $waiting, $sent);
 
         return $events;

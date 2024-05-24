@@ -1,5 +1,6 @@
 <?php
-use MpSoft\MpBrtInfo\Bolla\TemplateBolla;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSOAP;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSOAP;
 
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
@@ -23,9 +24,10 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
+use MpSoft\MpBrtInfo\Bolla\TemplateBolla;
 use MpSoft\MpBrtInfo\Brt\BrtGetSoapTracking;
 use MpSoft\MpBrtInfo\Helpers\BrtOrder;
-use MpSoft\MpBrtInfo\Helpers\BrtParseInfo;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEsiti;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEventi;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByIdCollo;
@@ -67,8 +69,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         $this->esiti = \ModelBrtConfig::getEsiti();
 
-        $post_json = file_get_contents('php://input');
-        $sessionJSON = json_decode($post_json, true);
+        $sessionJSON = $this->getJsonFetch();
         if (isset($sessionJSON['action']) && isset($sessionJSON['ajax'])) {
             $action = 'displayAjax' . ucfirst($sessionJSON['action']);
             if (method_exists($this, $action)) {
@@ -360,15 +361,30 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     public function displayAjaxFetchInfo()
     {
         $id_order_state_delivered = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED), true);
-        $log = '';
-        $errors = [];
-        $esiti = ModelBrtEsito::getEsiti();
 
         if (!is_array($id_order_state_delivered)) {
             $id_order_state_delivered = [$id_order_state_delivered];
         }
 
-        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
+        $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
+        $response = $this->fetchOrders($orderHistory);
+        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
+        $response = array_merge($response, $this->fetchOrders($orders));
+
+        $this->response([
+            'logs' => $response['logs'],
+            'errors' => $response['errors'],
+            'tot_logs' => count($response['logs']),
+            'tot_errors' => count($response['errors']),
+        ]);
+    }
+
+    protected function fetchOrders($orders)
+    {
+        $esiti = ModelBrtEsito::getEsiti();
+        $errors = [];
+        $logs = [];
+
         foreach ($orders as $id_order) {
             $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
             if (!$tracking) {
@@ -397,10 +413,6 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
                 if ($esito['esito'] == 0) {
                     $tracking = $esito['spedizione_id'];
-                    ModelBrtTrackingNumber::setAsSent($id_order, $tracking);
-                    if ($tracking) {
-                        $log .= sprintf('Ordine %s: Tracking ricevuto - %s', $id_order, $tracking) . "\n";
-                    }
                 } else {
                     $tracking = '';
                     $esito = $esiti[$esito['esito']];
@@ -428,15 +440,18 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                 if ($last_event) {
                     $res = $info::changeIdOrderState($id_order, $last_event, $rmn, $id_collo);
                     if ($res) {
-                        $log .= $res . "\n";
+                        $logs[] = $res;
                     }
                 }
             } else {
-                $log .= sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s', $id_order, $tracking, $esito) . "\n";
+                $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s', $id_order, $tracking, $esito);
             }
         }
 
-        $this->response(['log' => $log, 'errors' => json_encode($errors)]);
+        return [
+            'logs' => $logs,
+            'errors' => $errors,
+        ];
     }
 
     public function fetchInfoBySpedizioneId($anno, $spedizione_id)
@@ -479,5 +494,25 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $tpl = new TemplateBolla($bolla);
 
         $this->response(['content' => $tpl->display()]);
+    }
+
+    public function displayAjaxInsertEventiSQL()
+    {
+    }
+
+    public function displayAjaxInsertEsitiSQL()
+    {
+    }
+
+    public function displayAjaxInsertEventiSOAP()
+    {
+        $class = new AjaxInsertEventiSOAP();
+        $this->response(['eventi' => $class->insert()]);
+    }
+
+    public function displayAjaxInsertEsitiSOAP()
+    {
+        $class = new AjaxInsertEsitiSOAP();
+        $this->response(['esiti' => $class->insert()]);
     }
 }

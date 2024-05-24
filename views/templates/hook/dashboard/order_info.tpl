@@ -1,5 +1,13 @@
 {assign  var=currency  value=Context::getContext()->currency}
 
+<style>
+    .bg-white {
+        background-color: #fff !important;
+        color: #303030 !important;
+        border: 1px solid #303030;
+    }
+</style>
+
 <section id="dashorderbrt" class="panel widget  allow_push loading">
     <header class="panel-heading">
         <i class="icon-truck"></i> Elenco Stato ordini BRT
@@ -167,26 +175,38 @@
             <ul class="nav nav-pills">
                 <li class="active">
                     <a href="#dash_order_brt_fermopoint" data-toggle="tab">
-                        <i class="icon-map-marker"></i>
-                        <span class="hidden-inline-xs">Ordini al Fermopoint <span class="badge badge-pill badge-info">{count($orders_fermopoint)}</span></span>
+                        <i class="icon-map-marker text-info"></i>
+                        <span class="hidden-inline-xs">Fermopoint <span class="badge badge-pill bg-white">{count($orders_fermopoint)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_delivered" data-toggle="tab">
-                        <i class="icon-home"></i>
-                        <span class="hidden-inline-xs">Ordini consegnati <span class="badge badge-pill badge-info">{count($orders_delivered)}</span></span>
+                        <i class="icon-home text-success"></i>
+                        <span class="hidden-inline-xs">Consegnati <span class="badge badge-pill bg-white">{count($orders_delivered)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_transit" data-toggle="tab">
-                        <i class="icon-truck"></i>
-                        <span class="hidden-inline-xs">Ordini in transito <span class="badge badge-pill badge-info">{count($orders_transit)}</span></span>
+                        <i class="icon-truck text-info"></i>
+                        <span class="hidden-inline-xs">In Transito <span class="badge badge-pill bg-white">{count($orders_transit)}</span></span>
                     </a>
                 </li>
                 <li>
                     <a href="#dash_order_brt_refused" data-toggle="tab">
-                        <i class="icon-ban"></i>
-                        <span class="hidden-inline-xs">Ordini rifiutati <span class="badge badge-pill badge-info">{count($orders_refused)}</span></span>
+                        <i class="icon-ban text-danger"></i>
+                        <span class="hidden-inline-xs">Rifiutati <span class="badge badge-pill bg-white">{count($orders_refused)}</span></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#dash_order_brt_waiting" data-toggle="tab">
+                        <i class="icon-flag text-warning"></i>
+                        <span class="hidden-inline-xs">In Giacenza <span class="badge badge-pill bg-white">{count($orders_waiting)}</span></span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#dash_order_brt_error" data-toggle="tab">
+                        <i class="icon-exclamation-circle text-danger"></i>
+                        <span class="hidden-inline-xs">Errore di spedizione <span class="badge badge-pill bg-white">{count($orders_error)}</span></span>
                     </a>
                 </li>
             </ul>
@@ -216,7 +236,7 @@
                                     <td class="text-left">{$row.customer}</td>
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
-                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
                                     <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
@@ -249,7 +269,7 @@
                                     <td class="text-left">{$row.customer}</td>
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
-                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
                                     <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
@@ -282,7 +302,7 @@
                                     <td class="text-left">{$row.customer}</td>
                                     <td class="text-left">{$row.email}</td>
                                     <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
-                                    <td class="text-center"><strong>{$row.order_state}</strong></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
                                     <td class="text-center">{$row.tracking_number}</td>
                                     <td class="text-center">{$row.date_add}</td>
                                     <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
@@ -295,32 +315,100 @@
             <div class="tab-pane" id="dash_order_brt_refused">
                 <h3>Ordini Brt Rifiutati</h3>
                 <div class="table-responsive">
-                    <thead>
-                        <tr>
-                            <th class="text-left">Id Ordine</th>
-                            <th class="text-left">Cliente</th>
-                            <th class="text-left">Email</th>
-                            <th class="text-right">Totale</th>
-                            <th class="text-center">Stato Ordine</th>
-                            <th class="text-center">Tracking</th>
-                            <th class="text-center">Data</th>
-                            <th class="text-right"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {foreach $orders_refused as $row}
+                    <table class="table data_table" id="table_order_brt_refused">
+                        <thead>
                             <tr>
-                                <td class="text-left">{$row.id_order}</td>
-                                <td class="text-left">{$row.customer}</td>
-                                <td class="text-left">{$row.email}</td>
-                                <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
-                                <td class="text-center"><strong>{$row.order_state}</strong></td>
-                                <td class="text-center">{$row.tracking_number}</td>
-                                <td class="text-center">{$row.date_add}</td>
-                                <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                <th class="text-left">Id Ordine</th>
+                                <th class="text-left">Cliente</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
+                                <th class="text-center">Data</th>
+                                <th class="text-right"></th>
                             </tr>
-                        {/foreach}
-                    </tbody>
+                        </thead>
+                        <tbody>
+                            {foreach $orders_refused as $row}
+                                <tr>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                </tr>
+                            {/foreach}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane" id="dash_order_brt_waiting">
+                <h3>Ordini Brt In Giacenza</h3>
+                <div class="table-responsive">
+                    <table class="table data_table" id="table_order_brt_error">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Id Ordine</th>
+                                <th class="text-left">Cliente</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
+                                <th class="text-center">Data</th>
+                                <th class="text-right"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {foreach $orders_waiting as $row}
+                                <tr>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                </tr>
+                            {/foreach}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane" id="dash_order_brt_error">
+                <h3>Ordini Brt In Errore</h3>
+                <div class="table-responsive">
+                    <table class="table data_table" id="table_order_brt_error">
+                        <thead>
+                            <tr>
+                                <th class="text-left">Id Ordine</th>
+                                <th class="text-left">Cliente</th>
+                                <th class="text-left">Email</th>
+                                <th class="text-right">Totale</th>
+                                <th class="text-center">Stato Ordine</th>
+                                <th class="text-center">Tracking</th>
+                                <th class="text-center">Data</th>
+                                <th class="text-right"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {foreach $orders_error as $row}
+                                <tr>
+                                    <td class="text-left">{$row.id_order}</td>
+                                    <td class="text-left">{$row.customer}</td>
+                                    <td class="text-left">{$row.email}</td>
+                                    <td class="text-right"><span class="badge badge-pill badge-success">{Tools::displayPrice($row.total_paid_tax_incl)}</span></td>
+                                    <td class="text-center"><strong>{$row.evento}</strong></td>
+                                    <td class="text-center">{$row.tracking_number}</td>
+                                    <td class="text-center">{$row.date_add}</td>
+                                    <td class="text-center"> <a class="btn btn-default" href="index.php?tab=AdminOrders&amp;id_order={$row.id_order}&amp;vieworder&amp;token={$token}" title="Dettagli"><i class="icon-search"></i> </a></td>
+                                </tr>
+                            {/foreach}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

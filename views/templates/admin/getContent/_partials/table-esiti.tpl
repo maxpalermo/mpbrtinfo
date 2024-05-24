@@ -53,13 +53,11 @@
         </table>
     </div>
     <div class="panel-footer">
-        <a class="btn btn-default pull-right" href="{$url_sql_esiti}"
-            title="{l s='Insert Esiti from Sql file' mod='mpbrtinfo'}">
+        <a class="btn btn-default pull-right" href="javascript:insertEsitiSQL();" title="{l s='Insert Esiti from Sql file' mod='mpbrtinfo'}">
             <i class="process-icon-download"></i>
             <span>{l s='Insert SQL' mod='mpbrtinfo'}</span>
         </a>
-        <a class="btn btn-default pull-right" href="{$url_soap_esiti}"
-            title="{l s='Import Esiti from Brt Database' mod='mpbrtinfo'}">
+        <a class="btn btn-default pull-right" href="javascript:insertEsitiSOAP();" title="{l s='Import Esiti from Brt Database' mod='mpbrtinfo'}">
             <i class="process-icon-database"></i>
             <span>{l s='Insert SOAP' mod='mpbrtinfo'}</span>
         </a>
@@ -67,6 +65,50 @@
 </div>
 
 <script type="text/javascript">
+    async function insertEsitiSQL() {
+        esiti = await fetch(ajax_controller, {
+                method: 'POST',
+                headers: new Headers({
+                    'Content-Type': 'application/json; charset=UTF-8'
+                }),
+                body: JSON.stringify({
+                    ajax: 1,
+                    action: 'insertEsitiSQL',
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if ("inserted" in data) {
+                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi eventi.");
+                }
+                if ("error" in data && data.error.length > 0) {
+                    alert("Errori durante l'inserimento: " + data.errors.length);
+                }
+            });
+    }
+
+    async function insertEsitiSOAP() {
+        esiti = await fetch(ajax_controller, {
+                method: 'POST',
+                headers: new Headers({
+                    'Content-Type': 'application/json; charset=UTF-8'
+                }),
+                body: JSON.stringify({
+                    ajax: 1,
+                    action: 'insertEsitiSQL',
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if ("inserted" in data) {
+                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi esiti.");
+                }
+                if ("error" in data && data.error.length > 0) {
+                    alert("Errori durante l'inserimento: " + data.errors.length);
+                }
+            });
+    }
+
     function updateEsiti() {
         let tr = $('#table-esiti tbody tr');
         let rows = [];

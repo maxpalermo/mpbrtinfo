@@ -39,9 +39,10 @@
                 </tr>
             </thead>
             <tbody>
-                {foreach $eventi as $key => $evento}
+                {assign var="counter" value=1}
+                {foreach $eventi as $evento}
                     <tr>
-                        <td><span class="badge badge-info">{$key+1}</span></td>
+                        <td><span class="badge badge-info">{$counter++}</span></td>
                         <td>{$evento.id_mpbrtinfo_evento}</td>
                         <td>{$evento.id_evento}</td>
                         <td>{$evento.name}</td>
@@ -79,22 +80,66 @@
         </table>
     </div>
     <div class="panel-footer">
-        <a class="btn btn-default pull-right" href="{$url_sql_eventi}" title="{l s='Insert Eventi from Sql file' mod='mpbrtinfo'}">
+        <a class="btn btn-default pull-right ml-4" href="javascript:updateEventi();" title="{l s='Update Eventi' mod='mpbrtinfo'}">
+            <i class="process-icon-save"></i>
+            <span>{l s='Update' mod='mpbrtinfo'}</span>
+        </a>
+        <a class="btn btn-default pull-right mr-4" href="javascript:insertEventiSQL();" title="{l s='Insert Eventi from Sql file' mod='mpbrtinfo'}">
             <i class="process-icon-download"></i>
             <span>{l s='Insert SQL' mod='mpbrtinfo'}</span>
         </a>
-        <a class="btn btn-default pull-right" href="{$url_soap_eventi}" title="{l s='Import Eventi from Brt Database' mod='mpbrtinfo'}">
+        <a class="btn btn-default pull-right" href="javascript:insertEventiSOAP();" title="{l s='Import Eventi from Brt Database' mod='mpbrtinfo'}">
             <i class="process-icon-database"></i>
             <span>{l s='Insert SOAP' mod='mpbrtinfo'}</span>
-        </a>
-        <a class="btn btn-default pull-right" href="javascript:updateEventi();" title="{l s='Update Eventi' mod='mpbrtinfo'}">
-            <i class="process-icon-save"></i>
-            <span>{l s='Update' mod='mpbrtinfo'}</span>
         </a>
     </div>
 </div>
 
 <script type="text/javascript">
+    async function insertEventiSQL() {
+        eventi = await fetch(ajax_controller, {
+                method: 'POST',
+                headers: new Headers({
+                    'Content-Type': 'application/json; charset=UTF-8'
+                }),
+                body: JSON.stringify({
+                    ajax: 1,
+                    action: 'insertEventiSQL',
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if ("inserted" in data) {
+                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi eventi.");
+                }
+                if ("error" in data && data.error.length > 0) {
+                    alert("Errori durante l'inserimento: " + data.errors.length);
+                }
+            });
+    }
+
+    async function insertEventiSOAP() {
+        eventi = await fetch(ajax_controller, {
+                method: 'POST',
+                headers: new Headers({
+                    'Content-Type': 'application/json; charset=UTF-8'
+                }),
+                body: JSON.stringify({
+                    ajax: 1,
+                    action: 'insertEventiSOAP',
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if ("inserted" in data) {
+                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi eventi.");
+                }
+                if ("error" in data && data.error.length > 0) {
+                    alert("Errori durante l'inserimento: " + data.errors.length);
+                }
+            });
+    }
+
     async function updateEventi() {
         eventi = await fetch(ajax_controller, {
                 method: 'POST',

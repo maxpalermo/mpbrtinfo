@@ -25,9 +25,9 @@ class ModelBrtEvento extends ObjectModel
     const EVENT_TRANSIT = 'is_transit=1';
     const EVENT_DELIVERED = 'is_delivered=1';
     const EVENT_ERROR = 'is_error=1';
-    const EVENT_FERMOPOINT = 'is_fermopoint=1';
+    const EVENT_FERMOPOINT = 'is_fermopoint=1 and is_delivered=0';
     const EVENT_REFUSED = 'is_refused=1';
-    const EVENT_WAITING = 'is_waiting=1';
+    const EVENT_WAITING = 'is_waiting=1 and is_fermopoint=0';
     const EVENT_SENT = 'is_sent=1';
 
     public $id_evento;
@@ -166,6 +166,28 @@ class ModelBrtEvento extends ObjectModel
         return $rows;
     }
 
+    public static function getOrderStatesByBrtState($brtState)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from(self::$definition['table'])
+            ->where($brtState)
+            ->orderBy('name');
+        $rows = $db->executeS($sql);
+
+        if ($rows) {
+            $id_states = array_column($rows, 'id_evento');
+            $id_states = array_map(function ($item) {
+                return "'" . pSQL($item) . "'";
+            }, $id_states);
+
+            return $id_states;
+        }
+
+        return [];
+    }
+
     public static function getById($id)
     {
         $db = Db::getInstance();
@@ -217,79 +239,5 @@ class ModelBrtEvento extends ObjectModel
             ],
             self::$definition['primary'] . '=' . (int) $this->id
         );
-    }
-
-    public static function setConfigValue($evento, $value)
-    {
-        $config = 'MP_BRT_INFO_';
-        switch ($evento) {
-            case self::EVENT_DELIVERED:
-                $config .= 'DELIVERED';
-            case self::EVENT_ERROR:
-                $config .= 'ERROR';
-            case self::EVENT_FERMOPOINT:
-                $config .= 'FERMOPOINT';
-            case self::EVENT_REFUSED:
-                $config .= 'REFUSED';
-            case self::EVENT_TRANSIT:
-                $config .= 'TRANSIT';
-            case self::EVENT_WAITING:
-                $config .= 'WAITING';
-            default:
-                $config .= 'UNKNOWN';
-        }
-
-        Configuration::updateValue($config, $value);
-    }
-
-    public static function getConfigValue($evento)
-    {
-        $config = 'MP_BRT_INFO_';
-        switch ($evento) {
-            case self::EVENT_DELIVERED:
-                $config .= 'DELIVERED';
-            case self::EVENT_ERROR:
-                $config .= 'ERROR';
-            case self::EVENT_FERMOPOINT:
-                $config .= 'FERMOPOINT';
-            case self::EVENT_REFUSED:
-                $config .= 'REFUSED';
-            case self::EVENT_TRANSIT:
-                $config .= 'TRANSIT';
-            case self::EVENT_WAITING:
-                $config .= 'WAITING';
-            default:
-                $config .= 'UNKNOWN';
-        }
-
-        Configuration::get($config);
-    }
-
-    public static function getOrderStateByIdEvento($id_evento)
-    {
-        $evento = ModelBrtEvento::getById($id_evento);
-        if ($evento->isSent()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_SENT);
-        }
-        if ($evento->isWaiting()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_WAITING);
-        }
-        if ($evento->isError()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_ERROR);
-        }
-        if ($evento->isRefused()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_REFUSED);
-        }
-        if ($evento->isTransit()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_TRANSIT);
-        }
-        if ($evento->isDelivered()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_DELIVERED);
-        }
-        if ($evento->isFermopoint()) {
-            return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_FERMOPOINT);
-        }
-
-        return ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_EVENT_UNKNOWN);
     }
 }
