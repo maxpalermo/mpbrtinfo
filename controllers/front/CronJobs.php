@@ -41,7 +41,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     public $name;
     protected $esiti;
 
-    const FETCH_LIMIT = 150;
+    const FETCH_LIMIT = 300;
 
     protected function getJsonFetch()
     {
@@ -535,7 +535,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
         $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
 
-        $totalShippings = array_merge($orderHistory, $orders);
+        $totalShippings = array_merge($orders, $orderHistory);
         if (empty($totalShippings)) {
             $this->response([
                 'status' => 'success',

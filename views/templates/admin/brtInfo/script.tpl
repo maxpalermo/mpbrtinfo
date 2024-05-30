@@ -18,8 +18,11 @@
  *}
 
 <script type="text/javascript">
-    var ajax_controller = "{$ajax_controller}";
+    const ajax_controller = "{$ajax_controller}";
     const modalfetchBrt = $("#ModalFetchBrt");
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     var current_target = null;
     var current_id_order = 0;
     var current_id_carrier = 0;
@@ -108,11 +111,12 @@
         };
 
         const fetchShippingsInfo = async (shipments_id) => {
+            var current_processed = 0;
+            var total_shipments = shipments_id.length;
+            const CHUNK_SIZE = 10;
 
             do {
-                var current_processed = 0;
-
-                let chunk = shipments_id.splice(0, 10);
+                let chunk = shipments_id.splice(0, CHUNK_SIZE);
 
                 let data = {
                     ajax: true,
@@ -125,7 +129,8 @@
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(data)
+                        body: JSON.stringify(data),
+                        signal: signal
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -134,7 +139,7 @@
 
                 if (response.status == 'success') {
                     current_processed += chunk.length;
-                    let percProgress = Math.round((current_processed / total_shippings.length) * 100);
+                    let percProgress = Math.round((current_processed / total_shipments) * 100);
 
                     $(modalfetchBrt).find('#progressFetchInfo .progress-bar')
                         .css("width", percProgress + "%")
@@ -144,7 +149,7 @@
 
                     $(modalfetchBrt)
                         .find(".modal-body #progressText")
-                        .html("<p>Processate " + current_processed + "/" + total_shippings.length + " spedizioni.</p><p>Spedizioni BRT cambiate: " + response.order_changed + "/" + response.processed + ".</p>");
+                        .html("<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p><p>Spedizioni BRT cambiate: " + response.order_changed + "/" + response.processed + ".</p>");
                 } else {
                     $(modalfetchBrt).find(".modal-body").append(
                         $("<div>").addClass('alert alert-danger').html("Errore durante il recupero delle spedizioni.")
@@ -152,19 +157,10 @@
                     return false;
                 }
 
-            } while (shipments_id.length > 0);
+            }
+            while (shipments_id.length > 0);
 
-            return await fetch(ajax_controller, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    return data;
-                });
+            return true;
         };
 
         const shipment_ids = await fetchTotalShippings();
@@ -176,7 +172,18 @@
             return false
         }
 
-        const response = await fetchShippingsInfo(shipment_ids);
+        const response = await fetchShippingsInfo(shipment_ids)
+            .catch(error => {
+                console.log("FETCH ERROR: ", "NAME", error.name, "MESSAGE", error.message);
+                if (error.name === 'AbortError') {
+                    alert("Operazione annullata.");
+                } else {
+                    alert("Errore durante il recupero delle spedizioni.\n" + error.message);
+                }
+            })
+            .finally(() => {
+                console.log("Operazione completata.");
+            });
 
         if (response === false) {
             $(modalfetchBrt).find(".modal-body").html(
@@ -225,6 +232,10 @@
 
     $(function() {
         $('body #content.bootstrap').append($("#ModalFetchBrt").detach());
+
+        $("#ModalFetchBrt").on("hide.bs.modal", function() {
+            controller.abort();
+        });
 
         $(".brt-info-button").on("click", function() {
             let tracking = $(this).data('tracking');

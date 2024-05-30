@@ -62,7 +62,14 @@ class BrtOrder
             }
         }
 
-        $id_orders = array_map('intval', $id_order_states);
+        $query = 'SELECT id_order FROM `' . _DB_PREFIX_ . 'orders` WHERE `current_state` IN (' . implode(',', $id_order_states) . ') ORDER BY id_order';
+        $result = $db->executeS($query);
+        if ($result) {
+            $id_orders = array_column($result, 'id_order');
+        } else {
+            $id_orders = [];
+        }
+
         $id_order_history = array_map('intval', $orderHistory);
 
         $excluded = array_merge($id_orders, $id_order_history);
@@ -76,9 +83,10 @@ class BrtOrder
             $sql .= 'LIMIT ' . (int) $limit;
         }
         $result = \Db::getInstance()->executeS($sql);
-        $orders = [];
-        foreach ($result as $row) {
-            $orders[] = $row['id_order'];
+        if ($result) {
+            $orders = array_column($result, 'id_order');
+        } else {
+            $orders = [];
         }
 
         return $orders;

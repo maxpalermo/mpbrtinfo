@@ -262,7 +262,7 @@ class MpBrtInfo extends Module
 
     public function hookDisplayDashboardToolbarTopMenu($params)
     {
-        if (Tools::strtolower($this->context->controller->controller_name) == 'adminorders') {
+        if (Tools::strtolower($this->context->controller->controller_name) == 'adminorders' && !Tools::getValue('id_order')) {
             $tpl = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
             $smarty = $this->context->smarty;
             $smarty->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
