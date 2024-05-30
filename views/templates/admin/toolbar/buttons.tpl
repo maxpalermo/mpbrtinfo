@@ -16,27 +16,9 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
-
-<a id="brt-toolbar-button" class="toolbar_btn  pointer" href="javascript:void(0);" title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}">
-    <i class="process-icon-truck"></i>
-    <div>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</div>
-</a>
-
-<div id="ModalFetchBrt" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="ModalFetchBrtTitle" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <button class="close" data-dismiss="modal" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-            <div class="modal-header">
-                <h5 class="modal-title" id="ModalFetchBrtTitle">Spedizioni Bartolini</h5>
-            </div>
-            <div class="modal-body" style="max-height: 400px; overflow-y: auto">
-                <p>Content</p>
-            </div>
-            <div class="modal-footer">
-                Footer
-            </div>
-        </div>
-    </div>
-</div>
+<li>
+    <a id="brt-fetch-orders" class="toolbar_btn  pointer" href="javascript:void(0);" title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}">
+        <i class="process-icon-truck"></i>
+        <div>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</div>
+    </a>
+</li>

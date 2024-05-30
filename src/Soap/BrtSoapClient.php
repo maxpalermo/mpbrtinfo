@@ -76,7 +76,11 @@ class BrtSoapClient extends \SoapClient
             $options = $default;
         }
 
-        parent::__construct($wsdl, $options);
+        try {
+            parent::__construct($wsdl, $options);
+        } catch (\Throwable $th) {
+            $this->errors[] = $th->getMessage();
+        }
     }
 
     public function exec($function, $params): array

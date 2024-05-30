@@ -73,7 +73,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         if (isset($sessionJSON['action']) && isset($sessionJSON['ajax'])) {
             $action = 'displayAjax' . ucfirst($sessionJSON['action']);
             if (method_exists($this, $action)) {
-                $this->$action();
+                $this->$action($sessionJSON);
                 exit;
             }
         }
@@ -517,5 +517,120 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     {
         $class = new AjaxInsertEsitiSOAP();
         $this->response(['esiti' => $class->insert()]);
+    }
+
+    /*********************************************
+     * FETCH METHODS - Nuovi metodi per il fetch *
+     * ========================================= *
+     *********************************************/
+
+    public function displayAjaxFetchTotalShippings()
+    {
+        $id_order_state_delivered = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED), true);
+
+        if (!is_array($id_order_state_delivered)) {
+            $id_order_state_delivered = [$id_order_state_delivered];
+        }
+
+        $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
+        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
+
+        $totalShippings = array_merge($orderHistory, $orders);
+        if (empty($totalShippings)) {
+            $this->response([
+                'status' => 'success',
+                'total_shippings' => [],
+                'message' => 'No shippings found',
+            ]);
+        }
+
+        $this->response([
+            'status' => 'success',
+            'total_shippings' => $totalShippings,
+        ]);
+    }
+
+    public function displayAjaxFetchShippingInfo($params)
+    {
+        $orders = $params['shipments_id'] ?? [];
+        $esiti = ModelBrtEsito::getEsiti();
+        $errors = [];
+        $logs = [];
+        $processed = 0;
+        $success = 0;
+
+        foreach ($orders as $id_order) {
+            ++$processed;
+
+            $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
+            if (!$tracking) {
+                // Provo a cercare il tracking online
+                $search_type = Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
+                $search_where = Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
+                $id_brt_customer = Configuration::get(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+
+                if ($search_type == 'RMN') {
+                    $client = new BrtSoapClientIdSpedizioneByRMN();
+                    if ($search_where == 'ID') {
+                        $esito = $client->getSoapIdSpedizioneByRMN($id_brt_customer, $id_order);
+                    } else {
+                        $order = new Order($id_order);
+                        $esito = $client->getSoapIdSpedizioneByRMN($id_brt_customer, $order->reference);
+                    }
+                } elseif ($search_type == 'RMA') {
+                    $client = new BrtSoapClientIdSpedizioneByRMA();
+                    if ($search_where == 'ID') {
+                        $esito = $client->getSoapIdSpedizioneByRMA($id_brt_customer, $id_order);
+                    } else {
+                        $order = new Order($id_order);
+                        $esito = $client->getSoapIdSpedizioneByRMA($id_brt_customer, $order->reference);
+                    }
+                }
+
+                if ($esito['esito'] == 0) {
+                    $tracking = $esito['spedizione_id'];
+                } else {
+                    $tracking = '';
+                    $esito = $esiti[$esito['esito']];
+                    $errors[] = ['id_order' => $id_order, 'info' => $esito, 'esito' => 'NO TRACKING'];
+                    unset ($esito);
+
+                    continue;
+                }
+            }
+            $client = new BrtSoapClientTrackingByShipmentId();
+            $info = $client->getSoapTrackingByShipmentId('', date('Y'), $tracking);
+            if ($info === false) {
+                $errors[] = ['id_order' => $id_order, 'info' => $tracking, 'esito' => 'NO INFO'];
+
+                continue;
+            }
+
+            $id_esito = $info->getEsito();
+            $esito = $this->esiti[$id_esito];
+
+            if ($id_esito == 0) {
+                $last_event = $info->getLastEvento();
+                $rmn = $info->getRiferimenti()->getRiferimentoMittenteNumerico();
+                $id_collo = $info->getDatiSpedizione()->getSpedizioneId();
+                if ($last_event) {
+                    $res = $info::changeIdOrderState($id_order, $last_event, $rmn, $id_collo);
+                    if ($res) {
+                        $logs[] = $res;
+                        ++$success;
+                    }
+                }
+            } else {
+                $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s', $id_order, $tracking, $esito);
+            }
+        }
+
+        $this->response([
+            'status' => 'success',
+            'logs' => $logs,
+            'errors' => $errors,
+            'processed' => $processed,
+            'order_changed' => $success,
+        ]);
     }
 }

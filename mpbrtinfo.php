@@ -79,7 +79,7 @@ class MpBrtInfo extends Module
             'actionAdminControllerSetMedia',
             'actionAdminOrdersListingResultsModifier',
             'actionAdminOrdersListingFieldsModifier',
-            'actionGetAdminToolbarButtons',
+            'displayDashboardToolbarTopMenu',
             'displayBackOfficeFooter',
             'dashboardZoneTwo',
             'dashboardData',
@@ -96,7 +96,7 @@ class MpBrtInfo extends Module
             )
             && $this->InstallMenu->createTable(ModelBrtEvento::$definition)
             && $this->InstallMenu->createTable(ModelBrtEsito::$definition)
-            && $this->InstallMenu->createTable(ModelBrtDelivered::$definition);
+            && $this->InstallMenu->createTable(ModelBrtTrackingNumber::$definition);
 
         try {
             $this->InstallMenu->createOrderState(
@@ -260,12 +260,15 @@ class MpBrtInfo extends Module
         // nothing
     }
 
-    public function hookActionGetAdminToolbarButtons($params)
+    public function hookDisplayDashboardToolbarTopMenu($params)
     {
-        Tools::dieObject($params);
-        $controller = $params['controller'];
-        if (preg_match('/AdminOrders/i', $controller)) {
-            Tools::dieObject($params);
+        if (Tools::strtolower($this->context->controller->controller_name) == 'adminorders') {
+            $tpl = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
+            $smarty = $this->context->smarty;
+            $smarty->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
+            $html = $smarty->fetch($tpl);
+
+            return $html;
         }
     }
 
@@ -345,7 +348,7 @@ class MpBrtInfo extends Module
         if (Tools::getValue('id_order')) {
             return;
         }
-        $ajax_controller = $this->context->link->getAdminLink($this->adminClassName);
+
         $ajax_controller = $this->context->link->getModuleLink($this->name, 'CronJobs');
 
         $data = [
@@ -355,10 +358,10 @@ class MpBrtInfo extends Module
             'spinner' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/img/spinner/spinner.gif',
         ];
 
-        $tpl = $this->tpl->renderTplAdmin('brtInfo/script', $data);
-        $toolbar = $this->tpl->renderTplAdmin('toolbar/buttons', ['ajax_controller' => $ajax_controller]);
+        $modal = $this->tpl->renderTplAdmin('brtInfo/modal_fetch.tpl');
+        $script = $this->tpl->renderTplAdmin('brtInfo/script', $data);
 
-        return $toolbar . $tpl;
+        return $modal . $script;
     }
 
     public function getFrontControllerLink($params = [])

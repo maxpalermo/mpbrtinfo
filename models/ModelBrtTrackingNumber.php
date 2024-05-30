@@ -40,6 +40,9 @@ class ModelBrtTrackingNumber extends ObjectModel
     public $tracking_number;
     public $current_state;
     public $anno_spedizione;
+    public $date_shipped;
+    public $date_delivered;
+    public $days;
     public $date_add;
     public $date_upd;
 
@@ -88,6 +91,21 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'required' => false,
             ],
             'anno_spedizione' => [
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedInt',
+                'required' => false,
+            ],
+            'date_shipped' => [
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => false,
+            ],
+            'date_delivered' => [
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
+                'required' => false,
+            ],
+            'days' => [
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedInt',
                 'required' => false,
@@ -317,5 +335,113 @@ class ModelBrtTrackingNumber extends ObjectModel
         }
 
         return false;
+    }
+
+    public static function countDays($date_start, $date_end)
+    {
+        if (!$date_start || !$date_end) {
+            return 0;
+        }
+        if ($date_start) {
+            $date_start = self::justDays($date_start);
+        }
+        if ($date_end) {
+            $date_end = self::justDays($date_end);
+        }
+
+        return self::workingDays($date_start, $date_end);
+    }
+
+    public static function justDays($date)
+    {
+        $createDate = new DateTime($date);
+        $strip = $createDate->format('Y-m-d');
+
+        return $strip;
+    }
+
+    public static function workingDays($date_start, $date_end)
+    {
+        $holidayDays = [
+            '*-01-01' => 'Capodanno',
+            '*-01-06' => 'Epifania',
+            '*-04-25' => 'Liberazione',
+            '*-05-01' => 'Festa Lavoratori',
+            '*-06-02' => 'Festa della Repubblica',
+            '*-08-15' => 'Ferragosto',
+            '*-11-01' => 'Tutti i Santi',
+            '*-12-08' => 'Immacolata',
+            '*-12-25' => 'Natale',
+            '*-12-26' => 'Santo Stefano',
+        ];
+
+        $AnnoInizio = date('Y', strtotime($date_start));
+        $pasquetta = self::pasquetta($AnnoInizio);
+        $holidayDays[$pasquetta] = 'Pasquetta ' . $AnnoInizio;
+
+        $AnnoFine = date('Y', strtotime($date_end));
+        if ($AnnoFine != $AnnoInizio) {
+            $pasquetta2 = self::pasquetta($AnnoFine);
+            $holidayDays[$pasquetta2] = 'Pasquetta ' . $AnnoFine;
+        }
+        $working_days = self::numberOfWorkingDays($date_start, $date_end, $holidayDays);
+
+        return $working_days;
+    }
+
+    public static function numberOfWorkingDays($from, $to, $holidayDays, $workingDays = [1, 2, 3, 4, 5])
+    {
+        $holidayDays = array_flip($holidayDays);
+
+        $from = new DateTime($from);
+        $from = new DateTime($from->format('Y-m-d'));
+
+        $to = new DateTime($to);
+        $to = new DateTime($to->format('Y-m-d'));
+
+        $interval = new DateInterval('P1D');
+        $periods = new DatePeriod($from, $interval, $to);
+
+        $days = 0;
+        foreach ($periods as $period) {
+            if (!in_array($period->format('N'), $workingDays)) {
+                continue;
+            }
+            if (in_array($period->format('Y-m-d'), $holidayDays)) {
+                continue;
+            }
+            if (in_array($period->format('*-m-d'), $holidayDays)) {
+                continue;
+            }
+            ++$days;
+        }
+
+        return $days;
+    }
+
+    public static function pasquetta($anno)
+    {
+        $nc = (int) ($anno / 100);
+        $nn = $anno - 19 * (int) ($anno / 19);
+        $nk = (int) (($nc - 17) / 25);
+        $ni1 = $nc - (int) ($nc / 4) - (int) (($nc - $nk) / 3) + 19 * $nn + 15;
+        $ni2 = $ni1 - 30 * (int) ($ni1 / 30);
+        $ni3 = $ni2 - (int) ($ni2 / 28) * (1 - (int) ($ni2 / 28) * (int) (29 / ($ni2 + 1)) * (int) ((21 - $nn) / 11));
+        $nj1 = $anno + (int) ($anno / 4) + $ni3 + 2 - $nc + (int) ($nc / 4);
+        $nj2 = $nj1 - 7 * (int) ($nj1 / 7);
+        $nl = $ni3 - $nj2;
+
+        $pMese = 3 + (int) (($nl + 40) / 44);
+        $pGiorno = $nl + 28 - 31 * (int) ($pMese / 4);
+
+        if ($pMese == 3 and $pGiorno == 31) {
+            $lMese = 4;
+            $lGiorno = 1;
+        } else {
+            $lMese = $pMese;
+            $lGiorno = $pGiorno + 1;
+        }
+
+        return date('Y') . '-' . $lMese . '-' . $lGiorno;
     }
 }
