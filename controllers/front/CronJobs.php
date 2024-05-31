@@ -656,7 +656,15 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
             $this->response(['status' => 'error', 'message' => 'No orders found']);
         }
 
+        $timer = (int) microtime(true);
+
         $response = $this->fetchShippingInfo($orders);
+
+        $timer_ends = (int) microtime(true);
+        $elapsed = $timer_ends - $timer;
+        $time = gmdate('H:i:s', (int) $elapsed);
+
+        $response['elapsed_time'] = $time;
 
         $this->response($response);
     }

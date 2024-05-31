@@ -287,9 +287,27 @@ class MpBrtInfo extends Module
 
     public function hookActionObjectOrderHistoryAddAfter($params)
     {
+        $carriers = ModelBrtConfig::getCarriers();
+        if (!$carriers) {
+            return false;
+        }
+
+        if (!is_array($carriers)) {
+            $carriers = [$carriers];
+        }
+
         /** @var OrderHistory */
         $order_history = $params['object'];
         $id_order = (int) $order_history->id_order;
+
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        if (!in_array($order->id_carrier, $carriers)) {
+            return false;
+        }
 
         $id_brt_order_state = ModelBrtTrackingNumber::getIdOrderStateByIdOrder($id_order);
         if ($id_brt_order_state && $id_brt_order_state != $order_history->id_order_state) {

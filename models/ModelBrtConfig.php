@@ -59,6 +59,39 @@ class ModelBrtConfig extends ConfigurationCore
         return $events;
     }
 
+    public static function getCarriers()
+    {
+        $carriers = self::get('MP_BRT_INFO_BRT_CARRIERS');
+        if (!$carriers) {
+            return [];
+        }
+
+        if (!is_array($carriers)) {
+            $carriers = json_decode($carriers, true);
+        }
+
+        $carriers = array_map(function ($item) {
+            return "'" . pSQL($item) . "'";
+        }, $carriers);
+
+        $carriers = implode(',', $carriers);
+
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('id_carrier')
+            ->from('carrier')
+            ->where('name IN (' . $carriers . ')');
+        $result = $db->executeS($sql);
+
+        if ($result) {
+            $carriers = array_column($result, 'id_carrier');
+
+            return $carriers;
+        }
+
+        return false;
+    }
+
     public static function setDefaultValues()
     {
         $values = [

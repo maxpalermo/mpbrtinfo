@@ -30,7 +30,10 @@
                 <p>Content</p>
             </div>
             <div class="modal-footer">
-                Footer
+                <button class="btn btn-default pull-right" type="button" data-dismiss="modal" aria-label="Close">
+                    <i class="process-icon-close"></i>
+                    <span>{l s='Chiudi' mod='mpbrtinfo'}</span>
+                </button>
             </div>
         </div>
     </div>

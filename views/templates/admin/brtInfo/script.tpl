@@ -157,7 +157,7 @@
 
                     $(modalfetchBrt)
                         .find(".modal-body #progressText")
-                        .html("<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p><p>Spedizioni BRT cambiate: " + response.order_changed + "/" + response.processed + ".</p>");
+                        .html("<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p><p>Spedizioni BRT cambiate: " + response.order_changed + ".</p><p>Tempo di esecuzione: " + response.elapsed_time + ".</p>");
                 } else {
                     $(modalfetchBrt).find(".modal-body").append(
                         $("<div>").addClass('alert alert-danger').html("Errore durante il recupero delle spedizioni.")
