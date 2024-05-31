@@ -35,6 +35,7 @@ class ModelBrtTrackingNumber extends ObjectModel
     public $id_order;
     public $id_order_state;
     public $id_brt_state;
+    public $date_event;
     public $id_collo;
     public $rmn;
     public $tracking_number;
@@ -65,6 +66,11 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'type' => self::TYPE_STRING,
                 'validate' => 'isAnything',
                 'size' => 16,
+                'required' => false,
+            ],
+            'date_event' => [
+                'type' => self::TYPE_DATE,
+                'validate' => 'isDate',
                 'required' => false,
             ],
             'id_collo' => [
@@ -248,6 +254,31 @@ class ModelBrtTrackingNumber extends ObjectModel
         return Db::getInstance()->getValue($sql);
     }
 
+    public static function getLastRowByIdOrder($id_order)
+    {
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from(self::$definition['table'])
+            ->where('id_order = ' . (int) $id_order)
+            ->orderBy(self::$definition['primary'] . ' DESC');
+
+        return Db::getInstance()->getRow($sql);
+    }
+
+    public static function getIdOrderStateByIdOrder($id_order)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('id_order_state')
+            ->from(self::$definition['table'])
+            ->where('id_order = ' . (int) $id_order)
+            ->orderBy(self::$definition['primary'] . ' DESC');
+
+        $value = (int) $db->getValue($sql);
+
+        return $value;
+    }
+
     public static function getIdColloByIdOrder($id_order)
     {
         $sql = new DbQuery();
@@ -260,6 +291,42 @@ class ModelBrtTrackingNumber extends ObjectModel
         $value = Db::getInstance()->getValue($sql);
         if ($value) {
             return $value;
+        }
+
+        // Cerco il tracking nella tabella order_carrier
+        $sql = new DbQuery();
+        $sql->select('tracking_number')
+            ->from('order_carrier')
+            ->where('id_order = ' . (int) $id_order)
+            ->where('tracking_number is not null')
+            ->orderBy('id_order_carrier DESC');
+        $tracking = Db::getInstance()->getValue($sql);
+        if ($tracking) {
+            $id_collo = self::getIdColloByTrackingNumber($tracking, date('Y'));
+            if ($id_collo) {
+                $order = new Order($id_order);
+                if (Validate::isLoadedObject($order)) {
+                    $brtTracking = new ModelBrtTrackingNumber();
+                    $brtTracking->id_order = (int) $id_order;
+                    $brtTracking->id_order_state = (int) $order->current_state;
+                    $brtTracking->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
+                    $brtTracking->date_event = date('Y-m-d H:i:s');
+                    $brtTracking->id_collo = $id_collo;
+                    $brtTracking->rmn = $id_order;
+                    $brtTracking->tracking_number = $tracking;
+                    $brtTracking->current_state = 'SENT';
+                    $brtTracking->anno_spedizione = self::getAnnoSpedizione($id_order);
+                    $brtTracking->date_add = date('Y-m-d H:i:s');
+
+                    try {
+                        $brtTracking->add();
+                    } catch (\Throwable $th) {
+                        self::$errors[] = $th->getMessage();
+                    }
+                }
+
+                return $id_collo;
+            }
         }
 
         return '';
@@ -349,7 +416,7 @@ class ModelBrtTrackingNumber extends ObjectModel
             $date_end = self::justDays($date_end);
         }
 
-        return self::workingDays($date_start, $date_end);
+        return self::workingDays($date_start, $date_end) + 1;
     }
 
     public static function justDays($date)
@@ -443,5 +510,61 @@ class ModelBrtTrackingNumber extends ObjectModel
         }
 
         return date('Y') . '-' . $lMese . '-' . $lGiorno;
+    }
+
+    public static function getAnnoSpedizione($id_order)
+    {
+        $sql = new DbQuery();
+        $sql->select('YEAR(date_add) as anno')
+            ->from('order_carrier')
+            ->where('id_order = ' . (int) $id_order)
+            ->orderBy('date_add ASC');
+        $year = Db::getInstance()->getValue($sql);
+        if ($year) {
+            return $year;
+        }
+
+        return date('Y');
+    }
+
+    public static function getDateShipped($id_order)
+    {
+        $sent = ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+        if (is_array($sent)) {
+            $sent = array_map('intval', $sent);
+            $sent = implode(',', $sent);
+        }
+
+        $sql = new DbQuery();
+        $sql->select('date_add')
+            ->from('order_history')
+            ->where('id_order = ' . (int) $id_order)
+            ->where('id_order_state in (' . $sent . ')')
+            ->orderBy('date_add ASC');
+        $date = Db::getInstance()->getValue($sql);
+        if ($date) {
+            return $date;
+        }
+
+        return date('Y-m-d H:i:s');
+    }
+
+    public static function setDeliveredDays($id, $date, $date_add)
+    {
+        if ($date == '0000-00-00 00:00:00') {
+            $date = $date_add;
+        }
+
+        $db = Db::getInstance();
+
+        return $db->update(
+            self::$definition['table'],
+            [
+                'date_delivered' => pSQL($date),
+                'days' => self::countDays($date_add, $date),
+                'date_upd' => date('Y-m-d H:i:s'),
+            ],
+            'id_mpbrtinfo_tracking_number = ' . (int) $id
+        );
     }
 }

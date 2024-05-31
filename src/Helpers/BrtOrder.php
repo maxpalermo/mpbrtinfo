@@ -62,7 +62,16 @@ class BrtOrder
             }
         }
 
-        $query = 'SELECT id_order FROM `' . _DB_PREFIX_ . 'orders` WHERE `current_state` IN (' . implode(',', $id_order_states) . ') ORDER BY id_order';
+        $query = 'SELECT id_order FROM `'
+            . _DB_PREFIX_ . 'orders` '
+            . 'WHERE `current_state` NOT IN (' . implode(',', $id_order_states) . ') '
+            . 'AND id_order NOT IN (' . implode(',', $orderHistory) . ') '
+            . 'AND `id_carrier` IN (' . $carriers . ') '
+            . 'ORDER BY id_order DESC';
+        if ($limit) {
+            $query .= ' LIMIT ' . (int) $limit;
+        }
+
         $result = $db->executeS($query);
         if ($result) {
             $id_orders = array_column($result, 'id_order');
@@ -70,26 +79,7 @@ class BrtOrder
             $id_orders = [];
         }
 
-        $id_order_history = array_map('intval', $orderHistory);
-
-        $excluded = array_merge($id_orders, $id_order_history);
-
-        $sql = 'SELECT `id_order` '
-            . 'FROM `' . _DB_PREFIX_ . 'orders` '
-            . 'WHERE `current_state` NOT IN (' . implode(',', $excluded) . ') '
-            . 'AND `id_carrier` IN (' . $carriers . ') '
-            . 'ORDER BY id_order DESC ';
-        if ($limit) {
-            $sql .= 'LIMIT ' . (int) $limit;
-        }
-        $result = \Db::getInstance()->executeS($sql);
-        if ($result) {
-            $orders = array_column($result, 'id_order');
-        } else {
-            $orders = [];
-        }
-
-        return $orders;
+        return $id_orders;
     }
 
     public static function getOrdersHistoryIdExcludingOrderStates($id_order_states, $limit = 20)

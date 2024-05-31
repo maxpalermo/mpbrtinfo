@@ -43,11 +43,11 @@ class Icons
     public static function getIcon($icon)
     {
         $icon = strtoupper($icon);
-        if (file_exists(_BRTINFO_DIR_ . 'views/img/icons/' . $icon . '.png')) {
-            return _BRTINFO_URL_ . 'img/icons/' . $icon . '.png';
+        if (file_exists(_MPBRTINFO_DIR_ . 'views/img/icons/' . $icon . '.png')) {
+            return _MPBRTINFO_URL_ . 'img/icons/' . $icon . '.png';
         }
 
-        return _BRTINFO_URL_ . 'img/icons/icon-unknown.png';
+        return _MPBRTINFO_URL_ . 'img/icons/icon-unknown.png';
     }
 
     public static function getIconDelivered()

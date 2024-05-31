@@ -346,6 +346,7 @@ class Bolla
         $model->id_order = $id_order;
         $model->id_order_state = $id_order_state;
         $model->id_brt_state = $order_state['id_evento'];
+        $model->date_event = date('Y-m-d H:i:s', strtotime($evento->getData() . ' ' . $evento->getOra()));
         $model->tracking_number = '';
         $model->rmn = $rmn;
         $model->id_collo = $id_collo;

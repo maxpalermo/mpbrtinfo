@@ -27,12 +27,12 @@ require_once dirname(__FILE__) . '/models/autoload.php';
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
 
-if (!defined('_BRTINFO_DIR_')) {
-    define('_BRTINFO_DIR_', dirname(__FILE__) . '/');
+if (!defined('_MPBRTINFO_DIR_')) {
+    define('_MPBRTINFO_DIR_', dirname(__FILE__) . '/');
 }
 
-if (!defined('_BRTINFO_URL_')) {
-    define('_BRTINFO_URL_', __PS_BASE_URI__ . 'modules/mpbrtinfo/views/');
+if (!defined('_MPBRTINFO_URL_')) {
+    define('_MPBRTINFO_URL_', __PS_BASE_URI__ . 'modules/mpbrtinfo/views/');
 }
 
 class MpBrtInfo extends Module
@@ -79,6 +79,7 @@ class MpBrtInfo extends Module
             'actionAdminControllerSetMedia',
             'actionAdminOrdersListingResultsModifier',
             'actionAdminOrdersListingFieldsModifier',
+            'actionObjectOrderHistoryAddAfter',
             'displayDashboardToolbarTopMenu',
             'displayBackOfficeFooter',
             'dashboardZoneTwo',
@@ -282,6 +283,57 @@ class MpBrtInfo extends Module
         $this->context->controller->addJS([
             $path . 'js/XmlBeautify.min.js',
         ]);
+    }
+
+    public function hookActionObjectOrderHistoryAddAfter($params)
+    {
+        /** @var OrderHistory */
+        $order_history = $params['object'];
+        $id_order = (int) $order_history->id_order;
+
+        $id_brt_order_state = ModelBrtTrackingNumber::getIdOrderStateByIdOrder($id_order);
+        if ($id_brt_order_state && $id_brt_order_state != $order_history->id_order_state) {
+            $last_row = ModelBrtTrackingNumber::getLastRowByIdOrder($id_order);
+            if (!$last_row) {
+                $last_row = [
+                    'id_order' => $id_order,
+                    'id_order_state' => $order_history->id_order_state,
+                    'date_event' => date('Y-m-d H:i:s'),
+                    'id_brt_state' => $id_brt_order_state,
+                    'id_collo' => null,
+                    'rmn' => null,
+                    'tracking_number' => null,
+                    'current_state' => null,
+                    'anno_spedizione' => null,
+                    'date_shipped' => null,
+                    'date_delivered' => null,
+                    'days' => null,
+                    'date_add' => date('Y-m-d H:i:s'),
+                    'date_upd' => null,
+                ];
+            }
+
+            $db = Db::getInstance();
+            $db->insert(
+                ModelBrtTrackingNumber::$definition['table'],
+                [
+                    'id_order' => $id_order,
+                    'id_order_state' => $order_history->id_order_state,
+                    'date_event' => date('Y-m-d H:i:s'),
+                    'id_brt_state' => $id_brt_order_state,
+                    'id_collo' => $last_row['id_collo'],
+                    'rmn' => $last_row['rmn'],
+                    'tracking_number' => $last_row['tracking_number'],
+                    'current_state' => $last_row['current_state'],
+                    'anno_spedizione' => $last_row['anno_spedizione'],
+                    'date_shipped' => $last_row['date_shipped'],
+                    'date_delivered' => $last_row['date_delivered'],
+                    'days' => $last_row['days'],
+                    'date_add' => date('Y-m-d H:i:s'),
+                    'date_upd' => null,
+                ]
+            );
+        }
     }
 
     public function hookActionAdminOrdersListingFieldsModifier($params)
@@ -723,7 +775,10 @@ class MpBrtInfo extends Module
         $smarty->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
         $tables .= $smarty->fetch($tpl_esiti);
 
-        return $message . $modal . $tpl . $form . $tables;
+        $tpl_query = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/modal_query.tpl';
+        $modal_query = $smarty->fetch($tpl_query);
+
+        return $message . $modal . $tpl . $form . $tables . $modal_query;
     }
 
     public function postProcess()

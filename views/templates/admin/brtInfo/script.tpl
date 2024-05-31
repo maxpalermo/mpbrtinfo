@@ -30,7 +30,7 @@
     var current_shipment_year = "{date('Y')}";
     var total_shippings = 0;
 
-    function getBrtInfo(order_id, tracking, target) {
+    async function getBrtInfo(order_id, tracking, target) {
         current_target = target;
         current_id_order = order_id;
         //current_id_carrier = id_carrier;
@@ -45,14 +45,22 @@
         var current_icon = $(target).find('img').attr('src');
         $(target).find('img').attr('src', '{$spinner}');
 
-        $.post( "{$ajax_controller}", data, function(response)
-        {
-            $("#BrtBolla").remove();
-            $("body #content").append(response.content);
+        const response = await fetch(ajax_controller, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                $("#BrtBolla").remove();
+                $("body #content.bootstrap").append(data.content);
 
-            $("#BrtBolla").modal('show');
-            $(target).find('img').attr('src', current_icon);
-        });
+                $("#BrtBolla").modal('show');
+                $(target).find('img').attr('src', current_icon);
+                return data;
+            });
     }
 
     function getTrackingManual() {
@@ -253,5 +261,7 @@
 
             fetchBrtInfo();
         });
+
+
     });
 </script>

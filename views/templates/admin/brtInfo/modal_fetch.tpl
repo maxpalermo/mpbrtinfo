@@ -24,9 +24,7 @@
                 <button class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
-                <div class="modal-header">
-                    <h3 class="modal-title" id="ModalFetchBrtTitle">Spedizioni Bartolini</h3>
-                </div>
+                <h3 class="modal-title" id="ModalFetchBrtTitle">Spedizioni Bartolini</h3>
             </div>
             <div class="modal-body" style="max-height: 400px; overflow-y: auto">
                 <p>Content</p>

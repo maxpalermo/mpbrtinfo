@@ -38,7 +38,11 @@ class TemplateBolla
 
     protected function getTemplate()
     {
-        return 'module:mpbrtinfo/views/templates/admin/bolla.tpl';
+        if (_PS_VERSION_ < '1.7') {
+            return _MPBRTINFO_DIR_ . 'views/templates/admin/bolla.tpl';
+        } else {
+            return 'module:mpbrtinfo/views/templates/admin/bolla.tpl';
+        }
     }
 
     public function display()
