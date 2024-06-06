@@ -20,8 +20,8 @@
 <script type="text/javascript">
     const ajax_controller = "{$ajax_controller}";
     const modalfetchBrt = $("#ModalFetchBrt");
-    const controller = new AbortController();
-    const signal = controller.signal;
+    var controller;
+    var signal;
 
     var current_target = null;
     var current_id_order = 0;
@@ -55,10 +55,16 @@
             .then(response => response.json())
             .then(data => {
                 $("#BrtBolla").remove();
+                $(target).find('img').attr('src', current_icon);
+
+                if (data.content.error == true) {
+                    alert("(" + data.content.error_code + ") " + data.content.message);
+                    return false;
+                }
+
                 $("body #content.bootstrap").append(data.content);
 
                 $("#BrtBolla").modal('show');
-                $(target).find('img').attr('src', current_icon);
                 return data;
             });
     }
@@ -245,9 +251,17 @@
             controller.abort();
         });
 
+        $("#ModalFetchBrt").on("show.bs.modal", function() {
+            controller = new AbortController();
+            signal = controller.signal;
+        });
+
         $(".brt-info-button").on("click", function() {
             let tracking = $(this).data('tracking');
             let order_id = $(this).data('order_id');
+            let rmn = $(this).data('rmn');
+            let rma = $(this).data('rma');
+
             getBrtInfo(order_id, tracking, this);
         });
 

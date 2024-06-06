@@ -92,7 +92,7 @@ class MpBrtInfo extends Module
             && $this->InstallMenu->installMenu(
                 $this->l('MP BRT Delivery Statistics'),
                 $this->name,
-                MpSoft\MpBrtInfo\Helpers\InstallHelper::ADMINSHIPPING,
+                'AdminParentShipping',
                 $this->adminClassName
             )
             && $this->InstallMenu->createTable(ModelBrtEvento::$definition)
@@ -310,48 +310,70 @@ class MpBrtInfo extends Module
         }
 
         $id_brt_order_state = ModelBrtTrackingNumber::getIdOrderStateByIdOrder($id_order);
-        if ($id_brt_order_state && $id_brt_order_state != $order_history->id_order_state) {
-            $last_row = ModelBrtTrackingNumber::getLastRowByIdOrder($id_order);
-            if (!$last_row) {
-                $last_row = [
-                    'id_order' => $id_order,
-                    'id_order_state' => $order_history->id_order_state,
-                    'date_event' => date('Y-m-d H:i:s'),
-                    'id_brt_state' => $id_brt_order_state,
-                    'id_collo' => null,
-                    'rmn' => null,
-                    'tracking_number' => null,
-                    'current_state' => null,
-                    'anno_spedizione' => null,
-                    'date_shipped' => null,
-                    'date_delivered' => null,
-                    'days' => null,
-                    'date_add' => date('Y-m-d H:i:s'),
-                    'date_upd' => null,
-                ];
+
+        $last_row = ModelBrtTrackingNumber::getLastRowByIdOrder($id_order);
+        if (!$last_row) {
+            $findTrackingBy = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
+            $findTrackingOn = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
+
+            if ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+                $rmn = $order->id;
+                $rma = '';
+                $id_collo = '';
+            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+                $rmn = $order->reference;
+                $rma = '';
+                $id_collo = '';
+            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+                $rmn = '';
+                $rma = $order->id;
+                $id_collo = '';
+            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+                $rmn = '';
+                $rma = $order->reference;
+                $id_collo = '';
             }
 
-            $db = Db::getInstance();
-            $db->insert(
-                ModelBrtTrackingNumber::$definition['table'],
-                [
-                    'id_order' => $id_order,
-                    'id_order_state' => $order_history->id_order_state,
-                    'date_event' => date('Y-m-d H:i:s'),
-                    'id_brt_state' => $id_brt_order_state,
-                    'id_collo' => $last_row['id_collo'],
-                    'rmn' => $last_row['rmn'],
-                    'tracking_number' => $last_row['tracking_number'],
-                    'current_state' => $last_row['current_state'],
-                    'anno_spedizione' => $last_row['anno_spedizione'],
-                    'date_shipped' => $last_row['date_shipped'],
-                    'date_delivered' => $last_row['date_delivered'],
-                    'days' => $last_row['days'],
-                    'date_add' => date('Y-m-d H:i:s'),
-                    'date_upd' => null,
-                ]
-            );
+            $last_row = [
+                'id_order' => $id_order,
+                'id_order_state' => $order_history->id_order_state,
+                'date_event' => date('Y-m-d H:i:s'),
+                'id_brt_state' => $id_brt_order_state,
+                'id_collo' => $id_collo,
+                'rmn' => $rmn,
+                'rma' => $rma,
+                'tracking_number' => null,
+                'current_state' => null,
+                'anno_spedizione' => date('Y', strtotime($order_history->date_add)),
+                'date_shipped' => null,
+                'date_delivered' => null,
+                'days' => null,
+                'date_add' => date('Y-m-d H:i:s'),
+                'date_upd' => null,
+            ];
         }
+
+        $db = Db::getInstance();
+        $db->insert(
+            ModelBrtTrackingNumber::$definition['table'],
+            [
+                'id_order' => $id_order,
+                'id_order_state' => $order_history->id_order_state,
+                'date_event' => date('Y-m-d H:i:s'),
+                'id_brt_state' => $id_brt_order_state,
+                'id_collo' => $last_row['id_collo'],
+                'rmn' => $last_row['rmn'],
+                'rma' => $last_row['rma'],
+                'tracking_number' => $last_row['tracking_number'],
+                'current_state' => $last_row['current_state'],
+                'anno_spedizione' => $last_row['anno_spedizione'],
+                'date_shipped' => $last_row['date_shipped'],
+                'date_delivered' => $last_row['date_delivered'],
+                'days' => $last_row['days'],
+                'date_add' => date('Y-m-d H:i:s'),
+                'date_upd' => null,
+            ]
+        );
     }
 
     public function hookActionAdminOrdersListingFieldsModifier($params)
@@ -379,7 +401,7 @@ class MpBrtInfo extends Module
                         'remove_onclick' => true,
                         'search' => true,
                         'filter_key' => 'carr!name',
-                        'callback' => 'displayCarrier',
+                        'callback' => 'processCallbackDisplayCarrier',
                         'callback_object' => $this,
                     ],
                 ];
@@ -501,7 +523,7 @@ class MpBrtInfo extends Module
         }
     }
 
-    public function displayCarrier($value, $row)
+    public function processCallbackDisplayCarrier($value, $row)
     {
         return $this->displayCarrier->display($row['id_order']);
     }
@@ -581,7 +603,7 @@ class MpBrtInfo extends Module
                         'type' => 'select',
                         'label' => $this->l('Controllo Tracking'),
                         'name' => ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING,
-                        'desc' => $this->l('Stato dell\'ordine per il controllo del tracking'),
+                        'desc' => $this->l('Stato dell\'ordine per il controllo del tracking (di solito è quando viene messo a SPEDITO)'),
                         'required' => true,
                         'options' => [
                             'query' => $order_states,
@@ -622,11 +644,6 @@ class MpBrtInfo extends Module
                                 'id' => 'RMA',
                                 'value' => 'RMA',
                                 'label' => $this->l('Riferimento Mittente Alfabetico'),
-                            ],
-                            [
-                                'id' => 'ID',
-                                'value' => 'ID',
-                                'label' => $this->l('ID Collo'),
                             ],
                         ],
                     ],

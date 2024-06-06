@@ -22,6 +22,12 @@ if (!defined('_PS_VERSION_')) {
 }
 class ModelBrtConfig extends ConfigurationCore
 {
+    const MP_BRT_INFO_VERSION = 'MP_BRT_INFO_VERSION';
+    const MP_BRT_INFO_SEARCH_BY_RMN = 'RMN';
+    const MP_BRT_INFO_SEARCH_BY_RMA = 'RMA';
+    const MP_BRT_INFO_SEARCH_BY_ID = 'ID';
+    const MP_BRT_INFO_SEARCH_ON_ID = 'ID';
+    const MP_BRT_INFO_SEARCH_ON_REFERENCE = 'REFERENCE';
     const MP_BRT_INFO_CRON_JOB = 'MP_BRT_INFO_CRON_JOB';
     const MP_BRT_INFO_ID_BRT_CUSTOMER = 'MP_BRT_INFO_ID_BRT_CUSTOMER';
     const MP_BRT_INFO_BRT_CARRIERS = 'MP_BRT_INFO_BRT_CARRIERS';
@@ -94,27 +100,7 @@ class ModelBrtConfig extends ConfigurationCore
 
     public static function setDefaultValues()
     {
-        $values = [
-            self::MP_BRT_INFO_BRT_CARRIERS => [],
-            self::MP_BRT_INFO_OS_CHECK_FOR_TRACKING => [],
-            self::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED => [],
-            self::MP_BRT_INFO_ID_BRT_CUSTOMER => '',
-            self::MP_BRT_INFO_USE_SSL => false,
-            self::MP_BRT_INFO_SEARCH_TYPE => 'RMN',
-            self::MP_BRT_INFO_SEARCH_WHERE => self::MP_BRT_INFO_SEARCH_WHERE_ID,
-            self::MP_BRT_INFO_EVENT_DELIVERED => [],
-            self::MP_BRT_INFO_EVENT_ERROR => [],
-            self::MP_BRT_INFO_EVENT_FERMOPOINT => [],
-            self::MP_BRT_INFO_EVENT_REFUSED => [],
-            self::MP_BRT_INFO_EVENT_TRANSIT => [],
-            self::MP_BRT_INFO_EVENT_WAITING => [],
-            self::MP_BRT_INFO_EVENT_SENT => [],
-            self::MP_BRT_INFO_EVENT_UNKNOWN => [],
-        ];
-
-        foreach ($values as $key => $value) {
-            \Configuration::updateValue($key, $value);
-        }
+        return true;
     }
 
     public static function getConfigValue($config_key)
@@ -204,5 +190,103 @@ class ModelBrtConfig extends ConfigurationCore
         }
 
         return $esiti;
+    }
+
+    public static function getIconByOrderState($order_state)
+    {
+        $error = self::getConfigValue(self::MP_BRT_INFO_EVENT_ERROR);
+        $transit = self::getConfigValue(self::MP_BRT_INFO_EVENT_TRANSIT);
+        $delivered = self::getConfigValue(self::MP_BRT_INFO_EVENT_DELIVERED);
+        $fermopoint = self::getConfigValue(self::MP_BRT_INFO_EVENT_FERMOPOINT);
+        $waiting = self::getConfigValue(self::MP_BRT_INFO_EVENT_WAITING);
+        $refused = self::getConfigValue(self::MP_BRT_INFO_EVENT_REFUSED);
+        $sent = self::getConfigValue(self::MP_BRT_INFO_EVENT_SENT);
+
+        if ($order_state == $error) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_ERROR);
+        } elseif ($order_state == $transit) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_TRANSIT);
+        } elseif ($order_state == $delivered) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_DELIVERED);
+        } elseif ($order_state == $fermopoint) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_FERMOPOINT);
+        } elseif ($order_state == $waiting) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_WAITING);
+        } elseif ($order_state == $refused) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_REFUSED);
+        } elseif ($order_state == $sent) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_SENT);
+        }
+
+        return self::getIcon(self::MP_BRT_INFO_EVENT_UNKNOWN);
+    }
+
+    public static function getIconByEvento($evento)
+    {
+        $evento = \ModelBrtEvento::getById($evento);
+        if (!$evento) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_UNKNOWN);
+        }
+        switch (true) {
+            case $evento->isDelivered():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+
+                break;
+            case $evento->isError():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
+
+                break;
+            case ($evento->isFermopoint() && $evento->isWaiting()):
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
+
+                break;
+            case $evento->isRefused():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
+
+                break;
+            case $evento->isTransit():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
+
+                break;
+            case $evento->isWaiting():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
+
+                break;
+            case $evento->isSent():
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+
+                break;
+            default:
+                $displayIcon = \ModelBrtConfig::getIcon(\ModelBrtConfig::MP_BRT_INFO_EVENT_UNKNOWN);
+        }
+
+        return $displayIcon;
+    }
+
+    public static function getBrtStateFromIdOrderState($id_order_state)
+    {
+        $error = self::getConfigValue(self::MP_BRT_INFO_EVENT_ERROR);
+        $transit = self::getConfigValue(self::MP_BRT_INFO_EVENT_TRANSIT);
+        $delivered = self::getConfigValue(self::MP_BRT_INFO_EVENT_DELIVERED);
+        $fermopoint = self::getConfigValue(self::MP_BRT_INFO_EVENT_FERMOPOINT);
+        $waiting = self::getConfigValue(self::MP_BRT_INFO_EVENT_WAITING);
+        $refused = self::getConfigValue(self::MP_BRT_INFO_EVENT_REFUSED);
+        $sent = self::getConfigValue(self::MP_BRT_INFO_EVENT_SENT);
+
+        if ($id_order_state == $error) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_ERROR);
+        } elseif ($id_order_state == $transit) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_TRANSIT);
+        } elseif ($id_order_state == $delivered) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_DELIVERED);
+        } elseif ($id_order_state == $fermopoint) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_FERMOPOINT);
+        } elseif ($id_order_state == $waiting) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_WAITING);
+        } elseif ($id_order_state == $refused) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_REFUSED);
+        } elseif ($id_order_state == $sent) {
+            return self::getIcon(self::MP_BRT_INFO_EVENT_SENT);
+        }
     }
 }

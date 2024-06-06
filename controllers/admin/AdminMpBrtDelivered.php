@@ -38,6 +38,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
     protected $adminClassName;
     /** @var BrtSoapAlerts */
     protected $soapAlerts;
+    protected $eventi;
 
     public function __construct()
     {
@@ -60,13 +61,36 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
 
     public function initTable()
     {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from('mpbrtinfo_evento')
+            ->orderBy('name');
+
+        $result = $db->executeS($sql);
+        if ($result) {
+            $eventi = [];
+            $id_consegnati = [];
+            foreach ($result as $row) {
+                if ($row['is_delivered']) {
+                    $id_consegnati[] = $row['id_evento'];
+                }
+                $eventi[$row['id_evento']] = $row['name'];
+            }
+            $this->eventi = $eventi;
+            $id_consegnati = array_map(function ($item) {
+                return "'" . pSQL($item) . "'";
+            }, $id_consegnati);
+            $id_consegnati = implode(',', $id_consegnati);
+        }
+
         $this->_pagination = [20, 50, 100, 200, 500, 1000];
         $this->list_no_link = true;
-        $this->table = ModelBrtDelivered::$definition['table'];
-        $this->identifier = ModelBrtDelivered::$definition['primary'];
+        $this->table = ModelBrtTrackingNumber::$definition['table'];
+        $this->identifier = ModelBrtTrackingNumber::$definition['primary'];
         $this->list_id = $this->table;
-        $this->_defaultOrderBy = $this->identifier;
-        $this->_defaultOrderWay = 'ASC';
+        $this->_defaultOrderBy = 'id_order';
+        $this->_defaultOrderWay = 'DESC';
         $this->_bulk_actions = [
             'print' => [
                 'text' => $this->module->l('Print selected', $this->controller_name),
@@ -87,6 +111,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
         $this->_select = 'ord.reference, ord.date_add, ord.id_carrier,'
             . "UPPER(CONCAT(UPPER(SUBSTRING(cust.firstname, 1, 1)), '. ', UPPER(cust.lastname))) as customer,"
             . ' ostl.name as order_state_name';
+        $this->_where = 'AND a.id_brt_state in (' . $id_consegnati . ')';
     }
 
     protected function initFieldsList()
@@ -111,6 +136,15 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
                 'align' => 'left',
                 'width' => 'auto',
                 'filter_key' => 'cust!lastname',
+            ],
+            'id_brt_state' => [
+                'title' => $this->module->l('BRT state', $this->controller_name),
+                'align' => 'left',
+                'width' => 'auto',
+                'filter_key' => 'a!id_brt_state',
+                'type' => 'select',
+                'list' => $this->eventi,
+                'callback' => 'getBrtStateName',
             ],
             'order_state_name' => [
                 'title' => $this->module->l('Current state', $this->controller_name),
@@ -539,5 +573,14 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
     {
         header('Content-Type: application/json; charset=utf-8');
         exit(json_encode($params));
+    }
+
+    public function getBrtStateName($value)
+    {
+        try {
+            return $this->eventi[$value];
+        } catch (\Throwable $th) {
+            return '--';
+        }
     }
 }

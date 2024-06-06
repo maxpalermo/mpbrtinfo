@@ -16,6 +16,17 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
-<button type="button" class="btn brt-info-button" data-tracking="{$carrier.tracking}" data-order_id="{$carrier.id_order}" title="{l s='Carrier' mod='mpbrtinfo'}:{$carrier.name}{if $carrier.tracking} - Tracking: {$carrier.tracking}{/if}">
+
+{assign var='tracking' value=$carrier.tracking}
+
+{if $carrier.tracking && $carrier.id_collo}
+    {assign var='tracking' value=$carrier.id_collo}
+{else}
+    {if $carrier.id_collo && !$carrier.tracking}
+        {assign var='tracking' value=$carrier.id_collo}
+    {/if}
+{/if}
+
+<button type="button" class="btn brt-info-button" data-order_id="{$carrier.id_order}" data-tracking="{$tracking}" data-rmn="{$carrier.rmn}" data-rma="{$carrier.rma}" title="{l s='Carrier' mod='mpbrtinfo'}:{$carrier.name}{if $tracking} - Tracking: {$tracking}{/if}">
     <img src="{$carrier.icon}" style="width: 48px; object-fit: contain;">
 <a>

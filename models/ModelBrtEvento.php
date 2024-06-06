@@ -163,7 +163,28 @@ class ModelBrtEvento extends ObjectModel
         }
         $rows = $db->executeS($sql);
 
-        return $rows;
+        $eventi = [];
+        foreach ($rows as $row) {
+            $eventi[] = new ModelBrtEvento($row[self::$definition['primary']]);
+        }
+
+        return $eventi;
+    }
+
+    public static function getIdByEvento($evento)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select(self::$definition['primary'])
+            ->from(self::$definition['table'])
+            ->where('name = \'' . pSQL($evento) . '\'');
+        $id = $db->getValue($sql);
+
+        if (!$id) {
+            return false;
+        }
+
+        return $id;
     }
 
     public static function getOrderStatesByBrtState($brtState)

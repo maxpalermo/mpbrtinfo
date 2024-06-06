@@ -39,7 +39,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     public $name;
     protected $esiti;
 
-    const FETCH_LIMIT = 300;
+    const FETCH_LIMIT = 500;
 
     protected function getJsonFetch()
     {
@@ -379,11 +379,21 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     protected function fetchOrders($orders)
     {
         $esiti = ModelBrtEsito::getEsiti();
+        $eventi = ModelBrtEvento::getEventi();
+
+        $id_order_state_sent = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+        $id_brt_event_sent = ModelBrtEvento::getIdByEvento('SPEDITA');
+
+        $id_order_state_delivered = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        $id_brt_event_delivered = ModelBrtEvento::getIdByEvento('CONSEGNATA');
+
         $errors = [];
         $logs = [];
 
         foreach ($orders as $id_order) {
+            // Cerco il tracking nella tabella tracking_number
             $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
+
             if (!$tracking) {
                 // Provo a cercare il tracking online
                 $search_type = Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
@@ -410,6 +420,18 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
                 if ($esito['esito'] == 0) {
                     $tracking = $esito['spedizione_id'];
+                    $anno_spedizione = date('Y');
+                    $date_shipping = date('Y-m-d H:i:s');
+
+                    $model = new ModelBrtTrackingNumber($id_order);
+                    $model->id_order = $id_order;
+                    $model->id_order_state = $id_order_state_sent;
+                    $model->id_brt_state = $id_brt_event_sent;
+                    $model->tracking_number = $tracking;
+                    $model->id_collo = $tracking;
+                    $model->anno_spedizione = $anno_spedizione;
+                    $model->date_shipping = $date_shipping;
+                    $model->add();
                 } else {
                     $tracking = '';
                     $esito = $esiti[$esito['esito']];
@@ -420,7 +442,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                 }
             }
             $client = new BrtSoapClientTrackingByShipmentId();
-            $info = $client->getSoapTrackingByShipmentId('', date('Y'), $tracking);
+            $info = $client->getSoapTrackingByShipmentId('', $anno_spedizione, $tracking);
             if ($info === false) {
                 $errors[] = ['id_order' => $id_order, 'info' => $tracking, 'esito' => 'NO INFO'];
 
@@ -451,10 +473,10 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         ];
     }
 
-    public function fetchInfoBySpedizioneId($anno, $spedizione_id)
+    public function fetchInfoBySpedizioneId(int $anno, string $tracking_number)
     {
         $client = new BrtSoapClientTrackingByShipmentId();
-        $info = $client->getSoapTrackingByShipmentId('', $anno, $spedizione_id);
+        $info = $client->getSoapTrackingByShipmentId('', $anno, $tracking_number);
         if ($info === false) {
             return ['error' => $client->getErrors()];
         }
@@ -467,12 +489,16 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $fetch = $this->getJsonFetch();
 
         $anno = $fetch['spedizione_anno'] ?? date('Y');
-        $spedizione_id = $fetch['spedizione_id'];
+        $spedizione_id = str_pad($fetch['spedizione_id'], 12, '0');
 
         $bolla = $this->fetchInfoBySpedizioneId($anno, $spedizione_id);
         if (is_array($bolla) && isset($bolla['error'])) {
             $this->response(['errors' => $bolla['error']]);
         }
+        if ($bolla->getEsito() != 0) {
+            $this->response(['errors' => [sprintf('(%s) %s', $bolla->getEsito(), $bolla->getEsitoDesc())]]);
+        }
+
         $tpl = new TemplateBolla($bolla);
 
         $this->response(['content' => $tpl->display()]);
@@ -481,19 +507,35 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     public function displayAjaxPostInfoBySpedizioneId($params)
     {
         $order_id = (int) $params['order_id'];
-        $spedizione_id = (int) $params['spedizione_id'];
+        $spedizione_id = str_pad($params['spedizione_id'], 12, '0');
 
         $order = new Order($order_id);
         if (!Validate::isLoadedObject($order)) {
-            $this->response(['content' => '<div id="BrtBolla" class="alert alert-danger">Order not found</div>']);
+            $this->response(['content' => [
+                'error' => true,
+                'error_code' => -99,
+                'message' => sprintf('Ordine %s non trovato.', $order_id),
+            ]]);
         }
 
-        $anno = date('Y', strtotime($order->date_add));
+        if (!$spedizione_id) {
+            $spedizione_id = ModelBrtTrackingNumber::getIdColloByIdOrder($order_id);
+        }
 
-        $bolla = $this->fetchInfoBySpedizioneId($anno, $spedizione_id);
+        if (!$spedizione_id) {
+            $this->response(['content' => [
+                'error' => true,
+                'error_code' => -98,
+                'message' => sprintf('Id Spedizione per l\'Ordine %s non trovato.', $order_id),
+            ]]);
+        }
+
+        $anno_spedizione = ModelBrtTrackingNumber::getAnnoSpedizione($order_id);
+
+        $bolla = $this->fetchInfoBySpedizioneId($anno_spedizione, $spedizione_id);
         $tpl = new TemplateBolla($bolla);
 
-        $this->response(['content' => $tpl->display()]);
+        $this->response(['content' => $tpl->display(), 'tracking' => $spedizione_id]);
     }
 
     public function displayAjaxInsertEventiSQL()
@@ -524,10 +566,16 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     protected function fetchTotalShippings()
     {
         $id_order_state_delivered = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED), true);
+        $id_order_state_sent = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT), true);
 
         if (!is_array($id_order_state_delivered)) {
             $id_order_state_delivered = [$id_order_state_delivered];
         }
+        if (!is_array($id_order_state_sent)) {
+            $id_order_state_sent = [$id_order_state_sent];
+        }
+
+        BrtOrder::checkDelivered($id_order_state_delivered);
 
         $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
         $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
@@ -571,42 +619,13 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
             $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
             if (!$tracking) {
-                // Provo a cercare il tracking online
-                $search_type = Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
-                $search_where = Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
-                $id_brt_customer = Configuration::get(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+                $errors[] = ['id_order' => $id_order, 'info' => $tracking, 'esito' => 'NO TRACKING'];
 
-                if ($search_type == 'RMN') {
-                    $client = new BrtSoapClientIdSpedizioneByRMN();
-                    if ($search_where == 'ID') {
-                        $esito = $client->getSoapIdSpedizioneByRMN($id_brt_customer, $id_order);
-                    } else {
-                        $order = new Order($id_order);
-                        $esito = $client->getSoapIdSpedizioneByRMN($id_brt_customer, $order->reference);
-                    }
-                } elseif ($search_type == 'RMA') {
-                    $client = new BrtSoapClientIdSpedizioneByRMA();
-                    if ($search_where == 'ID') {
-                        $esito = $client->getSoapIdSpedizioneByRMA($id_brt_customer, $id_order);
-                    } else {
-                        $order = new Order($id_order);
-                        $esito = $client->getSoapIdSpedizioneByRMA($id_brt_customer, $order->reference);
-                    }
-                }
-
-                if ($esito['esito'] == 0) {
-                    $tracking = $esito['spedizione_id'];
-                } else {
-                    $tracking = '';
-                    $esito = $esiti[$esito['esito']];
-                    $errors[] = ['id_order' => $id_order, 'info' => $esito, 'esito' => 'NO TRACKING'];
-                    unset ($esito);
-
-                    continue;
-                }
+                continue;
             }
+
             $client = new BrtSoapClientTrackingByShipmentId();
-            $info = $client->getSoapTrackingByShipmentId('', date('Y'), $tracking);
+            $info = $client->getSoapTrackingByShipmentId('', $tracking['anno_spedizione'], $tracking['tracking_number']);
             if ($info === false) {
                 $errors[] = ['id_order' => $id_order, 'info' => $tracking, 'esito' => 'NO INFO'];
 
@@ -626,11 +645,11 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                         $logs[] = $res;
                         ++$success;
                     } else {
-                        $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s: - ULTIMO EVENTO: (%s) %s %s. Stato ordine non cambiato.', $id_order, $tracking, $esito, $last_event->getData(), $last_event->getId(), $last_event->getDescrizione());
+                        $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s: - ULTIMO EVENTO: (%s) %s %s. Stato ordine non cambiato.', $id_order, $tracking['tracking_number'], $esito, $last_event->getData(), $last_event->getId(), $last_event->getDescrizione());
                     }
                 }
             } else {
-                $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s', $id_order, $tracking, $esito);
+                $logs[] = sprintf('ID ORDER: %s - TRACKING: %s - ESITO: %s', $id_order, $tracking['tracking_number'], $esito);
             }
         }
 
@@ -645,6 +664,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
             'processed' => $processed,
             'order_changed' => $success,
             'elapsed_time' => $time,
+            'tracking' => $tracking,
         ];
     }
 
@@ -721,6 +741,165 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         }
 
         $this->response(['status' => 'success', 'message' => 'Shipped date updated']);
+    }
+
+    public function displayAjaxSetShippedDateFromOrderCarrier()
+    {
+        $errors = [];
+        $carriers = ModelBrtConfig::getCarriers();
+        $id_carriers = implode(',', $carriers);
+        $shipped_state = json_decode(ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING));
+        $getTrackingBy = ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
+        $getTrackingOn = ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
+        $inserted = 0;
+
+        $db = Db::getInstance();
+
+        $sql_sent = 'SELECT id_evento FROM ' . _DB_PREFIX_ . "mpbrtinfo_evento WHERE name = 'PARTITA'";
+        $id_sent = $db->getValue($sql_sent);
+        if (!$id_sent) {
+            $id_sent = 702;
+        }
+
+        $sql = 'SELECT o.id_order, o.reference, oh.id_order_state, oh.date_add, oc.tracking_number FROM '
+            . _DB_PREFIX_ . 'orders o '
+            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_history oh ON (o.id_order = oh.id_order AND oh.id_order_state IN (' . implode(',', $shipped_state) . ')) '
+            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier oc ON (o.id_order = oc.id_order AND oc.tracking_number is NOT NULL) '
+            . "WHERE o.id_carrier IN ({$id_carriers}) AND oh.id_order IS NOT NULL "
+            . 'AND o.id_order not in (SELECT id_order FROM ' . _DB_PREFIX_ . 'mpbrtinfo_tracking_number) '
+            . 'ORDER BY oh.date_add ASC';
+        $rows = $db->executeS($sql);
+
+        $date_shipped = [];
+        if ($rows) {
+            foreach ($rows as $row) {
+                if (!$row['tracking_number']) {
+                    continue;
+                }
+
+                if (!preg_match('/^\d+$/', $row['tracking_number'])) {
+                    continue;
+                }
+
+                if (strlen($row['tracking_number']) < 12) {
+                    $row['tracking_number'] = str_pad($row['tracking_number'], 12, '0', STR_PAD_LEFT);
+                }
+
+                if ($getTrackingBy == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $getTrackingOn == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+                    $rmn = $row['id_order'];
+                    $rma = null;
+                }
+
+                if ($getTrackingBy == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $getTrackingOn == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+                    $rmn = $row['reference'];
+                    $rma = null;
+                }
+
+                if ($getTrackingBy == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $getTrackingOn == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+                    $rmn = null;
+                    $rma = $row['id_order'];
+                }
+
+                if ($getTrackingBy == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $getTrackingOn == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+                    $rmn = null;
+                    $rma = $row['reference'];
+                }
+
+                $date_shipped[$row['id_order']] = [
+                    'id_order_state' => $row['id_order_state'],
+                    'id_brt_state' => $id_sent,
+                    'tracking_number' => $row['tracking_number'],
+                    'date_shipped' => $row['date_add'],
+                    'anno_spedizione' => date('Y', strtotime($row['date_add'])),
+                    'rmn' => $rmn,
+                    'rma' => $rma,
+                    'id_collo' => null,
+                    'current_state' => 'SENT',
+                ];
+            }
+        }
+
+        foreach ($date_shipped as $id_order => $value) {
+            $model = new ModelBrtTrackingNumber($id_order);
+
+            $model->id_order = $id_order;
+            $model->id_order_state = $value['id_order_state'];
+            $model->id_brt_state = $value['id_brt_state'];
+            $model->date_event = $value['date_shipped'];
+            $model->date_shipped = $value['date_shipped'];
+            $model->anno_spedizione = $value['anno_spedizione'];
+            $model->tracking_number = $value['tracking_number'];
+            $model->rmn = $value['rmn'];
+            $model->rma = $value['rma'];
+            $model->id_collo = $value['id_collo'];
+            $model->current_state = $value['current_state'];
+
+            try {
+                $model->save(true);
+                ++$inserted;
+            } catch (\Throwable $th) {
+                $errors[] = sprintf('Ordine %s: Errore %s', $id_order, $th->getMessage());
+            }
+        }
+
+        $this->response(['status' => 'success', 'message' => sprintf('Inseriti %d ordini allo stato SPEDITO', $inserted), 'errors' => $errors]);
+    }
+
+    public function displayAjaxSetDeliveredDateFromOrderCarrier()
+    {
+        $errors = [];
+        $carriers = ModelBrtConfig::getCarriers();
+        $id_carriers = implode(',', $carriers);
+        $delivered_state = json_decode(ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED));
+        if (!is_array($delivered_state)) {
+            $delivered_state = [$delivered_state];
+        }
+        $inserted = 0;
+
+        $db = Db::getInstance();
+
+        $sql_delivered = 'SELECT id_evento FROM ' . _DB_PREFIX_ . "mpbrtinfo_evento WHERE name = 'CONSEGNATA'";
+        $id_delivered = $db->getValue($sql_delivered);
+        if (!$id_delivered) {
+            $id_delivered = 704;
+        }
+
+        $sql = 'SELECT tn.*, oh.date_add as oh_date_delivered FROM '
+            . _DB_PREFIX_ . 'mpbrtinfo_tracking_number tn '
+            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_history oh ON (tn.id_order = oh.id_order AND oh.id_order_state IN (' . implode(',', $delivered_state) . ')) '
+            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier oc ON (tn.id_order = oc.id_order) '
+            . 'LEFT JOIN ' . _DB_PREFIX_ . 'orders o ON (tn.id_order = o.id_order) '
+            . "WHERE o.id_carrier IN ({$id_carriers}) AND oh.id_order IS NOT NULL "
+            . 'AND o.id_order not in (SELECT distinct id_order FROM ' . _DB_PREFIX_ . 'mpbrtinfo_tracking_number WHERE current_state = \'DELIVERED\') '
+            . 'ORDER BY oh.date_add ASC';
+        $rows = $db->executeS($sql);
+
+        $date_shipped = [];
+        if ($rows) {
+            foreach ($rows as &$row) {
+                unset($row['id_mpbrtinfo_tracking_number']);
+                $date_shipped = $row['date_event'];
+                $date_delivered = $row['oh_date_delivered'];
+                $days = ModelBrtTrackingNumber::countDays($date_shipped, $date_delivered);
+
+                $model = new ModelBrtTrackingNumber();
+                $model->hydrate($row);
+                $model->date_event = $date_delivered;
+                $model->date_delivered = $date_delivered;
+                $model->id_brt_state = $id_delivered;
+                $model->current_state = 'DELIVERED';
+                $model->days = $days;
+
+                try {
+                    $model->save(true);
+                    ++$inserted;
+                } catch (\Throwable $th) {
+                    $errors[] = sprintf('Ordine %s: Errore %s', $model->id_order, $th->getMessage());
+                }
+            }
+        }
+
+        $this->response(['status' => 'success', 'message' => sprintf('Inseriti %d ordini allo stato CONSEGNATO', $inserted), 'errors' => $errors]);
     }
 
     public function displayAjaxSetDeliveredDays()

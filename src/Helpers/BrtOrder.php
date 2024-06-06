@@ -20,6 +20,8 @@
 
 namespace MpSoft\MpBrtInfo\Helpers;
 
+use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -45,21 +47,15 @@ class BrtOrder
     public static function getOrdersIdExcludingOrderStates($id_order_states, $orderHistory = [], $limit = 20)
     {
         $db = \Db::getInstance();
-        $carriers = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS);
+        $carriers = \ModelBrtConfig::getCarriers();
         if ($carriers) {
-            $carriers = array_map(function ($item) {
-                return "'" . pSQL($item) . "'";
-            }, $carriers);
             $carriers = implode(',', $carriers);
-            $query = 'SELECT `id_carrier` FROM `' . _DB_PREFIX_ . "carrier` WHERE `name` IN ($carriers) and deleted = 0 and active = 1";
-            $result = $db->executeS($query);
-            if ($result) {
-                $carriers = [];
-                foreach ($result as $row) {
-                    $carriers[] = $row['id_carrier'];
-                }
-                $carriers = implode(',', $carriers);
-            }
+        } else {
+            return [];
+        }
+
+        if (!$orderHistory) {
+            $orderHistory = [0];
         }
 
         $query = 'SELECT id_order FROM `'
@@ -80,6 +76,90 @@ class BrtOrder
         }
 
         return $id_orders;
+    }
+
+    public static function checkDelivered($id_order_state_delivered)
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('id_order')
+            ->from('orders')
+            ->where('current_state in(' . implode(',', $id_order_state_delivered) . ')')
+            ->where('DATEDIFF(NOW(), `date_add`) < 15')
+            ->orderBy('date_add DESC');
+        $rows = $db->executeS($sql);
+        $delivered = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        $brt_delivered = 704;
+
+        if ($rows) {
+            foreach ($rows as $row) {
+                $sql = new \DbQuery();
+                $sql->select('count(*)')
+                    ->from('mpbrtinfo_tracking_number')
+                    ->where('id_order_state IN (' . implode(',', $id_order_state_delivered) . ')')
+                    ->where('id_order = ' . (int) $row['id_order']);
+                $result = (int) $db->getValue($sql );
+                if ($result) {
+                    continue;
+                }
+
+                $tracking = self::getIdSpedizioneByRMN(self::getRMN($row['id_order']));
+
+                $model = new \ModelBrtTrackingNumber();
+                $model->id_order = $row['id_order'];
+                $model->id_order_state = $delivered;
+                $model->date_event = date('Y-m-d H:i:s');
+                $model->id_brt_state = $brt_delivered;
+                $model->id_collo = str_pad($tracking, 12, '0', STR_PAD_LEFT) ;
+                $model->rmn = self::getRMN($row['id_order']);
+                $model->rma = self::getRMA($row['id_order']);
+                $model->tracking_number = str_pad($tracking, 12, '0', STR_PAD_LEFT);
+                $model->current_state = 'DELIVERED';
+                $model->anno_spedizione = date('Y');
+                $model->date_shipped = date('Y-m-d H:i:s');
+                $model->date_delivered = date('Y-m-d H:i:s');
+                $model->days = 0;
+
+                $model->add();
+            }
+        }
+    }
+
+    public static function getRMN($id_order)
+    {
+        if (\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE == 'ID')) {
+            return $id_order;
+        }
+
+        $db = \Db::getInstance();
+        $sql = 'SELECT reference FROM ' . _DB_PREFIX_ . 'orders WHERE id_order = ' . (int) $id_order;
+
+        return $db->getValue($sql);
+    }
+
+    public static function getRMA($id_order)
+    {
+        if (\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE == 'ID')) {
+            return $id_order;
+        }
+
+        $db = \Db::getInstance();
+        $sql = 'SELECT reference FROM ' . _DB_PREFIX_ . 'orders WHERE id_order = ' . (int) $id_order;
+
+        return $db->getValue($sql);
+    }
+
+    public static function getIdSpedizioneByRMN($rmn)
+    {
+        $brt_customer_id = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+        $class = new BrtSoapClientIdSpedizioneByRMN();
+        $result = $class->getSoapIdSpedizioneByRMN($brt_customer_id, $rmn);
+
+        if ($result === false) {
+            return '';
+        }
+
+        return $result['spedizione_id'];
     }
 
     public static function getOrdersHistoryIdExcludingOrderStates($id_order_states, $limit = 20)

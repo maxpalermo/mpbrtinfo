@@ -1,4 +1,8 @@
 <?php
+
+use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
+use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -38,6 +42,7 @@ class ModelBrtTrackingNumber extends ObjectModel
     public $date_event;
     public $id_collo;
     public $rmn;
+    public $rma;
     public $tracking_number;
     public $current_state;
     public $anno_spedizione;
@@ -75,7 +80,7 @@ class ModelBrtTrackingNumber extends ObjectModel
             ],
             'id_collo' => [
                 'type' => self::TYPE_STRING,
-                'validate' => 'isString',
+                'validate' => 'isAnything',
                 'size' => 128,
                 'required' => false,
             ],
@@ -83,6 +88,12 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'type' => self::TYPE_INT,
                 'validate' => 'isUnsignedInt',
                 'required' => false,
+            ],
+            'rma' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'required' => false,
+                'size' => 128,
             ],
             'tracking_number' => [
                 'type' => self::TYPE_STRING,
@@ -144,7 +155,7 @@ class ModelBrtTrackingNumber extends ObjectModel
 
     public static function addHistory($id_order, $id_order_state, $id_brt_state, $tracking_number, $id_collo, $anno_spedizione)
     {
-        $history = new ModelBrtTrackingNUmber();
+        $history = new ModelBrtTrackingNumber();
         $history->id_order = (int) $id_order;
         $history->id_order_state = (int) $id_order_state;
         $history->id_brt_state = (int) $id_brt_state;
@@ -211,7 +222,7 @@ class ModelBrtTrackingNumber extends ObjectModel
                 break;
         }
 
-        $sql->select('a.id_order, a.id_brt_state, a.id_order_state, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, evt.name as evento')
+        $sql->select('a.id_order, a.id_brt_state, a.id_order_state, a.id_collo, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, evt.name as evento')
             ->from(self::$definition['table'], 'a')
             ->leftJoin('orders', 'o', 'a.id_order = o.id_order and o.id_order is not null')
             ->leftJoin('customer', 'c', 'o.id_customer = c.id_customer and c.id_customer is not null')
@@ -226,6 +237,12 @@ class ModelBrtTrackingNumber extends ObjectModel
 
         if (!$rows) {
             return [];
+        }
+
+        foreach ($rows as &$row) {
+            if ($row['id_collo'] && $row['tracking_number']) {
+                $row['tracking_number'] = $row['id_collo'];
+            }
         }
 
         return $rows;
@@ -254,6 +271,34 @@ class ModelBrtTrackingNumber extends ObjectModel
         return Db::getInstance()->getValue($sql);
     }
 
+    public static function getTrackingNumberByRMN($rmn)
+    {
+        $brt_id = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+        $class = new BrtSoapClientIdSpedizioneByRMN();
+        $res = $class->getSoapIdSpedizioneByRMN($brt_id, $rmn);
+        if ($res['esito'] === 0) {
+            $tracking = $res['spedizione_id'];
+
+            return $tracking;
+        }
+
+        return false;
+    }
+
+    public static function getTrackingNumberByRMA($rma)
+    {
+        $brt_id = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+        $class = new BrtSoapClientIdSpedizioneByRMA();
+        $res = $class->getSoapIdSpedizioneByRMA($brt_id, $rma);
+        if ($res['esito'] === 0) {
+            $tracking = $res['spedizione_id'];
+
+            return $tracking;
+        }
+
+        return false;
+    }
+
     public static function getLastRowByIdOrder($id_order)
     {
         $sql = new DbQuery();
@@ -276,60 +321,141 @@ class ModelBrtTrackingNumber extends ObjectModel
 
         $value = (int) $db->getValue($sql);
 
+        if (!$value) {
+            $order = new Order($id_order);
+            if (!\Validate::isLoadedObject($order) ) {
+                return 0;
+            }
+
+            $id_brt_state = ModelBrtConfig::getBrtStateFromIdOrderState($order->current_state);
+        }
+
         return $value;
     }
 
     public static function getIdColloByIdOrder($id_order)
     {
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        $tracking_by = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
+        $tracking_on = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
+        $rmn = '';
+        $rma = '';
+
+        if ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+            $rmn = $order->id;
+            $rma = '';
+        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+            $rmn = $order->reference;
+            $rma = '';
+        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+            $rmn = '';
+            $rma = $order->id;
+        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+            $rmn = '';
+            $rma = $order->reference;
+        }
+
         $sql = new DbQuery();
-        $sql->select('id_collo')
+        $sql->select('`id_collo` as `tracking_number`, `anno_spedizione`')
             ->from(self::$definition['table'])
             ->where('id_order = ' . (int) $id_order)
             ->where('id_collo is not null')
             ->orderBy(self::$definition['primary'] . ' DESC');
 
-        $value = Db::getInstance()->getValue($sql);
-        if ($value) {
-            return $value;
+        $tracking = Db::getInstance()->getRow($sql);
+        if ($tracking) {
+            return $tracking;
         }
 
         // Cerco il tracking nella tabella order_carrier
         $sql = new DbQuery();
-        $sql->select('tracking_number')
+        $sql->select("`tracking_number`, YEAR('date_add') as `anno_spedizione`")
             ->from('order_carrier')
             ->where('id_order = ' . (int) $id_order)
             ->where('tracking_number is not null')
             ->orderBy('id_order_carrier DESC');
-        $tracking = Db::getInstance()->getValue($sql);
+        $tracking = Db::getInstance()->getRow($sql);
+
         if ($tracking) {
-            $id_collo = self::getIdColloByTrackingNumber($tracking, date('Y'));
-            if ($id_collo) {
-                $order = new Order($id_order);
-                if (Validate::isLoadedObject($order)) {
-                    $brtTracking = new ModelBrtTrackingNumber();
-                    $brtTracking->id_order = (int) $id_order;
-                    $brtTracking->id_order_state = (int) $order->current_state;
-                    $brtTracking->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
-                    $brtTracking->date_event = date('Y-m-d H:i:s');
-                    $brtTracking->id_collo = $id_collo;
-                    $brtTracking->rmn = $id_order;
-                    $brtTracking->tracking_number = $tracking;
-                    $brtTracking->current_state = 'SENT';
-                    $brtTracking->anno_spedizione = self::getAnnoSpedizione($id_order);
-                    $brtTracking->date_add = date('Y-m-d H:i:s');
+            return $tracking;
+        }
 
-                    try {
-                        $brtTracking->add();
-                    } catch (\Throwable $th) {
-                        self::$errors[] = $th->getMessage();
-                    }
-                }
-
-                return $id_collo;
+        // se l'ordine è più vecchio di 15 giorni dalla data odierna, il tracking non può più essere richiesto
+        $db = Db::getInstance();
+        $sql = 'SELECT date_add from ' . _DB_PREFIX_ . 'orders where id_order = ' . (int) $id_order;
+        $date_add = $db->getValue($sql);
+        if ($date_add && Validate::isDate($date_add)) {
+            $date_add = new DateTime($date_add);
+            $date_now = new DateTime();
+            $diff = $date_add->diff($date_now);
+            if ($diff->days > 15) {
+                return false;
             }
         }
 
-        return '';
+        // Cerco il tracking nel DB di BRT
+        if ($rmn) {
+            $tracking = self::getTrackingNumberByRMN($rmn);
+        } elseif ($rma) {
+            $tracking = self::getTrackingNumberByRMA($rma);
+        }
+
+        if ($tracking) {
+            // Aggiorno il tracking nella tabella tracking_number
+            $db = db::getInstance();
+            $sql = new DbQuery();
+            $sql->select('id_mpbrtinfo_tracking_number')
+                ->from('mpbrtinfo_tracking_number')
+                ->where('id_order = ' . (int) $id_order)
+                ->where("current_state = 'SENT'")
+                ->orderBy('id_mpbrtinfo_tracking_number DESC');
+            $id_tracking = (int) $db->getValue($sql);
+            $anno_spedizione = self::getAnnoSpedizione($id_order);
+
+            $brtTracking = new ModelBrtTrackingNumber($id_tracking);
+            $brtTracking->id_order = (int) $id_order;
+            $brtTracking->id_order_state = (int) $order->current_state;
+            $brtTracking->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
+            $brtTracking->date_event = date('Y-m-d H:i:s');
+            $brtTracking->id_collo = $tracking;
+            $brtTracking->tracking_number = $tracking;
+            $brtTracking->rmn = $rmn;
+            $brtTracking->rma = $rma;
+            $brtTracking->current_state = 'SENT';
+            $brtTracking->anno_spedizione = $anno_spedizione;
+            $brtTracking->date_shipped = date('Y-m-d H:i:s');
+            $brtTracking->date_delivered = null;
+            $brtTracking->date_add = date('Y-m-d H:i:s');
+
+            try {
+                $brtTracking->save();
+                $db->update(
+                    'mpbrtinfo_tracking_number',
+                    [
+                        'id_collo' => $tracking,
+                        'tracking_number' => $tracking,
+                        'rmn' => $rmn,
+                        'rma' => $rma,
+                        'date_shipped' => date('Y-m-d H:i:s'),
+                        'anno_spedizione' => $anno_spedizione,
+                    ],
+                    'id_order = ' . (int) $order->id
+                );
+            } catch (\Throwable $th) {
+                self::$errors[] = $th->getMessage();
+            }
+
+            return [
+                'tracking_number' => $tracking,
+                'anno_spedizione' => $anno_spedizione,
+            ];
+        }
+
+        return false;
     }
 
     public static function getIdColloByTrackingNumber($tracking_number, $anno)
@@ -377,10 +503,10 @@ class ModelBrtTrackingNumber extends ObjectModel
 
     public static function getBrtIdState($state = '')
     {
-        $state = ModelBrtEvento::getEventi($state);
-        if ($state) {
-            foreach ($state as $row) {
-                return $row['id_evento'];
+        $eventi = ModelBrtEvento::getEventi($state);
+        if ($eventi) {
+            foreach ($eventi as $evento) {
+                return $evento->id_evento;
             }
         }
 

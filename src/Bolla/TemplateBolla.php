@@ -47,6 +47,21 @@ class TemplateBolla
 
     public function display()
     {
+        if (is_array($this->bolla)) {
+            return [
+                'error' => true,
+                'error_code' => -999,
+                'message' => json_encode($this->bolla['error']),
+            ];
+        }
+        if ($this->bolla->getEsito() < 0) {
+            return [
+                'error' => true,
+                'error_code' => $this->bolla->getEsito(),
+                'message' => $this->bolla->getEsitoDesc(),
+            ];
+        }
+
         $this->smarty->assign('bolla', $this->bolla);
 
         return $this->smarty->fetch($this->getTemplate());
