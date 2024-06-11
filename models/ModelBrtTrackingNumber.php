@@ -367,7 +367,7 @@ class ModelBrtTrackingNumber extends ObjectModel
             ->orderBy(self::$definition['primary'] . ' DESC');
 
         $tracking = Db::getInstance()->getRow($sql);
-        if ($tracking) {
+        if ($tracking && strlen($tracking['tracking_number']) == 12) {
             return $tracking;
         }
 
@@ -380,7 +380,7 @@ class ModelBrtTrackingNumber extends ObjectModel
             ->orderBy('id_order_carrier DESC');
         $tracking = Db::getInstance()->getRow($sql);
 
-        if ($tracking) {
+        if ($tracking && strlen($tracking['tracking_number']) == 12) {
             return $tracking;
         }
 
@@ -405,6 +405,16 @@ class ModelBrtTrackingNumber extends ObjectModel
         }
 
         if ($tracking) {
+            // Aggiorno il tracking nella tabella order_carrier
+            $db = db::getInstance();
+            $db->update(
+                'order_carrier',
+                [
+                    'tracking_number' => pSQL($tracking),
+                ],
+                'id_order = ' . (int) $id_order
+            );
+
             // Aggiorno il tracking nella tabella tracking_number
             $db = db::getInstance();
             $sql = new DbQuery();
@@ -645,7 +655,8 @@ class ModelBrtTrackingNumber extends ObjectModel
             ->from('order_carrier')
             ->where('id_order = ' . (int) $id_order)
             ->orderBy('date_add ASC');
-        $year = Db::getInstance()->getValue($sql);
+        $year = (int) Db::getInstance()->getValue($sql);
+
         if ($year) {
             return $year;
         }

@@ -48,6 +48,11 @@
                             </div>
                         </div>
                     </div>
+                    <div class="alert alert-info mb-4" role="alert">
+                        Ordine: <strong>{$bolla->getRiferimenti()->getRiferimentoMittenteNumerico()}</strong>
+                        <br>
+                        Cliente: <strong>{$bolla->getCustomer()}</strong>
+                    </div>
                 </div>
             </div>
             <div class="modal-body">

@@ -60,6 +60,7 @@ class Bolla
     /** @var string */
     protected $versione;
     protected static $event_list = [];
+    protected $customer;
 
     public function __construct($bolla)
     {
@@ -87,6 +88,19 @@ class Bolla
     }
 
     // Getter methods
+    public function getCustomer()
+    {
+        $order = new \Order((int) $this->getRiferimenti()->getRiferimentoMittenteNumerico());
+        if (\Validate::isLoadedObject($order)) {
+            $customer = new \Customer($order->id_customer);
+            if (\Validate::isLoadedObject($customer)) {
+                return $customer->firstname . ' ' . $customer->lastname;
+            }
+        }
+
+        return '--';
+    }
+
     public function getAssicurazione()
     {
         return $this->assicurazione;

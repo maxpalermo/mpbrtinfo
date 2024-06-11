@@ -601,9 +601,9 @@ class MpBrtInfo extends Module
                     [
                         'col' => 3,
                         'type' => 'select',
-                        'label' => $this->l('Controllo Tracking'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING,
-                        'desc' => $this->l('Stato dell\'ordine per il controllo del tracking (di solito è quando viene messo a SPEDITO)'),
+                        'label' => $this->l('Salta controlli'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_SKIP,
+                        'desc' => $this->l('Stato dell\'ordine da saltare durante il controllo del tracking'),
                         'required' => true,
                         'options' => [
                             'query' => $order_states,
@@ -824,6 +824,7 @@ class MpBrtInfo extends Module
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, [])));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING, [])));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED, [])));
+            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, [])));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, 'RMN'));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, 0));
@@ -851,6 +852,7 @@ class MpBrtInfo extends Module
             ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS), true),
             ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING), true),
             ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED), true),
+            ModelBrtConfig::MP_BRT_INFO_OS_SKIP . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_SKIP), true),
             ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE),
             ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE),
             ModelBrtConfig::MP_BRT_INFO_EVENT_SENT => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT),

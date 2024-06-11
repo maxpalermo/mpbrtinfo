@@ -78,6 +78,30 @@ class BrtOrder
         return $id_orders;
     }
 
+    public static function checkSkipped()
+    {
+        $id_order_state_skip = json_decode(\Configuration::get(\ModelBrtConfig::MP_BRT_INFO_OS_SKIP), true);
+        if (!$id_order_state_skip) {
+            return [];
+        }
+
+        // Prelevo tutti gli ordini che fanno parte degli stati da saltare
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('id_order')
+            ->from('orders')
+            ->where('current_state in(' . implode(',', $id_order_state_skip) . ')')
+            ->where('DATEDIFF(NOW(), `date_add`) < 15')
+            ->orderBy('date_add DESC');
+        $rows = $db->executeS($sql);
+
+        if ($rows) {
+            return $rows;
+        }
+
+        return [];
+    }
+
     public static function checkDelivered($id_order_state_delivered)
     {
         $db = \Db::getInstance();

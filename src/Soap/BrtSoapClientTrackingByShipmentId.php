@@ -47,6 +47,16 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
     {
         $response = [];
 
+        if (!$spedizione_anno) {
+            $spedizione_anno = date('Y');
+        }
+
+        if (!$spedizione_id) {
+            $this->errors[] = 'Spedizione non valida.';
+
+            return false;
+        }
+
         $request = new \stdClass();
         $request->LINGUA_ISO639_ALPHA2 = $lang_iso;
         $request->SPEDIZIONE_ANNO = $spedizione_anno;

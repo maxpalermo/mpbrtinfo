@@ -100,6 +100,9 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $orders = $this->fetchTotalShippings();
         $response = $this->fetchShippingInfo($orders);
 
+        $filename = _MPBRTINFO_DIR_ . 'logs/' . date('YmdHis') . '.log';
+        file_put_contents($filename, json_encode($response));
+
         $this->response($response);
     }
 
@@ -490,6 +493,9 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         $anno = $fetch['spedizione_anno'] ?? date('Y');
         $spedizione_id = str_pad($fetch['spedizione_id'], 12, '0');
+        // if (strlen($spedizione_id) != 12) {
+        //    $this->response(['errors' => ['Spedizione ID non valido.']]);
+        // }
 
         $bolla = $this->fetchInfoBySpedizioneId($anno, $spedizione_id);
         if (is_array($bolla) && isset($bolla['error'])) {
@@ -509,6 +515,16 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $order_id = (int) $params['order_id'];
         $spedizione_id = str_pad($params['spedizione_id'], 12, '0');
 
+        if (strlen($spedizione_id) != 12) {
+            $spedizione_id = ModelBrtTrackingNumber::getIdColloByIdOrder($order_id);
+
+            if (isset($spedizione_id['tracking_number'])) {
+                $spedizione_id = $spedizione_id['tracking_number'];
+            } else {
+                $spedizione_id = '';
+            }
+        }
+
         $order = new Order($order_id);
         if (!Validate::isLoadedObject($order)) {
             $this->response(['content' => [
@@ -520,6 +536,12 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         if (!$spedizione_id) {
             $spedizione_id = ModelBrtTrackingNumber::getIdColloByIdOrder($order_id);
+
+            if (isset($spedizione_id['tracking_number'])) {
+                $spedizione_id = $spedizione_id['tracking_number'];
+            } else {
+                $spedizione_id = '';
+            }
         }
 
         if (!$spedizione_id) {
@@ -567,6 +589,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
     {
         $id_order_state_delivered = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED), true);
         $id_order_state_sent = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT), true);
+        $id_order_state_skip = json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_SKIP), true);
 
         if (!is_array($id_order_state_delivered)) {
             $id_order_state_delivered = [$id_order_state_delivered];
@@ -574,10 +597,13 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         if (!is_array($id_order_state_sent)) {
             $id_order_state_sent = [$id_order_state_sent];
         }
+        if (!is_array($id_order_state_skip)) {
+            $id_order_state_skip = [$id_order_state_skip];
+        }
 
         BrtOrder::checkDelivered($id_order_state_delivered);
 
-        $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_delivered, self::FETCH_LIMIT);
+        $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_skip, self::FETCH_LIMIT);
         $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
 
         $totalShippings = array_merge($orders, $orderHistory);
