@@ -325,6 +325,12 @@ class Bolla
 
         if ($evento->isSent()) {
             $id_order_state = $id_state_sent;
+            $db = \Db::getInstance();
+            $db->update(
+                'order_carrier',
+                ['tracking_number' => str_pad($id_collo, 12, '0', STR_PAD_LEFT)],
+                'id_order = ' . (int) $id_order
+            );
         } elseif ($evento->isTransit()) {
             $id_order_state = $id_state_transit;
         } elseif ($evento->isWaiting() && $evento->isFermopoint()) {
