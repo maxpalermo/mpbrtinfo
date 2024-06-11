@@ -604,7 +604,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         BrtOrder::checkDelivered($id_order_state_delivered);
 
         $orderHistory = BrtOrder::getOrdersHistoryIdExcludingOrderStates($id_order_state_skip, self::FETCH_LIMIT);
-        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_delivered, $orderHistory, self::FETCH_LIMIT);
+        $orders = BrtOrder::getOrdersIdExcludingOrderStates($id_order_state_skip, $orderHistory, self::FETCH_LIMIT);
 
         $totalShippings = array_merge($orders, $orderHistory);
 
