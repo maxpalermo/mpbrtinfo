@@ -286,6 +286,54 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
     public function displayAjaxUpdateEventi()
     {
+        $json = $this->getJsonFetch();
+        $eventi = $json['eventi'];
+        $db = Db::getInstance();
+        $event_list = [];
+        $errors = [];
+        $updated = 0;
+
+        foreach ($eventi as $evento) {
+            if (!isset($evento['id'])) {
+                continue;
+            }
+            if (!isset($evento['name'])) {
+                continue;
+            }
+            $id = $evento['id'];
+            $name = $evento['name'];
+            $checked = (int) $evento['checked'];
+
+            $event_list[$id][] = [
+                'name' => $name,
+                'checked' => $checked,
+            ];
+        }
+
+        foreach ($event_list as $id => $events) {
+            $sql = 'UPDATE ' . _DB_PREFIX_ . 'mpbrtinfo_evento SET '
+                    . 'is_error = 0, is_transit = 0, is_delivered = 0, is_fermopoint = 0, is_waiting = 0, is_refused = 0, is_sent=0 '
+                    . 'WHERE id_evento = ' . (int) $id;
+            $db->execute($sql);
+
+            foreach ($events as $event) {
+                $sql = 'UPDATE ' . _DB_PREFIX_ . 'mpbrtinfo_evento SET ' . $event['name'] . ' = 1 '
+                    . 'WHERE id_mpbrtinfo_evento = ' . (int) $id;
+
+                try {
+                    $db->execute($sql);
+                    $updated++;
+                } catch (\Throwable $th) {
+                    $errors[] = $th->getMessage();
+                }
+            }
+        }
+
+        $this->response(['updated' => $updated, 'errors' => $errors]);
+    }
+
+    public function displayAjaxUpdateEventi2()
+    {
         $eventi = $this->getLegendaEventi();
         $exists = 'SELECT id_evento FROM ' . _DB_PREFIX_ . 'mpbrtinfo_evento ORDER BY id_evento ASC';
         $db = Db::getInstance();

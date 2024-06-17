@@ -46,26 +46,27 @@
                         <td>{$evento.id_mpbrtinfo_evento}</td>
                         <td>{$evento.id_evento}</td>
                         <td>{$evento.name}</td>
+                        {assign var=ev value=$evento.id_mpbrtinfo_evento}
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_error" {if $evento.is_error}checked {/if} value="{$evento.is_error}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_error" {if $evento.is_error}checked {/if} value="{$evento.is_error}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_transit" {if $evento.is_transit}checked {/if} value="{$evento.is_transit}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_transit" {if $evento.is_transit}checked {/if} value="{$evento.is_transit}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_delivered" {if $evento.is_delivered}checked {/if} value="{$evento.is_delivered}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_delivered" {if $evento.is_delivered}checked {/if} value="{$evento.is_delivered}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_refused" {if $evento.is_refused}checked {/if} value="{$evento.is_refused}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_refused" {if $evento.is_refused}checked {/if} value="{$evento.is_refused}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_waiting" {if $evento.is_waiting}checked {/if} value="{$evento.is_waiting}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_waiting" {if $evento.is_waiting}checked {/if} value="{$evento.is_waiting}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_fermopoint" {if $evento.is_fermopoint}checked {/if} value="{$evento.is_fermopoint}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_fermopoint" {if $evento.is_fermopoint}checked {/if} value="{$evento.is_fermopoint}">
                         </td>
                         <td>
-                            <input type="checkbox" class="form-control text-center" name="is_sent" {if $evento.is_sent}checked {/if} value="{$evento.is_sent}">
+                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_sent" {if $evento.is_sent}checked {/if} value="{$evento.is_sent}">
                         </td>
                     </tr>
                 {/foreach}
@@ -141,6 +142,11 @@
     }
 
     async function updateEventi() {
+        if (!confirm("Confermi l'aggiornamento degli eventi?")) return;
+
+        let chk_eventi = $("#table-eventi tbody tr input[type=checkbox]:checked").map(function() {
+            return { name: $(this).attr("name"), checked: $(this).is(":checked"), id: $(this).data("id_evento") };
+        });
         eventi = await fetch(ajax_controller, {
                 method: 'POST',
                 headers: new Headers({
@@ -149,12 +155,13 @@
                 body: JSON.stringify({
                     ajax: 1,
                     action: 'updateEventi',
+                    eventi: chk_eventi
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if ("updated" in data) {
-                    alert("Operazione eseguita. Inseriti " + data.updated.length + " nuovi eventi.");
+                    alert("Operazione eseguita. Modificati " + data.updated + " eventi.");
                 }
                 if ("error" in data && data.error.length > 0) {
                     alert("Errori durante l'aggiornamento: " + data.errors.length);
