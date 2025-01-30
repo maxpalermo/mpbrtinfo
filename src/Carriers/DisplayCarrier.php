@@ -141,7 +141,7 @@ class DisplayCarrier
             }
         } else {
             $tracking_number = $row['tracking_number'];
-            $displayIcon = \ModelBrtConfig::getIconByEvento($row['id_brt_state']);
+            $displayIcon = \ModelBrtConfig::getIconByEvento($row['id_brt_state'], $id_order);
         }
 
         if (!$row) {

@@ -62,7 +62,7 @@
                     return false;
                 }
 
-                $("body #content.bootstrap").append(data.content);
+                $("body").append(data.content);
 
                 $("#BrtBolla").modal('show');
                 return data;
@@ -245,8 +245,6 @@
     }
 
     $(function() {
-        $('body #content.bootstrap').append($("#ModalFetchBrt").detach());
-
         $("#ModalFetchBrt").on("hide.bs.modal", function() {
             controller.abort();
         });
@@ -256,13 +254,18 @@
             signal = controller.signal;
         });
 
-        $(".brt-info-button").on("click", function() {
+        $(".brt-info-button").on("click", function(e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
             let tracking = $(this).data('tracking');
             let order_id = $(this).data('order_id');
             let rmn = $(this).data('rmn');
             let rma = $(this).data('rma');
 
             getBrtInfo(order_id, tracking, this);
+
+            return false;
         });
 
         $("#brt-fetch-orders").on('click', function(evt) {

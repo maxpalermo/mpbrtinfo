@@ -222,11 +222,18 @@ class ModelBrtConfig extends ConfigurationCore
         return self::getIcon(self::MP_BRT_INFO_EVENT_UNKNOWN);
     }
 
-    public static function getIconByEvento($evento)
+    public static function getIconByEvento($evento, $id_order)
     {
         $evento = \ModelBrtEvento::getById($evento);
         if (!$evento) {
-            return self::getIcon(self::MP_BRT_INFO_EVENT_UNKNOWN);
+            $order = new Order($id_order);
+            if (Validate::isLoadedObject($order)) {
+                $order_state = $order->getCurrentState();
+
+                return self::getIconByOrderState($order_state);
+            } else {
+                return self::getIcon(self::MP_BRT_INFO_EVENT_UNKNOWN);
+            }
         }
         switch (true) {
             case $evento->isDelivered():

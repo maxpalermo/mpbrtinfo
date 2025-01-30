@@ -1,4 +1,6 @@
 <?php
+use Doctrine\ORM\QueryBuilder;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -26,6 +28,10 @@ require_once dirname(__FILE__) . '/models/autoload.php';
 
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
+use MpSoft\MpBrtInfo\Core\Grid\Column\Type\CarrierColumn;
+use PrestaShop\PrestaShop\Core\Grid\Filter\Filter;
+use PrestaShop\PrestaShop\Core\Search\Filters\CustomerFilters;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 
 if (!defined('_MPBRTINFO_DIR_')) {
     define('_MPBRTINFO_DIR_', dirname(__FILE__) . '/');
@@ -56,14 +62,14 @@ class MpBrtInfo extends Module
         $this->author = 'Massimiliano Palermo';
         $this->need_instance = 0;
         $this->bootstrap = true;
-        $this->module_key = 'f4f611db278018cf53ec925d2ada9f0a';
+        $this->module_key = '';
 
         parent::__construct();
 
         $this->displayName = $this->l('MP BRT Tracking & Delivery results with SOAP');
         $this->description = $this->l('Manage Bartolini tracking & delivery results, with state change');
         $this->adminClassName = 'AdminMpBrtDelivered';
-        $this->ps_versions_compliancy = ['min' => '1.6.0', 'max' => '1.7.7'];
+        $this->ps_versions_compliancy = ['min' => '1.8.0', 'max' => _PS_VERSION_];
         $this->db = Db::getInstance();
         $this->link = $this->context->link;
         $this->InstallMenu = new MpSoft\MpBrtInfo\Helpers\InstallHelper();
@@ -77,13 +83,13 @@ class MpBrtInfo extends Module
     {
         $hooks = [
             'actionAdminControllerSetMedia',
-            'actionAdminOrdersListingResultsModifier',
-            'actionAdminOrdersListingFieldsModifier',
             'actionObjectOrderHistoryAddAfter',
             'displayDashboardToolbarTopMenu',
             'displayBackOfficeFooter',
             'dashboardZoneTwo',
             'dashboardData',
+            'actionOrderGridDefinitionModifier',
+            'actionOrderGridQueryBuilderModifier',
         ];
 
         $install =
@@ -264,13 +270,90 @@ class MpBrtInfo extends Module
     public function hookDisplayDashboardToolbarTopMenu($params)
     {
         if (Tools::strtolower($this->context->controller->controller_name) == 'adminorders' && !Tools::getValue('id_order')) {
-            $tpl = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
-            $smarty = $this->context->smarty;
-            $smarty->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
-            $html = $smarty->fetch($tpl);
+            $path = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
+            $tpl = $this->context->smarty->createTemplate($path);
+            $tpl->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
+            $html = $tpl->fetch();
 
             return $html;
         }
+    }
+
+    public function hookActionOrderGridDefinitionModifier(array $params)
+    {
+        $choices = [];
+        /** @var PrestaShop\PrestaShop\Core\Grid\Definition\GridDefinition */
+        $definition = $params['definition'];
+
+        $order_column = $definition->getColumnById('id_order');
+
+        $definition
+            ->getColumns()
+            ->addAfter(
+                'id_order',
+                (new CarrierColumn('id_carrier'))
+                    ->setName($this->l('Corriere'))
+                    ->setOptions([
+                        'field' => 'id_order',
+                        'callback_method' => 'displayCarrierIcon',
+                        'callback_class' => $this,
+                    ])
+            );
+        $carriers = Carrier::getCarriers((int) $this->id_lang);
+        foreach ($carriers as $carrier) {
+            $choices[$carrier['name']] = $carrier['name'];
+        }
+        // For search filter dropdown
+        $definition->getFilters()->add(
+            (new Filter('id_carrier', ChoiceType::class))
+            ->setTypeOptions([
+                'required' => false,
+                'choices' => $choices, // This key added to show dropdown in search options
+            ])
+            ->setAssociatedColumn('id_carrier')
+        );
+    }
+
+    public function displayCarrierIcon($id_order)
+    {
+        $icon = $this->displayCarrier->display($id_order);
+
+        return $icon;
+    }
+
+    /**
+     * Hook allows to modify Customers query builder and add custom sql statements.
+     *
+     * @param array $params
+     */
+    public function hookActionOrderGridQueryBuilderModifier(array &$params)
+    {
+        /** @var QueryBuilder $searchQueryBuilder */
+        $searchQueryBuilder = $params['search_query_builder'];
+        /** @var CustomerFilters $searchCriteria */
+        $searchCriteria = $params['search_criteria'];
+        $searchQueryBuilder
+            ->addSelect('car.name as `carrier_name`')
+            ->addSelect('o.id_carrier')
+            ->leftJoin('o', _DB_PREFIX_ . 'carrier', 'car', 'o.id_carrier = car.id_carrier');
+        foreach ($searchCriteria->getFilters() as $filterName => $filterValue) {
+            if ($filterName == 'id_carrier') {
+                $carrier_name = $filterValue;
+                $db = Db::getInstance();
+                $sql = 'select id_carrier from ' . _DB_PREFIX_ . 'carrier where name = "' . pSQL($carrier_name) . '"';
+                $id_carriers = $db->executeS($sql);
+                if ($id_carriers) {
+                    $filterIdCarriers = array_column($id_carriers, 'id_carrier');
+                    $inFilter = implode(',', $filterIdCarriers);
+                } else {
+                    $inFilter = [0];
+                }
+                $searchQueryBuilder->andWhere('o.id_carrier in (:id_carriers)');
+                $searchQueryBuilder->setParameter('id_carriers', $inFilter);
+            }
+        }
+
+        $params['search_query_builder'] = $searchQueryBuilder;
     }
 
     public function hookActionAdminControllerSetMedia($params)
@@ -283,6 +366,8 @@ class MpBrtInfo extends Module
         $this->context->controller->addJS([
             $path . 'js/XmlBeautify.min.js',
         ]);
+        // $this->context->controller->addCSS($this->getLocalPath() . 'views/css/bootstrap.min.css', 'all', 1000);
+        // $this->context->controller->addJs($this->getLocalPath() . 'views/js/bootstrap.bundle.min.js');
     }
 
     public function hookActionObjectOrderHistoryAddAfter($params)
@@ -450,8 +535,13 @@ class MpBrtInfo extends Module
             'spinner' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/img/spinner/spinner.gif',
         ];
 
-        $modal = $this->tpl->renderTplAdmin('brtInfo/modal_fetch.tpl');
-        $script = $this->tpl->renderTplAdmin('brtInfo/script', $data);
+        $tpl_modal = $this->context->smarty->createTemplate($this->getLocalPath() . 'views/templates/admin/brtInfo/modal_fetch.tpl');
+        $tpl_modal->assign($data);
+        $modal = $tpl_modal->fetch();
+
+        $tpl_script = $this->context->smarty->createTemplate($this->getLocalPath() . 'views/templates/admin/brtInfo/script.tpl');
+        $tpl_script->assign($data);
+        $script = $tpl_script->fetch();
 
         return $modal . $script;
     }

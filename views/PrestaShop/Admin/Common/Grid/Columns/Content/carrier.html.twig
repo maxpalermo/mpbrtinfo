@@ -1,0 +1,5 @@
+{% set key = column.options.callback_class %}
+{% set method = column.options.callback_method %}
+{% set arguments = record[column.options.field] %}
+{% set result = attribute(key, method, [arguments]) %}
+{{ result | raw }}

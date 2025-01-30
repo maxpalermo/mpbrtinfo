@@ -90,7 +90,16 @@ class Bolla
     // Getter methods
     public function getCustomer()
     {
-        $order = new \Order((int) $this->getRiferimenti()->getRiferimentoMittenteNumerico());
+        if (\Configuration::get('MP_BRT_INFO_SEARCH_WHERE') == 'REFERENCE') {
+            $reference = $this->getRiferimenti()->getRiferimentoMittenteNumerico();
+            $db = \Db::getInstance();
+            $sql = 'SELECT id_order FROM ' . _DB_PREFIX_ . 'orders WHERE reference = "' . pSQL($reference) . '"';
+            $id_order = (int) $db->getValue($sql);
+            $order = new \Order($id_order);
+        } else {
+            $order = new \Order((int) $this->getRiferimenti()->getRiferimentoMittenteNumerico());
+        }
+
         if (\Validate::isLoadedObject($order)) {
             $customer = new \Customer($order->id_customer);
             if (\Validate::isLoadedObject($customer)) {

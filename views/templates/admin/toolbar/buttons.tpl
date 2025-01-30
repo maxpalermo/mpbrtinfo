@@ -16,9 +16,7 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
-<li>
-    <a id="brt-fetch-orders" class="toolbar_btn  pointer" href="javascript:void(0);" title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}">
-        <i class="process-icon-truck"></i>
-        <div>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</div>
-    </a>
-</li>
+<a id="brt-fetch-orders" class="btn btn-info toolbar_btn pointer" href="javascript:void(0);" title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}">
+    <i class="material-icons">local_shipping</i>
+    <span>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</span>
+</a>
