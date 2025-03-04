@@ -47,6 +47,7 @@ class ModelBrtConfig extends ConfigurationCore
     const MP_BRT_INFO_EVENT_WAITING = 'MP_BRT_INFO_EVENT_WAITING';
     const MP_BRT_INFO_EVENT_SENT = 'MP_BRT_INFO_EVENT_SENT';
     const MP_BRT_INFO_EVENT_UNKNOWN = 'MP_BRT_INFO_EVENT_UNKNOWN';
+    const MP_BRT_SHIPPED_STATES = 'MP_BRT_SHIPPED_STATES';
 
     public static function getRootConfig()
     {

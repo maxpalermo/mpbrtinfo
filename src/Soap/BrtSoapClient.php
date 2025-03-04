@@ -50,11 +50,28 @@ class BrtSoapClient extends \SoapClient
             'content-type' => 'application/xml',
         ];
 
+        // Crea il contesto per la connessione SSL
+        // In ambiente di produzione, è consigliabile mantenere le verifiche SSL attive
+        // In ambiente di test o sviluppo, potrebbe essere necessario disabilitarle
+        $verify_ssl = true;
+        
+        // Se siamo in ambiente di test o sviluppo, disabilita la verifica SSL
+        if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_ === true) {
+            $verify_ssl = false;
+        }
+        
         $arrContextOptions = stream_context_create([
             'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ]]);
+                'verify_peer' => $verify_ssl,
+                'verify_peer_name' => $verify_ssl,
+                'allow_self_signed' => !$verify_ssl,
+                // Aumenta la compatibilità con server meno recenti
+                'ciphers' => 'HIGH:!SSLv2:!SSLv3:!TLSv1.0',
+            ],
+            'http' => [
+                'timeout' => 30,  // Timeout più lungo per le connessioni HTTP
+            ]
+        ]);
         $default = [
             'connection_timeout' => 15,
             'cache_wsdl' => WSDL_CACHE_NONE,
@@ -83,15 +100,54 @@ class BrtSoapClient extends \SoapClient
         }
     }
 
+    /**
+     * Esegue una chiamata SOAP al servizio BRT
+     * 
+     * @param string $function Nome della funzione da chiamare
+     * @param array $params Parametri da passare alla funzione
+     * 
+     * @return array Risposta del servizio in formato array
+     */
     public function exec($function, $params): array
     {
         try {
+            // Aggiungi informazioni di debug se siamo in modalità sviluppo
+            if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_ === true) {
+                $this->errors[] = 'Chiamata a ' . $function . ' con parametri: ' . json_encode($params);
+                $this->errors[] = 'Endpoint: ' . $this->__getLastRequestHeaders();
+            }
+            
+            // Esegui la chiamata SOAP
             $response = $this->$function($params);
 
-            // Return response as Array
-            return json_decode(json_encode($response), true);
+            // Converti la risposta in array
+            $result = json_decode(json_encode($response), true);
+            
+            // Aggiungi informazioni di debug se siamo in modalità sviluppo
+            if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_ === true) {
+                $this->errors[] = 'Risposta: ' . json_encode($result);
+            }
+            
+            return $result;
         } catch (\SoapFault $e) {
-            return ['error' => $e->getMessage()];
+            // Registra l'errore SOAP
+            $error_msg = 'Errore SOAP: ' . $e->getMessage();
+            $this->errors[] = $error_msg;
+            
+            // Aggiungi informazioni di debug se siamo in modalità sviluppo
+            if (defined('_PS_MODE_DEV_') && _PS_MODE_DEV_ === true) {
+                $this->errors[] = 'Ultima richiesta: ' . $this->__getLastRequest();
+                $this->errors[] = 'Ultimo header richiesta: ' . $this->__getLastRequestHeaders();
+                $this->errors[] = 'Ultima risposta: ' . $this->__getLastResponse();
+                $this->errors[] = 'Ultimo header risposta: ' . $this->__getLastResponseHeaders();
+            }
+            
+            return ['error' => $error_msg];
+        } catch (\Exception $e) {
+            // Registra altri errori
+            $error_msg = 'Errore generico: ' . $e->getMessage();
+            $this->errors[] = $error_msg;
+            return ['error' => $error_msg];
         }
     }
 

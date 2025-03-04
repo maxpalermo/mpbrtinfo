@@ -135,7 +135,7 @@ class Bolla
         return $this->destinatario;
     }
 
-    public function getMerce()
+    public function getDatiMerce()
     {
         return $this->merce;
     }
@@ -321,6 +321,10 @@ class Bolla
 
     public static function changeIdOrderState(int $id_order, Evento $evento, $rmn, $id_collo)
     {
+        // TODO::
+
+        return;
+
         $id_state_sent = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
         $id_state_transit = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
         $id_state_waiting = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
@@ -365,13 +369,13 @@ class Bolla
         }
 
         $order_state = $event_list[$evento->getId()] ?? '';
-        $last_brt_state = \ModelBrtTrackingNumber::getLastState($id_order);
+        $last_brt_state = \ModelBrtHistory::getLastState($id_order);
 
         if ($last_brt_state && $last_brt_state == $order_state['id_evento']) {
             return false;
         }
 
-        $model = new \ModelBrtTrackingNumber();
+        $model = new \ModelBrtHistory();
         $model->id_order = $id_order;
         $model->id_order_state = $id_order_state;
         $model->id_brt_state = $order_state['id_evento'];

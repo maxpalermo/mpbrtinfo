@@ -43,6 +43,7 @@ class DisplayCarrier
     protected $carriers;
     /** @var array */
     protected $carriers_id;
+    protected $carriers_brt;
     protected $tracking;
 
     public function __construct($module)
@@ -74,9 +75,9 @@ class DisplayCarrier
         $db = \Db::getInstance();
         $sql = new \DbQuery();
         $sql->select('*')
-            ->from(\ModelBrtTrackingNumber::$definition['table'])
+            ->from(\ModelBrtHistory::$definition['table'])
             ->where('id_order=' . (int) $id_order)
-            ->orderBy(\ModelBrtTrackingNumber::$definition['primary'] . ' DESC');
+            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
         $row = $db->getRow($sql);
 
         if (!$row) {
@@ -131,7 +132,6 @@ class DisplayCarrier
                 $row = [
                     'id_order' => $id_order,
                     'id_carrier' => $carrier->id,
-                    'tracking_number' => '',
                     'id_collo' => '',
                     'rmn' => $rmn,
                     'rma' => $rma,
@@ -140,7 +140,7 @@ class DisplayCarrier
                 ];
             }
         } else {
-            $tracking_number = $row['tracking_number'];
+            $tracking_number = $row['id_collo'];
             $displayIcon = \ModelBrtConfig::getIconByEvento($row['id_brt_state'], $id_order);
         }
 

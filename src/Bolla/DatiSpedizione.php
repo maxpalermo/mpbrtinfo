@@ -18,6 +18,24 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
+/*
+ RISPOSTA SERVER:
+
+    cod_filiale_arrivo = 26
+    descrizione_stato_sped_parte_1 = ""
+    descrizione_stato_sped_parte_2 = ""
+    filiale_arrivo = "PERUGIA"
+    filiale_arrivo_url = "https://services.brt.it/it/filiale/perugia"
+    porto = "Mittente"
+    servizio = "EXPRESS"
+    spedizione_data = "31.05.2024"
+    spedizione_id = "169010109536"
+    stato_sped_parte_1 = ""
+    stato_sped_parte_2 = ""
+    tipo_porto = "F"
+    tipo_servizio = "C"
+ */
+
 namespace MpSoft\MpBrtInfo\Bolla;
 
 if (!defined('_PS_VERSION_')) {

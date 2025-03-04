@@ -58,7 +58,7 @@ class MpBrtInfo extends Module
     {
         $this->name = 'mpbrtinfo';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.6.5';
+        $this->version = '1.7.5';
         $this->author = 'Massimiliano Palermo';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -103,7 +103,7 @@ class MpBrtInfo extends Module
             )
             && $this->InstallMenu->createTable(ModelBrtEvento::$definition)
             && $this->InstallMenu->createTable(ModelBrtEsito::$definition)
-            && $this->InstallMenu->createTable(ModelBrtTrackingNumber::$definition);
+            && $this->InstallMenu->createTable(ModelBrtHistory::$definition);
 
         try {
             $this->InstallMenu->createOrderState(
@@ -359,12 +359,19 @@ class MpBrtInfo extends Module
     public function hookActionAdminControllerSetMedia($params)
     {
         $path = $this->getLocalPath() . 'views/';
+        $this->context->controller->addJS([
+            $path . 'js/XmlBeautify/XmlBeautify.min.js',
+            $path . 'js/swal2/sweetalert2.all.min.js',
+            $path . 'js/htmx/htmx.min.js',
+            $path . 'js/panels/brt-esiti.js',
+            $path . 'js/panels/swal-progress.js',
+            $path . 'js/scripts/functions.js',
+        ]);
         $this->context->controller->addCSS([
             $path . 'css/icon.css',
             $path . 'css/spacer.bs.css',
-        ]);
-        $this->context->controller->addJS([
-            $path . 'js/XmlBeautify.min.js',
+            $path . 'css/material-icons.css',
+            $path . 'js/swal2/sweetalert2.min.css',
         ]);
         // $this->context->controller->addCSS($this->getLocalPath() . 'views/css/bootstrap.min.css', 'all', 1000);
         // $this->context->controller->addJs($this->getLocalPath() . 'views/js/bootstrap.bundle.min.js');
@@ -532,6 +539,7 @@ class MpBrtInfo extends Module
             'id_order' => 0,
             'id_carrier' => 0,
             'ajax_controller' => $ajax_controller,
+            'baseAdminUrl' => $ajax_controller,
             'spinner' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/img/spinner/spinner.gif',
         ];
 
@@ -691,24 +699,9 @@ class MpBrtInfo extends Module
                     [
                         'col' => 3,
                         'type' => 'select',
-                        'label' => $this->l('Salta controlli'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_SKIP,
-                        'desc' => $this->l('Stato dell\'ordine da saltare durante il controllo del tracking'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'multiple' => true,
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Controllo Consegnati'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED,
-                        'desc' => $this->l('Stato dell\'ordine per il controllo degli ordini consegnati'),
+                        'label' => $this->l('Stato SPEDITO'),
+                        'name' => ModelBrtConfig::MP_BRT_SHIPPED_STATES . '[]',
+                        'desc' => $this->l('Seleziona tutti gli stati SPEDITO. Il modulo cercherà tutti gli ordini in questo stato negli ultimi 15gg'),
                         'required' => true,
                         'options' => [
                             'query' => $order_states,
@@ -912,9 +905,7 @@ class MpBrtInfo extends Module
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, false));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, ''));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, [])));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING, [])));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED, [])));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, [])));
+            Configuration::updateValue(ModelBrtConfig::MP_BRT_SHIPPED_STATES, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_SHIPPED_STATES, [])));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, 'RMN'));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, 0));
@@ -940,9 +931,7 @@ class MpBrtInfo extends Module
             ModelBrtConfig::MP_BRT_INFO_CRON_JOB => $cronTaskInfoShipping,
             ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER => Configuration::get(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER),
             ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS), true),
-            ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_TRACKING), true),
-            ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_CHECK_FOR_DELIVERED), true),
-            ModelBrtConfig::MP_BRT_INFO_OS_SKIP . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_OS_SKIP), true),
+            ModelBrtConfig::MP_BRT_SHIPPED_STATES . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_SHIPPED_STATES), true),
             ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE),
             ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE),
             ModelBrtConfig::MP_BRT_INFO_EVENT_SENT => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT),

@@ -1,4 +1,5 @@
-{*
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -15,18 +16,36 @@
  * @author    Massimiliano Palermo <maxx.palermo@gmail.com>
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
- *}
+ */
 
-{assign var='tracking' value=$carrier.tracking}
+namespace MpSoft\MpBrtInfo\Order;
 
-{if $carrier.tracking && $carrier.id_collo}
-    {assign var='tracking' value=$carrier.id_collo}
-{else}
-    {if $carrier.id_collo && !$carrier.tracking}
-        {assign var='tracking' value=$carrier.id_collo}
-    {/if}
-{/if}
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
 
-<button type="button" class="btn brt-info-button" data-order_id="{$carrier.id_order}" data-tracking="{$tracking}" data-rmn="{$carrier.rmn}" data-rma="{$carrier.rma}" title="{l s='Carrier' mod='mpbrtinfo'}:{$carrier.name}{if $tracking} - Tracking: {$tracking}{/if}">
-    <img src="{$carrier.icon}" style="width: 48px; object-fit: contain;">
-</button>
+class GetOrderShippingDate
+{
+    protected $id_order;
+
+    public function __construct($id_order)
+    {
+        $this->id_order = $id_order;
+    }
+
+    public function run()
+    {
+        $config = \Configuration::get(\ModelBrtConfig::MP_BRT_SHIPPED_STATES);
+        $id_states = implode(',', json_decode($config, true));
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+
+        $sql->select('date_add')
+            ->from('order_history')
+            ->where('id_order = ' . (int) $this->id_order)
+            ->where('id_order_state IN (' . $id_states . ')')
+            ->orderBy('date_add DESC');
+
+        return $db->getValue($sql);
+    }
+}

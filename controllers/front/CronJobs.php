@@ -26,12 +26,14 @@ if (!defined('_PS_VERSION_')) {
 
 use MpSoft\MpBrtInfo\Bolla\TemplateBolla;
 use MpSoft\MpBrtInfo\Helpers\BrtOrder;
+use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEsiti;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEventi;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientTrackingByShipmentId;
+use MpSoft\MpBrtInfo\Soap\TrackingByBRTshipmentID;
 
 class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 {
@@ -1058,5 +1060,374 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $time = gmdate('H:i:s', (int) $elapsed);
 
         $this->response(['status' => 'success', 'message' => 'No order needs to be updated', 'affected_rows' => count($results), 'elapsed_time' => $time]);
+    }
+
+    /**
+     * Recupera i dettagli della spedizione BRT e li restituisce in formato JSON
+     * Questa funzione è chiamata via AJAX dal template SweetAlert2
+     */
+    public function displayAjaxGetBrtShipmentDetails()
+    {
+        // Verifica che i parametri necessari siano presenti
+        if (!Tools::isSubmit('id_order') || !Tools::isSubmit('tracking_number')) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Parametri mancanti: id_order e tracking_number sono richiesti',
+                ]
+            );
+
+            return;
+        }
+
+        $id_order = (int) Tools::getValue('id_order');
+        $tracking_number = pSQL(Tools::getValue('tracking_number'));
+        $date_shipped = (new GetOrderShippingDate($id_order))->run();
+        if (!$date_shipped) {
+            $date_shipped = date('Y-m-d H:i:s');
+        }
+        $year_shipped = date('Y', strtotime($date_shipped));
+
+        // Verifica che l'ordine esista
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Ordine non trovato',
+                ]
+            );
+
+            return;
+        }
+
+        try {
+            // Recupera i dati della spedizione tramite SOAP
+            $shipmentData = $this->getShipmentData($tracking_number, $id_order, $year_shipped);
+            $events = [];
+            if ($shipmentData['eventi']) {
+                $eventi = $shipmentData['eventi'];
+                foreach ($eventi as $evento) {
+                    $events[] = [
+                        'color' => $evento->getColor(),
+                        'icon' => $evento->getIcon(),
+                        'id' => $evento->getId(),
+                        'data' => $evento->getData(),
+                        'descrizione' => $evento->getDescrizione(),
+                        'filiale' => $evento->getFiliale(),
+                    ];
+                }
+            }
+            // Prepara la risposta
+            $response = [
+                'success' => true,
+                'data' => [
+                    'id_order' => $id_order,
+                    'tracking_number' => $tracking_number,
+                    'data_spedizione' => $shipmentData['data_spedizione'] ?? date('d/m/Y'),
+                    'porto' => $shipmentData['porto'] ?? 'Franco',
+                    'servizio' => $shipmentData['servizio'] ?? 'Standard',
+                    'colli' => $shipmentData['colli'] ?? 1,
+                    'peso' => $shipmentData['peso'] ?? '0 Kg',
+                    'natura' => $shipmentData['natura'] ?? 'Merce',
+                    'stato_attuale' => $this->getCurrentStatus($tracking_number, $id_order),
+                    'storico' => $events,
+                ],
+            ];
+
+            $this->response($response);
+        } catch (Exception $e) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Errore durante il recupero dei dati della spedizione: ' . $e->getMessage(),
+                ]
+            );
+        }
+    }
+
+    /**
+     * Recupera i dati della spedizione tramite SOAP
+     * 
+     * @param string $tracking_number Numero di tracking
+     * @param int $id_order ID dell'ordine
+     *
+     * @return array Dati della spedizione
+     */
+    private function getShipmentData($tracking_number, $id_order, $date_shipped)
+    {
+        try {
+            // Inizializza il client SOAP per il tracking
+            // $soapClient = new BrtSoapClientTrackingByShipmentId();
+            // $response = $soapClient->getSoapTrackingByShipmentId($id_order, $tracking_number, $date_shipped);
+
+            // Nuovo approccio
+            $soapClient = new TrackingByBRTshipmentID($id_order, $tracking_number, $date_shipped);
+            $response = $soapClient->getTracking();
+
+            if ($response && $response->getEsito() == 0) {
+                $spedizione = $response->getDatiSpedizione();
+                $consegna = $response->getDatiConsegna();
+                $merce = $response->getDatiMerce();
+                $eventi = $response->getEventi();
+
+                // Estrai i dati dalla risposta SOAP
+                return [
+                    'data_spedizione' => $spedizione->getSpedizioneData() ?? '--',
+                    'id_spedizione' => $spedizione->getSpedizioneId() ?? '--',
+                    'porto' => $spedizione->getTipoPorto() ?? '--',
+                    'servizio' => $spedizione->getTipoServizio() ?? '--',
+                    'colli' => $merce->getColli() ?? 0,
+                    'peso' => ($merce->getPesoKg() ?? '0') . ' Kg',
+                    'volume' => ($merce->getVolumeM3() ?? '0') . ' m3',
+                    'natura' => $merce->getNaturaMerce() ?? '--',
+                    'data_consegna' => $consegna->getDataConsegnaMerce() ?? '--',
+                    'eventi' => $eventi,
+                ];
+            }
+        } catch (Exception $e) {
+            // Log dell'errore
+            PrestaShopLogger::addLog(
+                'Errore durante il recupero dei dati della spedizione BRT: ' . $e->getMessage(),
+                3,
+                null,
+                'Order',
+                $id_order,
+                true
+            );
+        }
+
+        // Restituisci dati predefiniti se non è stato possibile recuperare i dati
+        return [
+            'data_spedizione' => date('d/m/Y'),
+            'porto' => '--',
+            'servizio' => '--',
+            'colli' => 0,
+            'peso' => '0 Kg',
+            'natura' => '--',
+        ];
+
+        // Recupera i dati della spedizione dal database se disponibili
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from('mpbrtinfo_history')
+            ->where('id_order = ' . (int) $id_order)
+            ->where('id_collo = "' . pSQL($tracking_number) . '"')
+            ->orderBy('date_add DESC, id_mpbrtinfo_history DESC');
+
+        $result = $db->getRow($sql);
+
+        if ($result) {
+            // Formatta i dati della spedizione
+            return [
+                'data_spedizione' => date('d/m/Y', strtotime($result['date_add'])),
+                'porto' => $result['porto'] ?? 'Franco',
+                'servizio' => $result['servizio'] ?? 'Standard',
+                'colli' => $result['colli'] ?? 1,
+                'peso' => ($result['peso'] ?? '0') . ' Kg',
+                'natura' => $result['natura'] ?? 'Merce',
+            ];
+        }
+    }
+
+    /**
+     * Recupera lo stato attuale della spedizione
+     * 
+     * @param string $tracking_number Numero di tracking
+     * @param int $id_order ID dell'ordine
+     *
+     * @return array Stato attuale della spedizione
+     */
+    private function getCurrentStatus($tracking_number, $id_order)
+    {
+        // Recupera lo stato attuale dal database
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('e.*, h.date_add, h.event_filiale_id, h.event_filiale_name')
+            ->from('mpbrtinfo_history', 'h')
+            ->leftJoin('mpbrtinfo_evento', 'e', 'h.event_id = e.id_evento')
+            ->where('h.id_order = ' . (int) $id_order)
+            ->orderBy('h.date_add DESC');
+
+        $result = $db->getRow($sql);
+
+        if ($result) {
+            // Determina il tipo di evento
+            $tipo = $this->getEventType($result['id_evento']);
+
+            return [
+                'evento' => $result['testo1'] . ' ' . $result['testo2'],
+                'data' => date('d/m/Y H:i', strtotime($result['date_add'])),
+                'filiale' => $result['filiale'],
+                'tipo' => $tipo,
+            ];
+        }
+
+        // Se non ci sono dati nel database, restituisci uno stato predefinito
+        return [
+            'evento' => 'Nessuna informazione disponibile',
+            'data' => date('d/m/Y H:i'),
+            'filiale' => '-',
+            'tipo' => 'sconosciuto',
+        ];
+    }
+
+    /**
+     * Recupera lo storico degli eventi della spedizione
+     * 
+     * @param int $id_order ID dell'ordine
+     *
+     * @return array Storico degli eventi
+     */
+    private function getShipmentEvents($id_order)
+    {
+        // Recupera lo storico degli eventi dal database
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('e.*, h.date_add, h.event_filiale_id, h.event_filiale_name')
+            ->from('mpbrtinfo_history', 'h')
+            ->leftJoin('mpbrtinfo_evento', 'e', 'h.event_id = e.id_evento')
+            ->where('h.id_order = ' . (int) $id_order)
+            ->orderBy('h.date_add DESC, h.id_mpbrtinfo_history DESC');
+
+        $results = $db->executeS($sql);
+
+        if ($results && is_array($results)) {
+            $events = [];
+
+            foreach ($results as $result) {
+                // Determina il tipo di evento
+                $tipo = $this->getEventType($result['id_evento']);
+
+                $events[] = [
+                    'evento' => $result['testo1'] . ' ' . $result['testo2'],
+                    'data' => date('d/m/Y H:i', strtotime($result['date_add'])),
+                    'filiale' => $result['filiale'],
+                    'tipo' => $tipo,
+                ];
+            }
+
+            return $events;
+        }
+
+        // Se non ci sono dati nel database, restituisci un array vuoto
+        return [];
+    }
+
+    /**
+     * Determina il tipo di evento in base all'ID evento
+     * 
+     * @param string $id_evento ID dell'evento
+     *
+     * @return string Tipo di evento (consegnato, transito, errore, ecc.)
+     */
+    private function getEventType($id_evento)
+    {
+        // Recupera le configurazioni degli eventi
+        $transit = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT));
+        $delivered = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED));
+        $error = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR));
+        $fermopoint = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT));
+        $refused = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED));
+        $waiting = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING));
+        $sent = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT));
+
+        // Verifica a quale tipo di evento appartiene l'ID evento
+        if (in_array($id_evento, $delivered)) {
+            return 'consegnato';
+        } elseif (in_array($id_evento, $transit)) {
+            return 'transito';
+        } elseif (in_array($id_evento, $error)) {
+            return 'errore';
+        } elseif (in_array($id_evento, $fermopoint)) {
+            return 'fermopoint';
+        } elseif (in_array($id_evento, $refused)) {
+            return 'rifiutato';
+        } elseif (in_array($id_evento, $waiting)) {
+            return 'giacenza';
+        } elseif (in_array($id_evento, $sent)) {
+            return 'spedito';
+        }
+
+        return 'sconosciuto';
+    }
+
+    /**
+     * Imposta un ordine come consegnato
+     * Questa funzione è chiamata via AJAX dal template SweetAlert2
+     */
+    public function displayAjaxSetOrderAsDelivered()
+    {
+        // Verifica che i parametri necessari siano presenti
+        if (!Tools::isSubmit('id_order')) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Parametro mancante: id_order è richiesto',
+                ]
+            );
+
+            return;
+        }
+
+        $id_order = (int) Tools::getValue('id_order');
+
+        // Verifica che l'ordine esista
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Ordine non trovato',
+                ]
+            );
+
+            return;
+        }
+
+        try {
+            // Recupera lo stato "Consegnato" dalla configurazione
+            $id_order_state_delivered = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+
+            if (!$id_order_state_delivered) {
+                // Se non è configurato, usa lo stato di default di PrestaShop per "Consegnato"
+                $id_order_state_delivered = (int) Configuration::get('PS_OS_DELIVERED');
+            }
+
+            // Aggiorna lo stato dell'ordine
+            $history = new OrderHistory();
+            $history->id_order = $id_order;
+            $history->changeIdOrderState($id_order_state_delivered, $id_order);
+            $history->addWithemail();
+
+            // Aggiorna la data di consegna
+            $order->delivery_date = date('Y-m-d H:i:s');
+            $order->update();
+
+            // Registra l'azione nel log
+            PrestaShopLogger::addLog(
+                'Ordine #' . $id_order . ' impostato come consegnato manualmente',
+                1,
+                null,
+                'Order',
+                $id_order,
+                true
+            );
+
+            $this->response(
+                [
+                    'success' => true,
+                    'message' => 'Ordine #' . $id_order . ' impostato come consegnato con successo',
+                ]
+            );
+        } catch (Exception $e) {
+            $this->response(
+                [
+                    'success' => false,
+                    'message' => 'Errore durante l\'impostazione dell\'ordine come consegnato: ' . $e->getMessage(),
+                ]
+            );
+        }
     }
 }

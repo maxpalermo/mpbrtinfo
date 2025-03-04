@@ -172,6 +172,46 @@ class Evento
         return 'secondary';
     }
 
+    public function getIcon()
+    {
+        $row = $this->row;
+        if (!$row) {
+            return 'help';
+        }
+        if ($row['is_delivered'] && $row['is_fermopoint']) {
+            return 'check_circle';
+        }
+        if ($row['is_fermopoint'] && $row['is_error']) {
+            return 'report';
+        }
+        if ($row['is_fermopoint'] && $row['is_waiting']) {
+            return 'warning';
+        }
+        if ($row['is_delivered']) {
+            return 'check_circle';
+        }
+        if ($row['is_fermopoint']) {
+            return 'warning';
+        }
+        if ($row['is_error']) {
+            return 'priority_high';
+        }
+        if ($row['is_transit']) {
+            return 'speed';
+        }
+        if ($row['is_waiting']) {
+            return 'pending';
+        }
+        if ($row['is_refused']) {
+            return 'block';
+        }
+        if ($row['is_sent']) {
+            return 'local_shipping';
+        }
+
+        return 'secondary';
+    }
+
     public function isDelivered()
     {
         return $this->is_delivered;

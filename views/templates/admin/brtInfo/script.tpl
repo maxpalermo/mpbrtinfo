@@ -18,8 +18,13 @@
  *}
 
 <script type="text/javascript">
+    const baseAdminUrl = "{$baseAdminUrl}";
     const ajax_controller = "{$ajax_controller}";
     const modalfetchBrt = $("#ModalFetchBrt");
+    const orderId = "{$id_order}";
+    const carrierId = "{$id_carrier}";
+    const spinner = "{$spinner}";
+
     var controller;
     var signal;
 
@@ -30,44 +35,57 @@
     var current_shipment_year = "{date('Y')}";
     var total_shippings = 0;
 
-    async function getBrtInfo(order_id, tracking, target) {
-        current_target = target;
-        current_id_order = order_id;
-        //current_id_carrier = id_carrier;
+    document.addEventListener('DOMContentLoaded', () => {
+        $("#ModalFetchBrt").on("hide.bs.modal", function() {
+            controller.abort();
+        });
 
-        let data = {
-            ajax: true,
-            action: 'postInfoBySpedizioneId',
-            order_id: order_id,
-            spedizione_id: tracking,
-        };
+        $("#ModalFetchBrt").on("show.bs.modal", (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
 
-        var current_icon = $(target).find('img').attr('src');
-        $(target).find('img').attr('src', '{$spinner}');
+            controller = new AbortController();
+            signal = controller.signal;
+        });
 
-        const response = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#BrtBolla").remove();
-                $(target).find('img').attr('src', current_icon);
+        document.querySelectorAll(".brt-info-button").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const id_order = btn.dataset.order_id;
+                const tracking = btn.dataset.tracking;
+                const rmn = btn.dataset.rmn;
+                const rma = btn.dataset.rma;
 
-                if (data.content.error == true) {
-                    alert("(" + data.content.error_code + ") " + data.content.message);
+                BrtEsiti.loadAndShowPanel(id_order, tracking);
+
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                //getBrtInfo(order_id, tracking, this);
+            });
+        })
+
+        document.getElementById("brt-fetch-orders").addEventListener("click", (e) => {
+            Swal.fire({
+                title: "{l s='Aggiornare le spedizioni Bartolini?' mod='mpbrtinfo'}",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sì',
+                cancelButtonText: 'No'
+            }).then((result) => {
+                if (!result.isConfirmed) {
+                    e.preventDefault();
                     return false;
                 }
 
-                $("body").append(data.content);
+                const pb = displayProgress(0);
+                showModalBrtFetchInfo(pb);
 
-                $("#BrtBolla").modal('show');
-                return data;
+                fetchBrtInfo();
             });
-    }
+        });
+    });
+
+
 
     function getTrackingManual() {
         current_shipment_id = $(document).find('#manual_shipment_id').val().trim();
@@ -98,6 +116,10 @@
         });
     }
 
+    /**
+     * Recupera le informazioni sulle spedizioni BRT
+     * Utilizza il pannello SweetAlert2 con barra di progresso
+     */
     async function fetchBrtInfo() {
         const fetchTotalShippings = async () => {
             let data = {
@@ -115,7 +137,11 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status == 'success') {
-                        $(modalfetchBrt).find(".modal-body").append('<div id="progressText" class="alert alert-info">Recupero delle spedizioni in corso...</div>');
+                        // Aggiorna il testo informativo nel pannello
+                        const textElement = document.querySelector('.swal-progress-text');
+                        if (textElement) {
+                            textElement.textContent = '{l s="Recupero delle spedizioni in corso..." mod="mpbrtinfo"}';
+                        }
                         total_shippings = data['total_shippings'];
                         return total_shippings;
                     } else {
@@ -155,18 +181,42 @@
                     current_processed += chunk.length;
                     let percProgress = Math.round((current_processed / total_shipments) * 100);
 
-                    $(modalfetchBrt).find('#progressFetchInfo .progress-bar')
-                        .css("width", percProgress + "%")
-                        .attr("aria-valuenow", percProgress)
-                        .html(percProgress + " %");
+                    // Verifica se l'operazione è stata annullata
+                    if (progressModal && progressModal.isCancelled()) {
+                        return false;
+                    }
 
+                    // Aggiorna la barra di progresso
+                    updateProgressBar(
+                        percProgress,
+                        '{l s="Processate" mod="mpbrtinfo"} ' + current_processed + '/' + total_shipments + ' {l s="spedizioni" mod="mpbrtinfo"}'
+                    );
 
-                    $(modalfetchBrt)
-                        .find(".modal-body #progressText")
-                        .html("<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p><p>Spedizioni BRT cambiate: " + response.order_changed + ".</p><p>Tempo di esecuzione: " + response.elapsed_time + ".</p>");
+                    // Aggiorna il testo informativo nel pannello
+                    const textElement = document.querySelector('.swal-progress-text');
+                    if (textElement) {
+                        textElement.innerHTML =
+                            '<p>{l s="Processate" mod="mpbrtinfo"} ' + current_processed + '/' + total_shipments + ' {l s="spedizioni" mod="mpbrtinfo"}.</p>' +
+                            '<p>{l s="Spedizioni BRT cambiate" mod="mpbrtinfo"}: ' + response.order_changed + '.</p>' +
+                            '<p>{l s="Tempo di esecuzione" mod="mpbrtinfo"}: ' + response.elapsed_time + '.</p>';
+                    }
+
+                    // Aggiorna i dettagli tecnici
+                    if (progressModal) {
+                        progressModal.updateDetails(
+                            '{l s="Elaborazione in corso" mod="mpbrtinfo"}\n' +
+                            '{l s="Processate" mod="mpbrtinfo"}: ' + current_processed + '/' + total_shipments + '\n' +
+                            '{l s="Spedizioni cambiate" mod="mpbrtinfo"}: ' + response.order_changed + '\n' +
+                            '{l s="Tempo di esecuzione" mod="mpbrtinfo"}: ' + response.elapsed_time + '\n' +
+                            '{l s="Ultima risposta" mod="mpbrtinfo"}: ' + JSON.stringify(response, null, 2)
+                        );
+                    }
                 } else {
-                    $(modalfetchBrt).find(".modal-body").append(
-                        $("<div>").addClass('alert alert-danger').html("Errore durante il recupero delle spedizioni.")
+                    // Mostra un messaggio di errore nel pannello
+                    completeProgress(
+                        '{l s="Errore" mod="mpbrtinfo"}',
+                        '{l s="Errore durante il recupero delle spedizioni." mod="mpbrtinfo"}',
+                        true
                     );
                     return false;
                 }
@@ -180,19 +230,30 @@
         const shipment_ids = await fetchTotalShippings();
 
         if (fetchTotalShippings === false) {
-            $(modalfetchBrt).find(".modal-body").html(
-                $("<div>").addClass('alert alert-danger').html("Errore durante il recupero delle spedizioni.")
+            // Mostra un messaggio di errore nel pannello
+            completeProgress(
+                '{l s="Errore" mod="mpbrtinfo"}',
+                '{l s="Errore durante il recupero delle spedizioni." mod="mpbrtinfo"}',
+                true
             );
-            return false
+            return false;
         }
 
         const response = await fetchShippingsInfo(shipment_ids)
             .catch(error => {
                 console.log("FETCH ERROR: ", "NAME", error.name, "MESSAGE", error.message);
                 if (error.name === 'AbortError') {
-                    alert("Operazione annullata.");
+                    completeProgress(
+                        "{l s="Operazione annullata" mod="mpbrtinfo"}",
+                        "{l s="L\'operazione è stata annullata." mod="mpbrtinfo"}",
+                        true
+                    );
                 } else {
-                    alert("Errore durante il recupero delle spedizioni.\n" + error.message);
+                    completeProgress(
+                        "{l s="Errore" mod="mpbrtinfo"}",
+                        "{l s="Errore durante il recupero delle spedizioni:" mod="mpbrtinfo"} " + error.message,
+                        true
+                    );
                 }
             })
             .finally(() => {
@@ -200,35 +261,36 @@
             });
 
         if (response === false) {
-            $(modalfetchBrt).find(".modal-body").html(
-                $("<div>").addClass('alert alert-danger').html("Errore durante il recupero delle spedizioni.")
+            // Mostra un messaggio di errore nel pannello
+            completeProgress(
+                "{l s="Errore" mod="mpbrtinfo"}",
+                "{l s="Errore durante il recupero delle spedizioni." mod="mpbrtinfo"}",
+                true
             );
-            return false
+            return false;
         }
 
-        let html = "<div class='alert alert-success'>Operazione eseguita</div>";
-        $(modalfetchBrt).find(".modal-body").append(html);
+        // Mostra un messaggio di successo nel pannello
+        completeProgress(
+            "{l s="Operazione completata" mod="mpbrtinfo"}",
+            "{l s="Tutte le spedizioni sono state aggiornate con successo!" mod="mpbrtinfo"}",
+            true
+        );
+
+        // Mostra una notifica toast
+        showToast({
+            title: "{l s="Operazione completata" mod="mpbrtinfo"}",
+            text: "{l s="Spedizioni aggiornate con successo" mod="mpbrtinfo"}",
+            icon: 'success',
+            duration: 5000
+        });
     }
 
-    function displayProgress(progress) {
-        let html = "<div id='progressFetchInfo' class='progress'>";
-        html += "<div class='progress-bar' role='progressbar' style='width: " + progress + "%' aria-valuenow='" + progress + "' aria-valuemin='0' aria-valuemax='100'></div>";
-        html += "</div>";
+    // Variabile per memorizzare l'istanza del pannello di progresso
+    let progressModal = null;
 
-        return html;
-    }
-
-    function showModalBrtFetchInfo(content) {
-
-        $(modalfetchBrt)
-            .find(".modal-body")
-            .html(content);
-        $(modalfetchBrt).modal('show');
-    }
-
-    function removeProgress() {
-        $("#progressFetchInfo").remove();
-    }
+    // Variabile per memorizzare il controller di annullamento
+    let abortController = null;
 
     function parseJson(json) {
         let html = "<ul>";
@@ -243,42 +305,4 @@
 
         return html;
     }
-
-    $(function() {
-        $("#ModalFetchBrt").on("hide.bs.modal", function() {
-            controller.abort();
-        });
-
-        $("#ModalFetchBrt").on("show.bs.modal", function() {
-            controller = new AbortController();
-            signal = controller.signal;
-        });
-
-        $(".brt-info-button").on("click", function(e) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-
-            let tracking = $(this).data('tracking');
-            let order_id = $(this).data('order_id');
-            let rmn = $(this).data('rmn');
-            let rma = $(this).data('rma');
-
-            getBrtInfo(order_id, tracking, this);
-
-            return false;
-        });
-
-        $("#brt-fetch-orders").on('click', function(evt) {
-                if (confirm("{l s='Aggiornare le spedizioni Bartolini?' mod='mpbrtinfo'}") == false) {
-                evt.preventDefault();
-                return false;
-            }
-
-            const pb = displayProgress(0); showModalBrtFetchInfo(pb);
-
-            fetchBrtInfo();
-        });
-
-
-    });
 </script>

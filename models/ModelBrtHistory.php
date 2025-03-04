@@ -25,7 +25,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ModelBrtTrackingNumber extends ObjectModel
+class ModelBrtHistory extends ObjectModel
 {
     const SENT = 'SENT';
     const DELIVERED = 'DELIVERED';
@@ -38,12 +38,14 @@ class ModelBrtTrackingNumber extends ObjectModel
     protected static $errors = [];
     public $id_order;
     public $id_order_state;
-    public $id_brt_state;
-    public $date_event;
+    public $event_id;
+    public $event_name;
+    public $event_date;
+    public $event_filiale_id;
+    public $event_filiale_name;
     public $id_collo;
     public $rmn;
     public $rma;
-    public $tracking_number;
     public $current_state;
     public $anno_spedizione;
     public $date_shipped;
@@ -53,8 +55,8 @@ class ModelBrtTrackingNumber extends ObjectModel
     public $date_upd;
 
     public static $definition = [
-        'table' => 'mpbrtinfo_tracking_number',
-        'primary' => 'id_mpbrtinfo_tracking_number',
+        'table' => 'mpbrtinfo_history',
+        'primary' => 'id_mpbrtinfo_history',
         'multilang' => false,
         'fields' => [
             'id_order' => [
@@ -67,15 +69,32 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'validate' => 'isUnsignedInt',
                 'required' => true,
             ],
-            'id_brt_state' => [
+            'event_id' => [
                 'type' => self::TYPE_STRING,
                 'validate' => 'isAnything',
                 'size' => 16,
                 'required' => false,
             ],
-            'date_event' => [
+            'event_name' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'size' => 128,
+                'required' => false,
+            ],
+            'event_date' => [
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
+                'required' => false,
+            ],
+            'event_filiale_id' => [
+                'type' => self::TYPE_INT,
+                'validate' => 'isUnsignedInt',
+                'required' => false,
+            ],
+            'event_filiale_name' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'size' => 128,
                 'required' => false,
             ],
             'id_collo' => [
@@ -94,18 +113,6 @@ class ModelBrtTrackingNumber extends ObjectModel
                 'validate' => 'isAnything',
                 'required' => false,
                 'size' => 128,
-            ],
-            'tracking_number' => [
-                'type' => self::TYPE_STRING,
-                'validate' => 'isAnything',
-                'size' => 128,
-                'required' => false,
-            ],
-            'current_state' => [
-                'type' => self::TYPE_STRING,
-                'validate' => 'isString',
-                'size' => 32,
-                'required' => false,
             ],
             'anno_spedizione' => [
                 'type' => self::TYPE_INT,
@@ -155,7 +162,7 @@ class ModelBrtTrackingNumber extends ObjectModel
 
     public static function addHistory($id_order, $id_order_state, $id_brt_state, $tracking_number, $id_collo, $anno_spedizione)
     {
-        $history = new ModelBrtTrackingNumber();
+        $history = new self();
         $history->id_order = (int) $id_order;
         $history->id_order_state = (int) $id_order_state;
         $history->id_brt_state = (int) $id_brt_state;

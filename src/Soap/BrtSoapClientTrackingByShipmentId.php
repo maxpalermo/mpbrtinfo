@@ -43,7 +43,7 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
         parent::__construct($this->endpoint);
     }
 
-    public function getSoapTrackingByShipmentId($lang_iso = '', $spedizione_anno = '', $spedizione_id = '')
+    public function getSoapTrackingByShipmentId($order_id, $spedizione_id = null, $spedizione_anno = '', $lang_iso = '')
     {
         $response = [];
 
@@ -65,7 +65,6 @@ class BrtSoapClientTrackingByShipmentId extends BrtSoapClient
         try {
             $response = $this->exec('BRT_TrackingByBRTshipmentID', ['arg0' => $request]);
             if (isset($response['return'])) {
-                $order_id = \Tools::getValue('order_id', 0);
                 $response = $response['return'];
                 $bolla = BrtParseInfo::parseTrackingInfo($response, \ModelBrtConfig::getEsiti());
                 if ($order_id) {
