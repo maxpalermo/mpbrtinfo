@@ -61,9 +61,11 @@ class Bolla
     protected $versione;
     protected static $event_list = [];
     protected $customer;
+    protected $bolla;
 
     public function __construct($bolla)
     {
+        $this->bolla = $bolla;
         $this->assicurazione = isset($bolla['BOLLA']['ASSICURAZIONE']) ? new Assicurazione($bolla['BOLLA']['ASSICURAZIONE']) : null;
         $this->contrassegno = isset($bolla['BOLLA']['CONTRASSEGNO']) ? new Contrassegno($bolla['BOLLA']['CONTRASSEGNO']) : null;
         $this->dati_consegna = isset($bolla['BOLLA']['DATI_CONSEGNA']) ? new DatiConsegna($bolla['BOLLA']['DATI_CONSEGNA']) : null;
@@ -108,6 +110,16 @@ class Bolla
         }
 
         return '--';
+    }
+
+    public function getBolla()
+    {
+        return $this->bolla;
+    }
+
+    public function getBollaJson()
+    {
+        return json_encode($this->bolla);
     }
 
     public function getAssicurazione()
@@ -183,6 +195,11 @@ class Bolla
     public function getTimestamp()
     {
         return $this->timestamp;
+    }
+
+    public function getTrackingNumber()
+    {
+        return $this->dati_spedizione->getSpedizioneId();
     }
 
     public function getVersione()

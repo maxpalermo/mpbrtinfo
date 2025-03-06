@@ -28,13 +28,15 @@ const BrtEsiti = {
         let storicoHtml = "";
         if (data.storico && data.storico.length > 0) {
             storicoHtml = `
-                <div class="table-responsive mt-4">
+                <div class="table-responsive mt-4" style="overflow-y: auto; max-height: 10rem;">
                     <table class="table table-bordered table-sm">
-                        <thead class="thead-light">
+                        <thead class="thead-light sticky-top">
                             <tr>
                                 <th>#</th>
                                 <th>Icona</th>
+                                <th>ID</th>
                                 <th>Data</th>
+                                <th>Ora</th>
                                 <th>Evento</th>
                                 <th>Filiale</th>
                             </tr>
@@ -43,14 +45,16 @@ const BrtEsiti = {
             `;
 
             data.storico.forEach((evento, index) => {
-                const tipo = evento.tipo || "sconosciuto";
+                const label = evento.label || "--";
                 const icon = evento.icon || "help";
 
                 storicoHtml += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td style="width: 72px; text-align: center;"><i class="material-icons text-${evento.color}">${icon}</i></td>
+                        <td style="width: 72px; text-align: center;"><i class="material-icons text-${evento.color}" title="${label}">${icon}</i></td>
+                        <td>${evento.id}</td>
                         <td>${evento.data}</td>
+                        <td>${evento.ora}</td>
                         <td>${evento.descrizione}</td>
                         <td>${evento.filiale}</td>
                     </tr>
@@ -84,6 +88,10 @@ const BrtEsiti = {
                                 <tr>
                                     <th scope="row">SERVIZIO</th>
                                     <td>${data.servizio}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">GIORNI</th>
+                                    <td>${data.days}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -214,7 +222,7 @@ const BrtEsiti = {
      * @param {number} id_order - ID dell'ordine
      * @param {string} tracking_number - Numero di tracking
      */
-    loadAndShowPanel: function (id_order, tracking_number) {
+    loadAndShowPanel: async (id_order, tracking_number) => {
         console.log("loadAndShowPanel", id_order, tracking_number);
 
         // Mostra un loader mentre si caricano i dati
@@ -227,40 +235,34 @@ const BrtEsiti = {
             }
         });
 
-        // Chiamata AJAX per recuperare i dati della spedizione
-        $.ajax({
-            url: baseAdminUrl,
-            type: "POST",
-            data: {
+        const response = await fetch(fetchController, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({
+                ajax: true,
+                action: "fetchOrderInfo",
                 id_order: id_order,
-                tracking_number: tracking_number,
-                ajax: 1,
-                action: "getBrtShipmentDetails"
-            },
-            dataType: "json",
-            success: function (response) {
-                if (response.success) {
-                    // Chiudi il loader e mostra il pannello con i dati
-                    Swal.close();
-                    BrtEsiti.showPanel(response.data);
-                } else {
-                    Swal.fire({
-                        title: "Errore",
-                        text: response.message || "Impossibile recuperare i dettagli della spedizione.",
-                        icon: "error",
-                        confirmButtonColor: "#dc3545"
-                    });
-                }
-            },
-            error: function () {
-                Swal.fire({
-                    title: "Errore",
-                    text: "Si è verificato un errore di comunicazione con il server.",
-                    icon: "error",
-                    confirmButtonColor: "#dc3545"
-                });
-            }
+                tracking_number: tracking_number
+            })
         });
+
+        const json = await response.json();
+
+        if (json.success) {
+            // Chiudi il loader e mostra il pannello con i dati
+            Swal.close();
+            BrtEsiti.showPanel(json.data);
+        } else {
+            Swal.fire({
+                title: "Errore",
+                text: json.message || "Impossibile recuperare i dettagli della spedizione.",
+                icon: "error",
+                confirmButtonColor: "#dc3545"
+            });
+        }
     }
 };
 

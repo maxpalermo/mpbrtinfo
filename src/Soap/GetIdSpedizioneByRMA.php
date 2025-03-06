@@ -36,17 +36,17 @@ if (!defined('_PS_VERSION_')) {
  * Implementa il web service GetIdSpedizioneByRMN che consente di ottenere
  * l'ID di una spedizione BRT utilizzando il riferimento mittente numerico e l'ID cliente.
  */
-class GetIdSpedizioneByRMN extends BrtSoapClient
+class GetIdSpedizioneByRMA extends BrtSoapClient
 {
     /**
      * Endpoint HTTP (deprecato)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMA?wsdl';
 
     /**
      * Endpoint HTTPS (raccomandato)
      */
-    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMA?wsdl';
 
     /**
      * Endpoint attualmente in uso
@@ -55,7 +55,7 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
      */
     protected $endpoint;
 
-    protected $rmn;
+    protected $rma;
     protected $year;
     protected $id_brt_customer;
 
@@ -64,9 +64,9 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
      * 
      * Inizializza il client SOAP con l'endpoint appropriato in base alla configurazione
      */
-    public function __construct($rmn, $year, $id_brt_customer, $use_ssl = true)
+    public function __construct($rma, $year, $id_brt_customer, $use_ssl = true)
     {
-        $this->rmn = $rmn;
+        $this->rma = $rma;
         $this->year = $year;
         $this->id_brt_customer = $id_brt_customer;
 
@@ -90,11 +90,11 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
      */
     public function getIdSpedizione()
     {
-        $riferimento_mittente_numerico = $this->rmn;
+        $riferimento_mittente_alfabetico = $this->rma;
         $cliente_id = $this->id_brt_customer;
 
-        if (empty($riferimento_mittente_numerico)) {
-            $this->errors[] = 'Riferimento mittente numerico non valido';
+        if (empty($riferimento_mittente_alfabetico)) {
+            $this->errors[] = 'Riferimento mittente alfabetico non valido';
 
             return false;
         }
@@ -107,12 +107,12 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
 
         // Prepara la richiesta SOAP
         $request = new \stdClass();
-        $request->RIFERIMENTO_MITTENTE_NUMERICO = $riferimento_mittente_numerico;
+        $request->RIFERIMENTO_MITTENTE_ALFABETICO = $riferimento_mittente_alfabetico;
         $request->CLIENTE_ID = $cliente_id;
 
         try {
             // Esegui la chiamata SOAP
-            $response = $this->exec('GetIdSpedizioneByRMN', ['arg0' => $request]);
+            $response = $this->exec('GetIdSpedizioneByRMA', ['arg0' => $request]);
 
             // Verifica la risposta
             if (isset($response['return'])) {

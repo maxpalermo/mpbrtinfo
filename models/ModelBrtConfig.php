@@ -153,31 +153,6 @@ class ModelBrtConfig extends ConfigurationCore
         return (int) self::getConfigValue(self::MP_BRT_INFO_USE_SSL);
     }
 
-    public static function getHistoryStateYear($id_order, $tracking_state = null, &$row = null)
-    {
-        if (!$tracking_state) {
-            $tracking_state = self::getConfigValue(self::MP_BRT_INFO_OS_CHECK_FOR_TRACKING);
-        }
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('*, YEAR(date_add) as `os_year`')
-            ->from('order_history')
-            ->where('id_order=' . (int) $id_order)
-            ->where('id_order_state in (' . implode(',', $tracking_state) . ')')
-            ->orderBy('date_add DESC');
-
-        $row = $db->getRow($sql);
-        if ($row) {
-            $year = $row['os_year'];
-        } else {
-            $order = new Order($id_order);
-            $date_add = strtotime($order->date_add);
-            $year = date('Y', $date_add);
-        }
-
-        return $year;
-    }
-
     public static function getEsiti()
     {
         $db = Db::getInstance();
@@ -297,5 +272,33 @@ class ModelBrtConfig extends ConfigurationCore
         } elseif ($id_order_state == $sent) {
             return self::getIcon(self::MP_BRT_INFO_EVENT_SENT);
         }
+    }
+
+    public static function getTrackingBy()
+    {
+        return self::getConfigValue(self::MP_BRT_INFO_SEARCH_TYPE);
+    }
+
+    public static function getSearchWhere()
+    {
+        return self::getConfigValue(self::MP_BRT_INFO_SEARCH_WHERE);
+    }
+
+    public static function getShippedStates()
+    {
+        $shipped_states = self::getConfigValue(self::MP_BRT_SHIPPED_STATES);
+        if (!is_array($shipped_states)) {
+            $shipped_states = json_decode($shipped_states, true);
+        }
+        if (!is_array($shipped_states)) {
+            $shipped_states = [$shipped_states];
+        }
+
+        return $shipped_states;
+    }
+
+    public static function getCustomerId()
+    {
+        return self::getConfigValue(self::MP_BRT_INFO_ID_BRT_CUSTOMER);
     }
 }

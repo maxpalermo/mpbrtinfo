@@ -1,7 +1,4 @@
 <?php
-use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSOAP;
-use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSOAP;
-
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -24,6 +21,8 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSOAP;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSOAP;
 use MpSoft\MpBrtInfo\Bolla\TemplateBolla;
 use MpSoft\MpBrtInfo\Helpers\BrtOrder;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
@@ -33,7 +32,6 @@ use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientTrackingByShipmentId;
-use MpSoft\MpBrtInfo\Soap\TrackingByBRTshipmentID;
 
 class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 {
@@ -445,7 +443,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         foreach ($orders as $id_order) {
             // Cerco il tracking nella tabella tracking_number
-            $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
+            $tracking = ModelBrtHistory::getIdColloByIdOrder($id_order);
 
             if (!$tracking) {
                 // Provo a cercare il tracking online
@@ -476,7 +474,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                     $anno_spedizione = date('Y');
                     $date_shipping = date('Y-m-d H:i:s');
 
-                    $model = new ModelBrtTrackingNumber($id_order);
+                    $model = new ModelBrtHistory($id_order);
                     $model->id_order = $id_order;
                     $model->id_order_state = $id_order_state_sent;
                     $model->id_brt_state = $id_brt_event_sent;
@@ -566,7 +564,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $spedizione_id = str_pad($params['spedizione_id'], 12, '0');
 
         if (strlen($spedizione_id) != 12) {
-            $spedizione_id = ModelBrtTrackingNumber::getIdColloByIdOrder($order_id);
+            $spedizione_id = ModelBrtHistory::getIdColloByIdOrder($order_id);
 
             if (isset($spedizione_id['tracking_number'])) {
                 $spedizione_id = $spedizione_id['tracking_number'];
@@ -585,7 +583,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         }
 
         if (!$spedizione_id) {
-            $spedizione_id = ModelBrtTrackingNumber::getIdColloByIdOrder($order_id);
+            $spedizione_id = ModelBrtHistory::getIdColloByIdOrder($order_id);
 
             if (isset($spedizione_id['tracking_number'])) {
                 $spedizione_id = $spedizione_id['tracking_number'];
@@ -602,7 +600,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
             ]]);
         }
 
-        $anno_spedizione = ModelBrtTrackingNumber::getAnnoSpedizione($order_id);
+        $anno_spedizione = ModelBrtHistory::getAnnoSpedizione($order_id);
 
         $bolla = $this->fetchInfoBySpedizioneId($anno_spedizione, $spedizione_id);
         $tpl = new TemplateBolla($bolla);
@@ -693,7 +691,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         foreach ($orders as $id_order) {
             ++$processed;
 
-            $tracking = ModelBrtTrackingNumber::getIdColloByIdOrder($id_order);
+            $tracking = ModelBrtHistory::getIdColloByIdOrder($id_order);
             if (!$tracking) {
                 $errors[] = ['id_order' => $id_order, 'info' => $tracking, 'esito' => 'NO TRACKING'];
 
@@ -803,7 +801,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         }
 
         foreach ($orders as $id_order) {
-            $date_shipped = ModelBrtTrackingNumber::getDateShipped($id_order);
+            $date_shipped = ModelBrtHistory::getDateShipped($id_order);
 
             if ($date_shipped) {
                 $anno_spedizione = date('Y', strtotime($date_shipped));
@@ -896,7 +894,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         }
 
         foreach ($date_shipped as $id_order => $value) {
-            $model = new ModelBrtTrackingNumber($id_order);
+            $model = new ModelBrtHistory($id_order);
 
             $model->id_order = $id_order;
             $model->id_order_state = $value['id_order_state'];
@@ -956,9 +954,9 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                 unset($row['id_mpbrtinfo_tracking_number']);
                 $date_shipped = $row['date_event'];
                 $date_delivered = $row['oh_date_delivered'];
-                $days = ModelBrtTrackingNumber::countDays($date_shipped, $date_delivered);
+                $days = ModelBrtHistory::countDays($date_shipped, $date_delivered);
 
-                $model = new ModelBrtTrackingNumber();
+                $model = new ModelBrtHistory();
                 $model->hydrate($row);
                 $model->date_event = $date_delivered;
                 $model->date_delivered = $date_delivered;
@@ -996,7 +994,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         $results = $db->executeS($sql);
 
         foreach ($results as $result) {
-            ModelBrtTrackingNumber::setDeliveredDays($result['id_mpbrtinfo_tracking_number'], $result['date_delivered'], $result['date_add']);
+            ModelBrtHistory::setDeliveredDays($result['id_mpbrtinfo_tracking_number'], $result['date_delivered'], $result['date_add']);
         }
 
         $timer_ends = (int) microtime(true);
@@ -1082,11 +1080,10 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         $id_order = (int) Tools::getValue('id_order');
         $tracking_number = pSQL(Tools::getValue('tracking_number'));
-        $date_shipped = (new GetOrderShippingDate($id_order))->run();
-        if (!$date_shipped) {
-            $date_shipped = date('Y-m-d H:i:s');
+        $year_shipped = (new GetOrderShippingDate($id_order))->getShippingYear();
+        if (!$year_shipped) {
+            $year_shipped = date('Y');
         }
-        $year_shipped = date('Y', strtotime($date_shipped));
 
         // Verifica che l'ordine esista
         $order = new Order($id_order);
@@ -1104,17 +1101,30 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         try {
             // Recupera i dati della spedizione tramite SOAP
             $shipmentData = $this->getShipmentData($tracking_number, $id_order, $year_shipped);
+            if (!isset($shipmentData['rmn'])) {
+                return [
+                    'success' => false,
+                    'message' => implode('<br>', $shipmentData),
+                ];
+            }
+            $this->prepareHistory($id_order, $year_shipped, $shipmentData);
+
             $events = [];
             if ($shipmentData['eventi']) {
                 $eventi = $shipmentData['eventi'];
                 foreach ($eventi as $evento) {
+                    if ($evento->isDelivered()) {
+                        $shipmentData['days'] = $this->countDays($id_order);
+                    }
                     $events[] = [
                         'color' => $evento->getColor(),
                         'icon' => $evento->getIcon(),
                         'id' => $evento->getId(),
                         'data' => $evento->getData(),
+                        'ora' => $evento->getOra(),
                         'descrizione' => $evento->getDescrizione(),
                         'filiale' => $evento->getFiliale(),
+                        'label' => $evento->getLabel(),
                     ];
                 }
             }
@@ -1132,6 +1142,7 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                     'natura' => $shipmentData['natura'] ?? 'Merce',
                     'stato_attuale' => $this->getCurrentStatus($tracking_number, $id_order),
                     'storico' => $events,
+                    'days' => $shipmentData['days'] ?? '--',
                 ],
             ];
 
@@ -1144,213 +1155,6 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
                 ]
             );
         }
-    }
-
-    /**
-     * Recupera i dati della spedizione tramite SOAP
-     * 
-     * @param string $tracking_number Numero di tracking
-     * @param int $id_order ID dell'ordine
-     *
-     * @return array Dati della spedizione
-     */
-    private function getShipmentData($tracking_number, $id_order, $date_shipped)
-    {
-        try {
-            // Inizializza il client SOAP per il tracking
-            // $soapClient = new BrtSoapClientTrackingByShipmentId();
-            // $response = $soapClient->getSoapTrackingByShipmentId($id_order, $tracking_number, $date_shipped);
-
-            // Nuovo approccio
-            $soapClient = new TrackingByBRTshipmentID($id_order, $tracking_number, $date_shipped);
-            $response = $soapClient->getTracking();
-
-            if ($response && $response->getEsito() == 0) {
-                $spedizione = $response->getDatiSpedizione();
-                $consegna = $response->getDatiConsegna();
-                $merce = $response->getDatiMerce();
-                $eventi = $response->getEventi();
-
-                // Estrai i dati dalla risposta SOAP
-                return [
-                    'data_spedizione' => $spedizione->getSpedizioneData() ?? '--',
-                    'id_spedizione' => $spedizione->getSpedizioneId() ?? '--',
-                    'porto' => $spedizione->getTipoPorto() ?? '--',
-                    'servizio' => $spedizione->getTipoServizio() ?? '--',
-                    'colli' => $merce->getColli() ?? 0,
-                    'peso' => ($merce->getPesoKg() ?? '0') . ' Kg',
-                    'volume' => ($merce->getVolumeM3() ?? '0') . ' m3',
-                    'natura' => $merce->getNaturaMerce() ?? '--',
-                    'data_consegna' => $consegna->getDataConsegnaMerce() ?? '--',
-                    'eventi' => $eventi,
-                ];
-            }
-        } catch (Exception $e) {
-            // Log dell'errore
-            PrestaShopLogger::addLog(
-                'Errore durante il recupero dei dati della spedizione BRT: ' . $e->getMessage(),
-                3,
-                null,
-                'Order',
-                $id_order,
-                true
-            );
-        }
-
-        // Restituisci dati predefiniti se non è stato possibile recuperare i dati
-        return [
-            'data_spedizione' => date('d/m/Y'),
-            'porto' => '--',
-            'servizio' => '--',
-            'colli' => 0,
-            'peso' => '0 Kg',
-            'natura' => '--',
-        ];
-
-        // Recupera i dati della spedizione dal database se disponibili
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('*')
-            ->from('mpbrtinfo_history')
-            ->where('id_order = ' . (int) $id_order)
-            ->where('id_collo = "' . pSQL($tracking_number) . '"')
-            ->orderBy('date_add DESC, id_mpbrtinfo_history DESC');
-
-        $result = $db->getRow($sql);
-
-        if ($result) {
-            // Formatta i dati della spedizione
-            return [
-                'data_spedizione' => date('d/m/Y', strtotime($result['date_add'])),
-                'porto' => $result['porto'] ?? 'Franco',
-                'servizio' => $result['servizio'] ?? 'Standard',
-                'colli' => $result['colli'] ?? 1,
-                'peso' => ($result['peso'] ?? '0') . ' Kg',
-                'natura' => $result['natura'] ?? 'Merce',
-            ];
-        }
-    }
-
-    /**
-     * Recupera lo stato attuale della spedizione
-     * 
-     * @param string $tracking_number Numero di tracking
-     * @param int $id_order ID dell'ordine
-     *
-     * @return array Stato attuale della spedizione
-     */
-    private function getCurrentStatus($tracking_number, $id_order)
-    {
-        // Recupera lo stato attuale dal database
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('e.*, h.date_add, h.event_filiale_id, h.event_filiale_name')
-            ->from('mpbrtinfo_history', 'h')
-            ->leftJoin('mpbrtinfo_evento', 'e', 'h.event_id = e.id_evento')
-            ->where('h.id_order = ' . (int) $id_order)
-            ->orderBy('h.date_add DESC');
-
-        $result = $db->getRow($sql);
-
-        if ($result) {
-            // Determina il tipo di evento
-            $tipo = $this->getEventType($result['id_evento']);
-
-            return [
-                'evento' => $result['testo1'] . ' ' . $result['testo2'],
-                'data' => date('d/m/Y H:i', strtotime($result['date_add'])),
-                'filiale' => $result['filiale'],
-                'tipo' => $tipo,
-            ];
-        }
-
-        // Se non ci sono dati nel database, restituisci uno stato predefinito
-        return [
-            'evento' => 'Nessuna informazione disponibile',
-            'data' => date('d/m/Y H:i'),
-            'filiale' => '-',
-            'tipo' => 'sconosciuto',
-        ];
-    }
-
-    /**
-     * Recupera lo storico degli eventi della spedizione
-     * 
-     * @param int $id_order ID dell'ordine
-     *
-     * @return array Storico degli eventi
-     */
-    private function getShipmentEvents($id_order)
-    {
-        // Recupera lo storico degli eventi dal database
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('e.*, h.date_add, h.event_filiale_id, h.event_filiale_name')
-            ->from('mpbrtinfo_history', 'h')
-            ->leftJoin('mpbrtinfo_evento', 'e', 'h.event_id = e.id_evento')
-            ->where('h.id_order = ' . (int) $id_order)
-            ->orderBy('h.date_add DESC, h.id_mpbrtinfo_history DESC');
-
-        $results = $db->executeS($sql);
-
-        if ($results && is_array($results)) {
-            $events = [];
-
-            foreach ($results as $result) {
-                // Determina il tipo di evento
-                $tipo = $this->getEventType($result['id_evento']);
-
-                $events[] = [
-                    'evento' => $result['testo1'] . ' ' . $result['testo2'],
-                    'data' => date('d/m/Y H:i', strtotime($result['date_add'])),
-                    'filiale' => $result['filiale'],
-                    'tipo' => $tipo,
-                ];
-            }
-
-            return $events;
-        }
-
-        // Se non ci sono dati nel database, restituisci un array vuoto
-        return [];
-    }
-
-    /**
-     * Determina il tipo di evento in base all'ID evento
-     * 
-     * @param string $id_evento ID dell'evento
-     *
-     * @return string Tipo di evento (consegnato, transito, errore, ecc.)
-     */
-    private function getEventType($id_evento)
-    {
-        // Recupera le configurazioni degli eventi
-        $transit = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT));
-        $delivered = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED));
-        $error = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR));
-        $fermopoint = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT));
-        $refused = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED));
-        $waiting = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING));
-        $sent = explode(',', \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT));
-
-        // Verifica a quale tipo di evento appartiene l'ID evento
-        if (in_array($id_evento, $delivered)) {
-            return 'consegnato';
-        } elseif (in_array($id_evento, $transit)) {
-            return 'transito';
-        } elseif (in_array($id_evento, $error)) {
-            return 'errore';
-        } elseif (in_array($id_evento, $fermopoint)) {
-            return 'fermopoint';
-        } elseif (in_array($id_evento, $refused)) {
-            return 'rifiutato';
-        } elseif (in_array($id_evento, $waiting)) {
-            return 'giacenza';
-        } elseif (in_array($id_evento, $sent)) {
-            return 'spedito';
-        }
-
-        return 'sconosciuto';
     }
 
     /**

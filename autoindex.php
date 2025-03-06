@@ -17,9 +17,6 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
-if (!defined('_PS_VERSION_')) {
-    exit;
-}
 function addIndex($base, $folder, &$index)
 {
     $current = $base . $folder . '/';
@@ -28,6 +25,7 @@ function addIndex($base, $folder, &$index)
         unlink($current . 'index.php');
     }
     copy($index, $current . 'index.php');
+    echo "Inserito index.php in $current\n";
 
     $dirs = glob($current . '*');
     foreach ($dirs as $dir) {

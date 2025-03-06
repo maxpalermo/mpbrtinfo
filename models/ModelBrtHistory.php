@@ -51,6 +51,7 @@ class ModelBrtHistory extends ObjectModel
     public $date_shipped;
     public $date_delivered;
     public $days;
+    public $json;
     public $date_add;
     public $date_upd;
 
@@ -87,8 +88,9 @@ class ModelBrtHistory extends ObjectModel
                 'required' => false,
             ],
             'event_filiale_id' => [
-                'type' => self::TYPE_INT,
-                'validate' => 'isUnsignedInt',
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'size' => 10,
                 'required' => false,
             ],
             'event_filiale_name' => [
@@ -134,6 +136,12 @@ class ModelBrtHistory extends ObjectModel
                 'validate' => 'isUnsignedInt',
                 'required' => false,
             ],
+            'json' => [
+                'type' => self::TYPE_STRING,
+                'required' => false,
+                'size' => 999999999,
+                'validate' => 'isAnything',
+            ],
             'date_add' => [
                 'type' => self::TYPE_DATE,
                 'validate' => 'isDate',
@@ -149,30 +157,18 @@ class ModelBrtHistory extends ObjectModel
 
     public static function getOrderHistory($id_order)
     {
+        $table = self::$definition['table'];
+        $primary = self::$definition['primary'];
+
         $sql = new DbQuery();
-        $sql->select('o.id_order, o.id_order_state, o.date_add, o.date_upd, oh.id_brt_state, oh.tracking_number, oh.id_collo, oh.anno_spedizione')
+        $sql->select('o.id_order, o.id_order_state, o.date_add, o.date_upd, oh.id_order_state, oh.id_collo, oh.anno_spedizione')
             ->from('orders', 'o')
-            ->leftJoin('mp_brtinfo_tracking_number', 'oh', 'o.id_order = oh.id_order')
+            ->leftJoin($table, 'oh', 'o.id_order = oh.id_order')
             ->where('o.id_order_state = oh.id_order_state')
             ->where('o.id_order = ' . (int) $id_order)
-            ->orderBy('a.' . self::$definition['primary'] . ' DESC');
+            ->orderBy('oh.' . $primary . ' DESC');
 
         return Db::getInstance()->executeS($sql);
-    }
-
-    public static function addHistory($id_order, $id_order_state, $id_brt_state, $tracking_number, $id_collo, $anno_spedizione)
-    {
-        $history = new self();
-        $history->id_order = (int) $id_order;
-        $history->id_order_state = (int) $id_order_state;
-        $history->id_brt_state = (int) $id_brt_state;
-        $history->tracking_number = pSQL($tracking_number);
-        $history->id_collo = (int) $id_collo;
-        $history->anno_spedizione = (int) $anno_spedizione;
-        $history->date_add = date('Y-m-d H:i:s');
-        $history->date_upd = date('Y-m-d H:i:s');
-
-        return $history->add();
     }
 
     public static function getOrderByLastOrderState(int $id_order_state)
@@ -229,13 +225,13 @@ class ModelBrtHistory extends ObjectModel
                 break;
         }
 
-        $sql->select('a.id_order, a.id_brt_state, a.id_order_state, a.id_collo, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, evt.name as evento')
+        $sql->select('a.id_order, a.event_id,a.id_order_state, a.id_collo, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, evt.name as evento')
             ->from(self::$definition['table'], 'a')
             ->leftJoin('orders', 'o', 'a.id_order = o.id_order and o.id_order is not null')
             ->leftJoin('customer', 'c', 'o.id_customer = c.id_customer and c.id_customer is not null')
-            ->leftJoin('mpbrtinfo_evento', 'evt', 'a.id_brt_state = evt.id_evento and evt.id_evento is not null')
+            ->leftJoin('mpbrtinfo_evento', 'evt', 'a.event_id = evt.id_evento and evt.id_evento is not null')
             ->groupBy('a.id_order')
-            ->where('a.id_brt_state in (' . implode(',', $id_order_state) . ')')
+            ->where('a.event_id in (' . implode(',', $id_order_state) . ')')
             ->having('a.date_add = MAX(a.date_add)')
             ->orderBy(self::$definition['primary'] . ' DESC')
             ->limit(50);
@@ -334,7 +330,7 @@ class ModelBrtHistory extends ObjectModel
                 return 0;
             }
 
-            $id_brt_state = ModelBrtConfig::getBrtStateFromIdOrderState($order->current_state);
+            $event_id = ModelBrtConfig::getBrtStateFromIdOrderState($order->current_state);
         }
 
         return $value;
@@ -422,53 +418,8 @@ class ModelBrtHistory extends ObjectModel
                 'id_order = ' . (int) $id_order
             );
 
-            // Aggiorno il tracking nella tabella tracking_number
-            $db = db::getInstance();
-            $sql = new DbQuery();
-            $sql->select('id_mpbrtinfo_tracking_number')
-                ->from('mpbrtinfo_tracking_number')
-                ->where('id_order = ' . (int) $id_order)
-                ->where("current_state = 'SENT'")
-                ->orderBy('id_mpbrtinfo_tracking_number DESC');
-            $id_tracking = (int) $db->getValue($sql);
-            $anno_spedizione = self::getAnnoSpedizione($id_order);
-
-            $brtTracking = new ModelBrtTrackingNumber($id_tracking);
-            $brtTracking->id_order = (int) $id_order;
-            $brtTracking->id_order_state = (int) $order->current_state;
-            $brtTracking->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
-            $brtTracking->date_event = date('Y-m-d H:i:s');
-            $brtTracking->id_collo = $tracking;
-            $brtTracking->tracking_number = $tracking;
-            $brtTracking->rmn = $rmn;
-            $brtTracking->rma = $rma;
-            $brtTracking->current_state = 'SENT';
-            $brtTracking->anno_spedizione = $anno_spedizione;
-            $brtTracking->date_shipped = date('Y-m-d H:i:s');
-            $brtTracking->date_delivered = null;
-            $brtTracking->date_add = date('Y-m-d H:i:s');
-
-            try {
-                $brtTracking->save();
-                $db->update(
-                    'mpbrtinfo_tracking_number',
-                    [
-                        'id_collo' => $tracking,
-                        'tracking_number' => $tracking,
-                        'rmn' => $rmn,
-                        'rma' => $rma,
-                        'date_shipped' => date('Y-m-d H:i:s'),
-                        'anno_spedizione' => $anno_spedizione,
-                    ],
-                    'id_order = ' . (int) $order->id
-                );
-            } catch (\Throwable $th) {
-                self::$errors[] = $th->getMessage();
-            }
-
             return [
                 'tracking_number' => $tracking,
-                'anno_spedizione' => $anno_spedizione,
             ];
         }
 
@@ -487,37 +438,6 @@ class ModelBrtHistory extends ObjectModel
         return Db::getInstance()->getValue($sql);
     }
 
-    public static function setAsSent($id_order, $tracking)
-    {
-        $order = new Order($id_order);
-        if (!Validate::isLoadedObject($order)) {
-            return false;
-        }
-
-        $id_order_state = (int) $order->current_state;
-        $id_order_state_sent = Configuration::get('MPBRTINFO_ORDER_STATE_SENT');
-        $current_state = $tracking ? 'TRANSIT' : 'SENT';
-
-        $model = new ModelBrtTrackingNumber();
-        $model->id_order = (int) $id_order;
-        $model->id_order_state = $id_order_state;
-        $model->id_brt_state = self::getBrtIdState(ModelBrtEvento::EVENT_SENT);
-        $model->id_collo = '';
-        $model->rmn = $id_order;
-        $model->tracking_number = $tracking;
-        $model->current_state = $current_state;
-        $model->anno_spedizione = date('Y');
-        $model->date_add = date('Y-m-d H:i:s');
-
-        $res = $model->add();
-        if ($res) {
-            $order = new Order($id_order);
-            $order->setCurrentState($id_order_state_sent);
-        }
-
-        return $res;
-    }
-
     public static function getBrtIdState($state = '')
     {
         $eventi = ModelBrtEvento::getEventi($state);
@@ -534,7 +454,7 @@ class ModelBrtHistory extends ObjectModel
     {
         $db = Db::getInstance();
         $sql = new DbQuery();
-        $sql->select('id_brt_state')
+        $sql->select('event_id')
             ->from(self::$definition['table'])
             ->where('id_order = ' . (int) $id_order)
             ->orderBy(self::$definition['primary'] . ' DESC');

@@ -102,17 +102,22 @@ class BrtOrder
         return [];
     }
 
-    public static function checkDelivered($id_order_state_delivered)
+    public static function checkDelivered($id_order_state_delivered = null)
     {
+        if (!$id_order_state_delivered) {
+            $id_order_state_delivered = json_decode(\Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED), true);
+        }
+        $max_days = 15;
         $db = \Db::getInstance();
         $sql = new \DbQuery();
-        $sql->select('id_order')
+        $sql->select('id_order, id_carrier')
             ->from('orders')
             ->where('current_state in(' . implode(',', $id_order_state_delivered) . ')')
-            ->where('DATEDIFF(NOW(), `date_add`) < 15')
+            ->where('DATEDIFF(NOW(), `date_add`) < ' . $max_days)
             ->orderBy('date_add DESC');
         $rows = $db->executeS($sql);
         $delivered = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        //TODO:: get the BRT delivered id from the config
         $brt_delivered = 704;
 
         if ($rows) {
@@ -128,6 +133,21 @@ class BrtOrder
                 }
 
                 $tracking = self::getIdSpedizioneByRMN(self::getRMN($row['id_order']));
+                if ($tracking) {
+                    // inserisco il tracking in order_carrier
+                    $sql = new \DbQuery();
+                    $sql->select('id_order')
+                        ->from('order_carrier')
+                        ->where('id_order = ' . (int) $row['id_order'])
+                        ->where('id_carrier = ' . (int) $brt_delivered);
+                    $result = $db->getValue($sql);
+                    if (!$result) {
+                        $model = new \ModelBrtOrderCarrier();
+                        $model->id_order = $row['id_order'];
+                        $model->id_carrier = $brt_delivered;
+                        $model->add();
+                    }
+                }
 
                 $model = new \ModelBrtTrackingNumber();
                 $model->id_order = $row['id_order'];

@@ -25,6 +25,7 @@ if (!defined('_PS_VERSION_')) {
 }
 
 use MpSoft\MpBrtInfo\Carriers\DisplayCarrier;
+use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\Soap\BrtSoapEventi;
 use MpSoft\MpBrtInfo\Soap\BrtSoapShipmentId;
 use MpSoft\MpBrtInfo\Soap\BrtSoapShipmentInfo;
@@ -246,7 +247,7 @@ class BrtInfoHelper
         if ($this->year) {
             $year = $this->year;
         } else {
-            $year = \ModelBrtConfig::getHistoryStateYear($this->id_order, $this->tracking_states);
+            $year = (new GetOrderShippingDate($this->id_order))->getShippingYear();
         }
 
         if (!$this->tracking) {

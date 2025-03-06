@@ -1,6 +1,4 @@
 <?php
-use Doctrine\ORM\QueryBuilder;
-
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -239,12 +237,12 @@ class MpBrtInfo extends Module
 
     public function hookDashboardZoneTwo()
     {
-        $fermopoint = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::FERMOPOINT);
-        $delivered = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::DELIVERED);
-        $transit = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::TRANSIT);
-        $refused = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::REFUSED);
-        $waiting = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::WAITING);
-        $error = ModelBrtTrackingNumber::getOrdersByLastCurrentState(ModelBrtTrackingNumber::ERROR);
+        $fermopoint = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::FERMOPOINT);
+        $delivered = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::DELIVERED);
+        $transit = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::TRANSIT);
+        $refused = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::REFUSED);
+        $waiting = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::WAITING);
+        $error = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::ERROR);
 
         $params = [
             'orders_fermopoint' => $fermopoint,
@@ -379,131 +377,7 @@ class MpBrtInfo extends Module
 
     public function hookActionObjectOrderHistoryAddAfter($params)
     {
-        $carriers = ModelBrtConfig::getCarriers();
-        if (!$carriers) {
-            return false;
-        }
-
-        if (!is_array($carriers)) {
-            $carriers = [$carriers];
-        }
-
-        /** @var OrderHistory */
-        $order_history = $params['object'];
-        $id_order = (int) $order_history->id_order;
-
-        $order = new Order($id_order);
-        if (!Validate::isLoadedObject($order)) {
-            return false;
-        }
-
-        if (!in_array($order->id_carrier, $carriers)) {
-            return false;
-        }
-
-        $id_brt_order_state = ModelBrtTrackingNumber::getIdOrderStateByIdOrder($id_order);
-
-        $last_row = ModelBrtTrackingNumber::getLastRowByIdOrder($id_order);
-        if (!$last_row) {
-            $findTrackingBy = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
-            $findTrackingOn = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
-
-            if ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-                $rmn = $order->id;
-                $rma = '';
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-                $rmn = $order->reference;
-                $rma = '';
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-                $rmn = '';
-                $rma = $order->id;
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-                $rmn = '';
-                $rma = $order->reference;
-                $id_collo = '';
-            }
-
-            $last_row = [
-                'id_order' => $id_order,
-                'id_order_state' => $order_history->id_order_state,
-                'date_event' => date('Y-m-d H:i:s'),
-                'id_brt_state' => $id_brt_order_state,
-                'id_collo' => $id_collo,
-                'rmn' => $rmn,
-                'rma' => $rma,
-                'tracking_number' => null,
-                'current_state' => null,
-                'anno_spedizione' => date('Y', strtotime($order_history->date_add)),
-                'date_shipped' => null,
-                'date_delivered' => null,
-                'days' => null,
-                'date_add' => date('Y-m-d H:i:s'),
-                'date_upd' => null,
-            ];
-        }
-
-        $db = Db::getInstance();
-        $db->insert(
-            ModelBrtTrackingNumber::$definition['table'],
-            [
-                'id_order' => $id_order,
-                'id_order_state' => $order_history->id_order_state,
-                'date_event' => date('Y-m-d H:i:s'),
-                'id_brt_state' => $id_brt_order_state,
-                'id_collo' => $last_row['id_collo'],
-                'rmn' => $last_row['rmn'],
-                'rma' => $last_row['rma'],
-                'tracking_number' => $last_row['tracking_number'],
-                'current_state' => $last_row['current_state'],
-                'anno_spedizione' => $last_row['anno_spedizione'],
-                'date_shipped' => $last_row['date_shipped'],
-                'date_delivered' => $last_row['date_delivered'],
-                'days' => $last_row['days'],
-                'date_add' => date('Y-m-d H:i:s'),
-                'date_upd' => null,
-            ]
-        );
-    }
-
-    public function hookActionAdminOrdersListingFieldsModifier($params)
-    {
-        if (isset($params['select'])) {
-            $params['select'] .= ',carr.name as `carrier`';
-            $params['join'] .= ' INNER JOIN ' . _DB_PREFIX_ . 'carrier carr on (carr.id_carrier=a.id_carrier)';
-        }
-        $i = 0;
-        $carriers = Carrier::getCarriers((int) $this->id_lang);
-        $carrier_list = [];
-        foreach ($carriers as $carrier) {
-            $carrier_list[$carrier['name']] = $carrier['name'];
-        }
-        foreach ($params['fields'] as $key => $value) {
-            if ($key == 'id_order') {
-                $field = [
-                    'carrier' => [
-                        'title' => $this->l('Carrier'),
-                        'align' => 'text-center',
-                        'class' => 'fixed-width-xs',
-                        'type' => 'select',
-                        'list' => $carrier_list,
-                        'float' => true,
-                        'remove_onclick' => true,
-                        'search' => true,
-                        'filter_key' => 'carr!name',
-                        'callback' => 'processCallbackDisplayCarrier',
-                        'callback_object' => $this,
-                    ],
-                ];
-                $params['fields'] = $this->insertValueAtPosition($params['fields'], $field, $i);
-
-                break;
-            } else {
-                ++$i;
-            }
-        }
+        // TODO:
     }
 
     public function insertValueAtPosition($arr, $insertedArray, $position)
@@ -540,6 +414,8 @@ class MpBrtInfo extends Module
             'id_carrier' => 0,
             'ajax_controller' => $ajax_controller,
             'baseAdminUrl' => $ajax_controller,
+            'fetchController' => $this->context->link->getModuleLink($this->name, 'FetchShipping'),
+            'module_dir' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/',
             'spinner' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/img/spinner/spinner.gif',
         ];
 

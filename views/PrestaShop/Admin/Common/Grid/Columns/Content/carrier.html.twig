@@ -1,5 +1,26 @@
 {% set key = column.options.callback_class %}
 {% set method = column.options.callback_method %}
 {% set arguments = record[column.options.field] %}
-{% set result = attribute(key, method, [arguments]) %}
-{{ result | raw }}
+{% set carrier = attribute(key, method, [arguments]) %}
+
+<a
+    href="javascript:void(0);"
+    class="btn brt-info-button"
+    data-orderId="{{ carrier.order_id }}"
+    data-colloId="{{ carrier.collo_id }}"
+    data-carrierId="{{ carrier.carrier_id }}"
+    data-rmn="{{ carrier.rmn }}"
+    data-rma="{{ carrier.rma }}"
+    data-link="{{ carrier.link }}"
+    title="{{ 'Carrier'|trans({}, 'Modules.Mpbrtinfo.Admin') }}:{{ carrier.carrier_name }}{% if carrier.collo_id %} - Tracking: {{ carrier.collo_id }}{% endif %}"
+    >
+    {%if carrier.image%}
+    <img src="{{ carrier.image }}" style="width: 48px; object-fit: contain;" title="{{ carrier.carrier_name }}">
+    {%else%}
+    <div style="width: 48px; height: 48px; border: 4px double {{ carrier.status_color }}; display: flex; justify-content: center; align-items: center;">
+        <div class="material-icons" style="color: {{ carrier.status_color }};">
+            {{ carrier.status_icon }}
+        </div>
+    </div>
+    {%endif%}
+</a>

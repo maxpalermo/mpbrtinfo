@@ -24,6 +24,7 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+use MpSoft\MpBrtInfo\Bolla\Evento;
 use MpSoft\MpBrtInfo\Helpers\SmartyTpl;
 
 class DisplayCarrier
@@ -56,6 +57,32 @@ class DisplayCarrier
         $this->carriers_brt = $this->getIdCarrierByName(\ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS));
     }
 
+    protected function getCarrierLink($id_order)
+    {
+        $order = new \Order($id_order, $this->id_lang);
+        $carrier = new \Carrier($order->id_carrier);
+
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('tracking_number')
+            ->from('order_carrier')
+            ->where('id_order=' . (int) $id_order)
+            ->where('id_carrier=' . (int) $order->id_carrier)
+            ->orderBy('date_add DESC');
+        $tracking_number = $db->getValue($sql);
+        if ($tracking_number) {
+            $link = $carrier->url;
+            $link = str_replace('@', $tracking_number, $link);
+
+            return [
+                'id_collo' => $tracking_number,
+                'link' => $link,
+            ];
+        }
+
+        return false;
+    }
+
     public function display($id_order)
     {
         $order = new \Order($id_order, $this->id_lang);
@@ -70,6 +97,24 @@ class DisplayCarrier
         $findTrackingBy = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
         $findTrackingOn = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
 
+        if ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+            $rmn = $order->id;
+            $rma = '';
+            $id_collo = '';
+        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+            $rmn = $order->reference;
+            $rma = '';
+            $id_collo = '';
+        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+            $rmn = '';
+            $rma = $order->id;
+            $id_collo = '';
+        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+            $rmn = '';
+            $rma = $order->reference;
+            $id_collo = '';
+        }
+
         $carriers = \ModelBrtConfig::getCarriers();
 
         $db = \Db::getInstance();
@@ -80,106 +125,73 @@ class DisplayCarrier
             ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
         $row = $db->getRow($sql);
 
-        if (!$row) {
-            if (!in_array($order->id_carrier, $carriers)) {
-                return $this->displayCarrierIcon($id_order, $carrier->id);
-            }
+        // Non c'è la riga corrispondente nella tabella BrtHistory
+        if (!$row || !in_array($order->id_carrier, $carriers)) {
+            $default_tracking = $this->getCarrierLink($id_order);
 
-            $sql = new \DbQuery();
-            $sql->select('id_order, tracking_number')
-                ->from('order_carrier')
-                ->where('id_order=' . (int) $id_order)
-                ->where('id_carrier=' . (int) $carrier->id)
-                ->orderBy('date_add DESC');
-            $row = $db->getRow($sql);
-
-            if ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-                $rmn = $order->id;
-                $rma = '';
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-                $rmn = $order->reference;
-                $rma = '';
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-                $rmn = '';
-                $rma = $order->id;
-                $id_collo = '';
-            } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-                $rmn = '';
-                $rma = $order->reference;
-                $id_collo = '';
-            }
-
-            if ($row && $row['tracking_number']) {
-                $tracking_number = $row['tracking_number'];
-                $displayIcon = \ModelBrtConfig::getIconByOrderState($order->current_state);
-
-                $row = [
-                    'id_order' => $id_order,
-                    'id_carrier' => $carrier->id,
-                    'tracking_number' => $tracking_number,
-                    'id_collo' => $id_collo,
+            if ($default_tracking) {
+                $fields = [
+                    'order_id' => $id_order,
+                    'collo_id' => $default_tracking['id_collo'],
+                    'carrier_id' => $carrier->id,
+                    'carrier_name' => $carrier->name,
                     'rmn' => $rmn,
                     'rma' => $rma,
-                    'name' => $carrier->name,
-                    'carrier_url' => $carrier->url,
+                    'title' => $carrier->name,
+                    'link' => '',
+                    'image' => '',
+                    'status_color' => '#FFA500',
+                    'status_icon' => 'local_shipping',
                 ];
-            } elseif ($row && !$row['tracking_number']) {
-                $current_state = $order->getCurrentState();
-                $displayIcon = \ModelBrtConfig::getIconByOrderState($current_state);
-
-                $row = [
-                    'id_order' => $id_order,
-                    'id_carrier' => $carrier->id,
-                    'id_collo' => '',
+            } else {
+                $fields = [
+                    'order_id' => $id_order,
+                    'collo_id' => '',
+                    'carrier_id' => $carrier->id,
+                    'carrier_name' => $carrier->name,
                     'rmn' => $rmn,
                     'rma' => $rma,
-                    'name' => $carrier->name,
-                    'carrier_url' => $carrier->url,
+                    'title' => $carrier->name,
+                    'link' => '',
+                    'image' => $this->context->link->getMediaLink('/img/s/' . $carrier->id . '.jpg'),
+                    'status_color' => '#FFA500',
+                    'status_icon' => 'local_shipping',
                 ];
             }
         } else {
-            $tracking_number = $row['id_collo'];
-            $displayIcon = \ModelBrtConfig::getIconByEvento($row['id_brt_state'], $id_order);
+            $evento = Evento::getOrderEventById($id_order, $row['event_id']);
+            if ($evento) {
+                $fields = [
+                    'order_id' => $id_order,
+                    'collo_id' => $row['id_collo'],
+                    'carrier_id' => $order->id_carrier,
+                    'carrier_name' => $carrier->name,
+                    'rmn' => $row['rmn'],
+                    'rma' => $row['rma'],
+                    'title' => "{$carrier->name} - ID COLLO: {$row['id_collo']}",
+                    'link' => '',
+                    'image' => '',
+                    'status_color' => $evento->getColor(true),
+                    'status_icon' => $evento->getIcon(),
+                ];
+            } else {
+                $fields = [
+                    'order_id' => $id_order,
+                    'collo_id' => $id_collo,
+                    'carrier_id' => $carrier->id,
+                    'carrier_name' => $carrier->name,
+                    'rmn' => $rmn,
+                    'rma' => $rma,
+                    'title' => $carrier->name,
+                    'link' => '',
+                    'image' => $this->context->link->getMediaLink('/img/s/' . $carrier->id . '.jpg'),
+                    'status_color' => 'secondary',
+                    'status_icon' => 'local_shipping',
+                ];
+            }
         }
 
-        if (!$row) {
-            return $this->displayCarrierIcon($id_order, $carrier->id);
-        }
-
-        $params = [
-            'carrier' => [
-                'icon' => $displayIcon,
-                'id_order' => $id_order,
-                'id_carrier' => $carrier->id,
-                'tracking' => $row['tracking_number'],
-                'id_collo' => $row['id_collo'],
-                'rmn' => $row['rmn'],
-                'rma' => $row['rma'],
-                'name' => $carrier->name,
-                'carrier_url' => $carrier->url,
-            ],
-        ];
-
-        return $this->tpl->renderTplAdmin('brtIcon/brt_carrier', $params);
-    }
-
-    public function getTracking($id_order, $id_carrier = '')
-    {
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('tracking_number')
-            ->from('order_carrier')
-            ->where('id_order=' . (int) $id_order)
-            ->orderBy('id_order_carrier DESC');
-
-        if ($id_carrier) {
-            $sql->where('id_carrier=' . (int) $id_carrier);
-        }
-        $tracking = $db->getValue($sql);
-
-        return $tracking;
+        return $fields;
     }
 
     protected function toArray($value)
@@ -279,12 +291,14 @@ class DisplayCarrier
         $carrier = new \Carrier($id_carrier);
         if (\Validate::isLoadedObject($carrier)) {
             $icon = $this->context->shop->getBaseURI() . 'img/s/' . $id_carrier . '.jpg';
+            $tracking = $this->getTracking($id_order, $id_carrier);
             $params = [
                 'carrier' => [
                     'icon' => $icon,
                     'id_order' => false,
                     'id_carrier' => $carrier->id,
-                    'tracking' => $this->getTracking($id_order, $id_carrier),
+                    'tracking' => $tracking,
+                    'tracking_number' => $tracking, // Add this line to fix the error
                     'name' => $carrier->name,
                     'url' => $this->getCarrierLink($id_order),
                 ],
@@ -297,6 +311,7 @@ class DisplayCarrier
                     'id_order' => false,
                     'id_carrier' => false,
                     'tracking' => false,
+                    'tracking_number' => false, // Add this line to fix the error
                     'name' => $this->module->l('Carrier Unavailable', $this->name),
                     'url' => 'javascript:void(0);',
                 ],
@@ -304,27 +319,5 @@ class DisplayCarrier
         }
 
         return $this->tpl->renderTplAdmin('brtIcon/carrier', $params);
-    }
-
-    private function getCarrierLink($id_order)
-    {
-        $order = new \Order($id_order);
-        $carrier = new \Carrier($order->id_carrier);
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('tracking_number')
-            ->from('order_carrier')
-            ->where('id_order=' . (int) $id_order)
-            ->where('id_carrier=' . (int) $order->id_carrier)
-            ->orderBy('date_add DESC');
-        $tracking_number = $db->getValue($sql);
-        if ($tracking_number) {
-            $link = $carrier->url;
-            $link = str_replace('@', $tracking_number, $link);
-
-            return $link;
-        }
-
-        return false;
     }
 }

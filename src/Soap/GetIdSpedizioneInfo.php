@@ -20,6 +20,8 @@
 
 namespace MpSoft\MpBrtInfo\Soap;
 
+use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
+
 // Verifica che la costante _PS_VERSION_ sia definita
 if (!defined('_PS_VERSION_')) {
     // Se eseguito direttamente, non uscire ma definisci la costante per i test
@@ -31,22 +33,22 @@ if (!defined('_PS_VERSION_')) {
 }
 
 /**
- * Client SOAP per ottenere l'ID spedizione BRT tramite riferimento mittente numerico
+ * Client SOAP per ottenere le informazioni di spedizione tramite tracking
  * 
  * Implementa il web service GetIdSpedizioneByRMN che consente di ottenere
  * l'ID di una spedizione BRT utilizzando il riferimento mittente numerico e l'ID cliente.
  */
-class GetIdSpedizioneByRMN extends BrtSoapClient
+class GetIdSpedizioneInfo extends BrtSoapClient
 {
     /**
      * Endpoint HTTP (deprecato)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/BRT_TrackingByBRTshipmentIDService/BRT_TrackingByBRTshipmentID?wsdl';
 
     /**
      * Endpoint HTTPS (raccomandato)
      */
-    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/BRT_TrackingByBRTshipmentIDService/BRT_TrackingByBRTshipmentID?wsdl';
 
     /**
      * Endpoint attualmente in uso
@@ -55,20 +57,18 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
      */
     protected $endpoint;
 
-    protected $rmn;
+    protected $tracking_number;
     protected $year;
-    protected $id_brt_customer;
 
     /**
      * Costruttore
      * 
      * Inizializza il client SOAP con l'endpoint appropriato in base alla configurazione
      */
-    public function __construct($rmn, $year, $id_brt_customer, $use_ssl = true)
+    public function __construct($tracking_number, $year, $use_ssl = true)
     {
-        $this->rmn = $rmn;
+        $this->tracking_number = $tracking_number;
         $this->year = $year;
-        $this->id_brt_customer = $id_brt_customer;
 
         // Verifica se la classe ModelBrtConfig esiste e se il metodo useSSL è disponibile
         if (class_exists('\\ModelBrtConfig') && method_exists('\\ModelBrtConfig', 'useSSL')) {
@@ -86,33 +86,29 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
     /**
      * Ottiene l'ID di una spedizione BRT tramite riferimento mittente numerico
      * 
-     * @return array|false Array con l'ID spedizione o false in caso di errore
+     * @return \MpSoft\MpBrtInfo\Bolla\Bolla|false Array con l'ID spedizione o false in caso di errore
      */
-    public function getIdSpedizione()
+    public function getInfo()
     {
-        $riferimento_mittente_numerico = $this->rmn;
-        $cliente_id = $this->id_brt_customer;
-
-        if (empty($riferimento_mittente_numerico)) {
-            $this->errors[] = 'Riferimento mittente numerico non valido';
+        if (empty($this->tracking_number)) {
+            $this->errors[] = 'Tracking number non valido';
 
             return false;
         }
 
-        if (empty($cliente_id)) {
-            $this->errors[] = 'ID cliente BRT non valido';
-
-            return false;
+        if (empty($this->year)) {
+            $this->year = date('Y');
         }
 
         // Prepara la richiesta SOAP
         $request = new \stdClass();
-        $request->RIFERIMENTO_MITTENTE_NUMERICO = $riferimento_mittente_numerico;
-        $request->CLIENTE_ID = $cliente_id;
+        $request->LINGUA_ISO639_ALPHA2 = '';
+        $request->SPEDIZIONE_ANNO = $this->year;
+        $request->SPEDIZIONE_BRT_ID = $this->tracking_number;
 
         try {
             // Esegui la chiamata SOAP
-            $response = $this->exec('GetIdSpedizioneByRMN', ['arg0' => $request]);
+            $response = $this->exec('BRT_TrackingByBRTshipmentID', ['arg0' => $request]);
 
             // Verifica la risposta
             if (isset($response['return'])) {
@@ -137,11 +133,11 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
                     return false;
                 }
 
+                // Analizza la risposta e crea un oggetto con i dati della spedizione
+                $shipment_data = BrtParseInfo::parseTrackingInfo($result, \ModelBrtConfig::getEsiti());
+
                 // Restituisci l'ID spedizione
-                return [
-                    'esito' => $result['ESITO'],
-                    'spedizione_id' => $result['SPEDIZIONE_ID'] ?? '',
-                ];
+                return $shipment_data;
             } else {
                 $this->errors[] = 'Risposta non valida dal server BRT';
 

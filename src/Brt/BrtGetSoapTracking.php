@@ -23,6 +23,7 @@ namespace MpSoft\MpBrtInfo\Brt;
 if (!defined('_PS_VERSION_')) {
     exit;
 }
+use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\Soap\BrtSoapAlerts;
 use MpSoft\MpBrtInfo\Soap\BrtSoapShipmentId;
 use MpSoft\MpBrtInfo\Soap\BrtSoapShipmentInfo;
@@ -80,7 +81,7 @@ class BrtGetSoapTracking
         $rows = $db->executeS($sql);
         if ($rows) {
             foreach ($rows as $row) {
-                $year = \ModelBrtConfig::getHistoryStateYear($row['id_order']);
+                $year = (new GetOrderShippingDate($row['id_order']))->getShippingYear();
                 if ($row['tracking_number']) {
                     $shipment_id = $row['tracking_number'];
                 } else {

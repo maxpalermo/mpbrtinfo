@@ -33,7 +33,7 @@ class GetOrderShippingDate
         $this->id_order = $id_order;
     }
 
-    public function run()
+    protected function run($type = 'date')
     {
         $config = \Configuration::get(\ModelBrtConfig::MP_BRT_SHIPPED_STATES);
         $id_states = implode(',', json_decode($config, true));
@@ -46,6 +46,39 @@ class GetOrderShippingDate
             ->where('id_order_state IN (' . $id_states . ')')
             ->orderBy('date_add DESC');
 
-        return $db->getValue($sql);
+        $result = $db->getValue($sql);
+
+        if (!$result) {
+            $result = date('Y-m-d H:i:s');
+        }
+
+        if ($type == 'year') {
+            return (int) date('Y', strtotime($result));
+        }
+
+        return $result;
+    }
+
+    public function getShippingYear()
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+
+        $sql->select('anno_spedizione')
+            ->from(\ModelBrtHistory::$definition['table'])
+            ->where('id_order=' . (int) $this->id_order)
+            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
+        $year = (int) $db->getValue($sql);
+
+        if ($year) {
+            return $year;
+        }
+
+        return $this->run('year');
+    }
+
+    public function getShippingDate()
+    {
+        return $this->run('date');
     }
 }

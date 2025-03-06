@@ -59,6 +59,37 @@ class Evento
         $this->row = $this->getRow();
     }
 
+    public static function getOrderEventById($id_order, $event_id)
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('*')
+            ->from(\ModelBrtHistory::$definition['table'])
+            ->where('id_order=' . (int) $id_order)
+            ->where('event_id=' . (int) $event_id)
+            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
+
+        $row = $db->getRow($sql);
+
+        if ($row) {
+            $data = date('d.m.Y', strtotime($row['event_date']));
+            $ora = date('H:i', strtotime($row['event_date']));
+            $filiale = "{$row['event_filiale_name']} ({$row['event_filiale_id']})";
+
+            $fields = [
+                'DATA' => $data,
+                'ORA' => $ora,
+                'DESCRIZIONE' => $row['event_name'],
+                'FILIALE' => $filiale,
+                'ID' => $row['event_id'],
+            ];
+
+            return new Evento($fields);
+        }
+
+        return false;
+    }
+
     public function getData()
     {
         return $this->data;
@@ -132,40 +163,126 @@ class Evento
         return $row;
     }
 
-    public function getColor()
+    public function getOrderStateIdByEventId()
+    {
+        if ($this->is_delivered) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        }
+
+        if ($this->is_transit) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
+        }
+
+        if ($this->is_sent) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+        }
+
+        if ($this->is_fermopoint) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
+        }
+
+        if ($this->is_waiting) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
+        }
+
+        if ($this->is_refused) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
+        }
+
+        if ($this->is_error) {
+            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
+        }
+
+        return null;
+    }
+
+    public function getColor($html = false)
     {
         $row = $this->row;
         if (!$row) {
+            if ($html) {
+                return '#6c757d';
+            }
+
             return 'secondary';
         }
-        if ($row['is_delivered'] && $row['is_fermopoint']) {
+        if ($row['is_fermopoint'] && $row['is_delivered'] ) {
+            if ($html) {
+                return '#28a745';
+            }
+
             return 'success';
         }
         if ($row['is_fermopoint'] && $row['is_error']) {
+            if ($html) {
+                return '#dc3545';
+            }
+
             return 'danger';
         }
         if ($row['is_fermopoint'] && $row['is_waiting']) {
+            if ($html) {
+                return '#ffc107';
+            }
+
             return 'warning';
         }
+
+        if ($row['is_fermopoint'] && $row['is_transit']) {
+            if ($html) {
+                return '#ffc107';
+            }
+
+            return 'warning';
+        }
+
         if ($row['is_delivered']) {
+            if ($html) {
+                return '#28a745';
+            }
+
             return 'success';
         }
         if ($row['is_fermopoint']) {
+            if ($html) {
+                return '#ffc107';
+            }
+
             return 'warning';
         }
         if ($row['is_error']) {
+            if ($html) {
+                return '#dc3545';
+            }
+
             return 'danger';
         }
         if ($row['is_transit']) {
+            if ($html) {
+                return '#28a745';
+            }
+
             return 'info';
         }
         if ($row['is_waiting']) {
+            if ($html) {
+                return '#ffc107';
+            }
+
             return 'warning';
         }
         if ($row['is_refused']) {
+            if ($html) {
+                return '#dc3545';
+            }
+
             return 'danger';
         }
         if ($row['is_sent']) {
+            if ($html) {
+                return '#17a2b8';
+            }
+
             return 'info';
         }
 
@@ -186,6 +303,9 @@ class Evento
         }
         if ($row['is_fermopoint'] && $row['is_waiting']) {
             return 'warning';
+        }
+        if ($row['is_error'] && $row['is_refused']) {
+            return 'block';
         }
         if ($row['is_delivered']) {
             return 'check_circle';
@@ -250,5 +370,66 @@ class Evento
     public function getRowData()
     {
         return $this->row;
+    }
+
+    public function getLabel()
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('*')
+            ->from('mpbrtinfo_evento')
+            ->where('id_evento = ' . (int) $this->id);
+
+        $result = $db->getRow($sql);
+
+        if (!$result) {
+            return 'N/A';
+        }
+
+        if ($result['is_fermopoint'] && $result['is_delivered']) {
+            return 'Ritirato Fermopoint';
+        }
+
+        if ($result['is_fermopoint'] && $result['is_waiting']) {
+            return 'Attesa Fermopoint';
+        }
+
+        if ($result['is_fermopoint'] && $result['is_transit']) {
+            return 'Arrivato Fermopoint';
+        }
+
+        if ($result['is_fermopoint'] && $result['is_refused']) {
+            return 'Non Prelevato';
+        }
+
+        if ($result['is_error'] && $result['is_refused']) {
+            return 'Rifiutato';
+        }
+
+        if ($result['is_error']) {
+            return 'Errore';
+        }
+
+        if ($result['is_transit']) {
+            return 'Transito';
+        }
+
+        if ($result['is_sent']) {
+            return 'Spedito';
+        }
+
+        if ($result['is_waiting']) {
+            return 'Attesa';
+        }
+
+        if ($result['is_refused']) {
+            return 'Rifiutato';
+        }
+
+        if ($result['is_delivered']) {
+            return 'Consegnato';
+        }
+
+        return 'N/A';
     }
 }

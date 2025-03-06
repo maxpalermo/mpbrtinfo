@@ -10,13 +10,13 @@ function displayProgress(progress) {
 
     // Crea il pannello SweetAlert2 con barra di progresso
     progressModal = createProgressModal({
-        title: '{l s="Aggiornamento spedizioni BRT" mod="mpbrtinfo"}',
-        text: '{l s="Stiamo recuperando le informazioni sulle spedizioni..." mod="mpbrtinfo"}',
+        title: "Aggiornamento spedizioni BRT",
+        text: "Stiamo recuperando le informazioni sulle spedizioni...",
         initialProgress: progress,
-        progressText: '{l s="Avanzamento: 0%" mod="mpbrtinfo"}',
+        progressText: "Avanzamento: 0%",
         allowClose: false,
         showCancelButton: true,
-        cancelButtonText: '{l s="Annulla" mod="mpbrtinfo"}',
+        cancelButtonText: "Annulla",
         onCancel: () => {
             // Annulla tutte le richieste fetch in corso
             if (abortController) {
@@ -24,11 +24,11 @@ function displayProgress(progress) {
             }
 
             // Mostra un messaggio di annullamento
-            completeProgress('{l s="Operazione annullata" mod="mpbrtinfo"}', '{l s="L\'operazione è stata annullata dall\'utente." mod="mpbrtinfo"}', true);
+            completeProgress("Operazione annullata", "L'operazione è stata annullata dall'utente.", true);
         },
         showDetails: true,
-        detailsButtonText: '{l s="Dettagli tecnici" mod="mpbrtinfo"}',
-        detailsText: '{l s="Inizializzazione operazione..." mod="mpbrtinfo"}',
+        detailsButtonText: "Dettagli tecnici",
+        detailsText: "Inizializzazione operazione...",
         animateProgress: true
     });
 
