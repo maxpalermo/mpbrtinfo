@@ -94,54 +94,37 @@ class DisplayCarrier
             return $this->displayError();
         }
 
-        $findTrackingBy = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
-        $findTrackingOn = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
-
-        if ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-            $rmn = $order->id;
-            $rma = '';
-            $id_collo = '';
-        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-            $rmn = $order->reference;
-            $rma = '';
-            $id_collo = '';
-        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-            $rmn = '';
-            $rma = $order->id;
-            $id_collo = '';
-        } elseif ($findTrackingBy == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $findTrackingOn == \ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-            $rmn = '';
-            $rma = $order->reference;
-            $id_collo = '';
-        }
-
-        $carriers = \ModelBrtConfig::getCarriers();
-
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('*')
-            ->from(\ModelBrtHistory::$definition['table'])
-            ->where('id_order=' . (int) $id_order)
-            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
-        $row = $db->getRow($sql);
-
-        // Non c'è la riga corrispondente nella tabella BrtHistory
-        if (!$row || !in_array($order->id_carrier, $carriers)) {
+        $event_row = \ModelBrtHistory::getLastOrderEvent($id_order);
+        if ($event_row) {
+            $event = Evento::getEventoByEventRow($event_row);
+            $fields = [
+                'order_id' => $id_order,
+                'collo_id' => $event_row['id_collo'],
+                'carrier_id' => $order->id_carrier,
+                'carrier_name' => $carrier->name,
+                'rmn' => $event_row['rmn'],
+                'rma' => $event_row['rma'],
+                'title' => $carrier->name,
+                'link' => '',
+                'image' => '',
+                'status_color' => $event->getColor(true),
+                'status_icon' => $event->getIcon(),
+            ];
+        } else {
             $default_tracking = $this->getCarrierLink($id_order);
-
             if ($default_tracking) {
                 $fields = [
                     'order_id' => $id_order,
                     'collo_id' => $default_tracking['id_collo'],
                     'carrier_id' => $carrier->id,
                     'carrier_name' => $carrier->name,
-                    'rmn' => $rmn,
-                    'rma' => $rma,
+                    'rmn' => '',
+                    'rma' => '',
                     'title' => $carrier->name,
-                    'link' => '',
-                    'image' => '',
+                    'link' => $default_tracking['link'],
+                    'image' => $this->context->link->getMediaLink('/img/s/' . $carrier->id . '.jpg'),
                     'status_color' => '#FFA500',
-                    'status_icon' => 'local_shipping',
+                    'status_icon' => '',
                 ];
             } else {
                 $fields = [
@@ -149,44 +132,13 @@ class DisplayCarrier
                     'collo_id' => '',
                     'carrier_id' => $carrier->id,
                     'carrier_name' => $carrier->name,
-                    'rmn' => $rmn,
-                    'rma' => $rma,
+                    'rmn' => '',
+                    'rma' => '',
                     'title' => $carrier->name,
                     'link' => '',
                     'image' => $this->context->link->getMediaLink('/img/s/' . $carrier->id . '.jpg'),
-                    'status_color' => '#FFA500',
-                    'status_icon' => 'local_shipping',
-                ];
-            }
-        } else {
-            $evento = Evento::getOrderEventById($id_order, $row['event_id']);
-            if ($evento) {
-                $fields = [
-                    'order_id' => $id_order,
-                    'collo_id' => $row['id_collo'],
-                    'carrier_id' => $order->id_carrier,
-                    'carrier_name' => $carrier->name,
-                    'rmn' => $row['rmn'],
-                    'rma' => $row['rma'],
-                    'title' => "{$carrier->name} - ID COLLO: {$row['id_collo']}",
-                    'link' => '',
-                    'image' => '',
-                    'status_color' => $evento->getColor(true),
-                    'status_icon' => $evento->getIcon(),
-                ];
-            } else {
-                $fields = [
-                    'order_id' => $id_order,
-                    'collo_id' => $id_collo,
-                    'carrier_id' => $carrier->id,
-                    'carrier_name' => $carrier->name,
-                    'rmn' => $rmn,
-                    'rma' => $rma,
-                    'title' => $carrier->name,
-                    'link' => '',
-                    'image' => $this->context->link->getMediaLink('/img/s/' . $carrier->id . '.jpg'),
-                    'status_color' => 'secondary',
-                    'status_icon' => 'local_shipping',
+                    'status_color' => '#F05050',
+                    'status_icon' => '',
                 ];
             }
         }

@@ -1,0 +1,170 @@
+/**
+* 2007-2019 PrestaShop
+*
+* NOTICE OF LICENSE
+*
+* This source file is subject to the Academic Free License (AFL 3.0)
+* that is bundled with this package in the file LICENSE.txt.
+* It is also available through the world-wide-web at this URL:
+* http://opensource.org/licenses/afl-3.0.php
+* If you did not receive a copy of the license and are unable to
+* obtain it through the world-wide-web, please send an email
+* to license@prestashop.com so we can send you a copy immediately.
+*
+* DISCLAIMER
+*
+* Do not edit or add to this file if you wish to upgrade PrestaShop to newer
+* versions in the future. If you wish to customize PrestaShop for your
+* needs please refer to http://www.prestashop.com for more information.
+*
+*  @author    PrestaShop SA <contact@prestashop.com>
+*  @copyright 2007-2019 PrestaShop SA
+*  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+*  International Registered Trademark & Property of PrestaShop SA
+*
+* Don't forget to prefix your containers with your own identifier
+* to avoid any conflicts with others containers.
+*/
+
+.copy-clipboard:hover {
+    cursor: pointer;
+}
+
+.readonly {
+    background-color: #fefefe !important;
+}
+
+.modal-dialog-centered {
+    display: flex;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100% - 1rem);
+    min-width: 600px;
+    width: auto;
+}
+
+.modal-content {
+    min-width: 600px;
+    width: auto;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.align-items-center {
+    align-items: center;
+}
+
+.justify-content-start {
+    justify-content: start;
+}
+
+.justify-content-center {
+    justify-content: center;
+}
+
+.justify-content-end {
+    justify-content: end;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.justify-content-around {
+    justify-content: space-around;
+}
+
+.justify-content-evenly {
+    justify-content: space-evenly;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.mr-1 {
+    margin-right: 0.25rem;
+}
+
+.mr-2 {
+    margin-right: 0.5rem;
+}
+
+.mr-3 {
+    margin-right: 1rem;
+}
+
+.mr-4 {
+    margin-right: 1.5rem;
+}
+
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mt-3 {
+    margin-top: 1rem;
+}
+
+.mt-4 {
+    margin-top: 1.5rem;
+}
+
+.mb-1 {
+    margin-bottom: 0.25rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+    margin-bottom: 1rem;
+}
+
+.mb-4 {
+    margin-bottom: 1.5rem;
+}
+
+.ml-1 {
+    margin-left: 0.25rem;
+}
+
+.ml-2 {
+    margin-left: 0.5rem;
+}
+
+.ml-3 {
+    margin-left: 1rem;
+}
+
+.ml-4 {
+    margin-left: 1.5rem;
+}
+
+.btn-order-state-skip.active {
+    background-color: #3d648d !important;
+    color: #fcfcfc !important;
+}
+
+.btn-order-state-skip.active:hover {
+    background-color: #3d648d !important;
+    color: #fcfcfc !important;
+}
+
+.btn-order-state-skip:hover {
+    background-color: #3d648d !important;
+    color: #fcfcfc !important;
+}
+
+.btn-order-state-skip {
+    background-color: transparent !important;
+    color: #3d648d !important;
+}

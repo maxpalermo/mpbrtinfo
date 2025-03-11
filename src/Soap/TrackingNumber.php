@@ -28,7 +28,6 @@ class TrackingNumber
     {
         $config_get_by = \ModelBrtConfig::getTrackingBy();
         $config_get_where = \ModelBrtConfig::getSearchWhere();
-        $config_shippedStates = \ModelBrtConfig::getShippedStates();
         $config_id_customer = \ModelBrtConfig::getCustomerId();
 
         $order = new \Order($id_order);
@@ -46,24 +45,24 @@ class TrackingNumber
         }
 
         if ($config_get_by == \ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN) {
-            $tracking = self::getTrackingByRMN($config_id_customer, $rmn, $year);
+            $tracking = self::getTrackingByRMN($rmn, $year, $config_id_customer);
         } else {
-            $tracking = self::getTrackingByRMA($config_id_customer, $rma, $year);
+            $tracking = self::getTrackingByRMA($rma, $year, $config_id_customer);
         }
 
         return $tracking;
     }
 
-    public static function getTrackingByRMN($brt_customer_id, $rmn, $year)
+    public static function getTrackingByRMN($rmn, $year, $brt_customer_id)
     {
-        $tracking = (new GetIdSpedizioneByRMN($rmn, $brt_customer_id, $year))->getIdSpedizione();
+        $tracking = (new GetIdSpedizioneByRMN($rmn, $year, $brt_customer_id))->getIdSpedizione();
 
         return $tracking;
     }
 
-    public static function getTrackingByRMA($brt_customer_id, $rma, $year)
+    public static function getTrackingByRMA($rma, $year, $brt_customer_id)
     {
-        $tracking = (new GetIdSpedizioneByRMA($rma, $brt_customer_id, $year))->getIdSpedizione();
+        $tracking = (new GetIdSpedizioneByRMA($rma, $year, $brt_customer_id))->getIdSpedizione();
 
         return $tracking;
     }

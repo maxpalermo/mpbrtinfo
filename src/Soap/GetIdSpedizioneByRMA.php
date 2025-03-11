@@ -33,7 +33,7 @@ if (!defined('_PS_VERSION_')) {
 /**
  * Client SOAP per ottenere l'ID spedizione BRT tramite riferimento mittente numerico
  * 
- * Implementa il web service GetIdSpedizioneByRMN che consente di ottenere
+ * Implementa il web service GetIdSpedizioneByRMA che consente di ottenere
  * l'ID di una spedizione BRT utilizzando il riferimento mittente numerico e l'ID cliente.
  */
 class GetIdSpedizioneByRMA extends BrtSoapClient
@@ -41,12 +41,12 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
     /**
      * Endpoint HTTP (deprecato)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMA?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
 
     /**
      * Endpoint HTTPS (raccomandato)
      */
-    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMA?wsdl';
+    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
 
     /**
      * Endpoint attualmente in uso
@@ -156,5 +156,10 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
 
             return false;
         }
+    }
+
+    public function getErrors()
+    {
+        return $this->errors;
     }
 }

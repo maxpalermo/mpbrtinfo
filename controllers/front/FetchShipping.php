@@ -51,7 +51,9 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
     public function ajaxFetchTotalShippings($post_json)
     {
         $id_carriers = ModelBrtConfig::getCarriers();
-        $id_delivered = ModelBrtConfig::get('MP_BRT_INFO_EVENT_DELIVERED');
+        $id_delivered = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED, 0);
+        $id_state_skip = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []);
+        $max_date = date('Y-m-d', strtotime('-30 days'));
 
         if (!$id_carriers) {
             return [
@@ -91,11 +93,20 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
         $sql->select('oc.id_order, oc.tracking_number')
             ->from('order_carrier', 'oc')
             ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
-            ->where('o.current_state NOT IN (' . $id_delivered . ')')
             ->where('o.id_carrier IN (' . $id_carriers . ')')
+            ->where('o.date_add >= "' . $max_date . '"')
             ->groupBy('oc.id_order')
-            ->having('MAX(oc.tracking_number) = ""')
+            ->having('MAX(oc.tracking_number) IS NULL OR MAX(oc.tracking_number) = ""')
             ->orderBy('o.id_order DESC');
+
+        if ($id_delivered) {
+            $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
+        }
+
+        if ($id_state_skip && is_array($id_state_skip)) {
+            $sql->where('o.current_state NOT IN (' . implode(',', $id_state_skip) . ')');
+        }
+
         $noTracking = $db->executeS($sql);
         if (!$noTracking) {
             $noTracking = [];
@@ -106,11 +117,20 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
         $sql->select('oc.id_order, oc.tracking_number')
             ->from('order_carrier', 'oc')
             ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
-            ->where('o.current_state NOT IN (' . $id_delivered . ')')
             ->where('o.id_carrier IN (' . $id_carriers . ')')
+            ->where('o.date_add >= "' . $max_date . '"')
             ->groupBy('oc.id_order')
-            ->having('MAX(oc.tracking_number) != ""')
+            ->having('MAX(oc.tracking_number) IS NOT NULL AND MAX(oc.tracking_number) != ""')
             ->orderBy('o.id_order DESC');
+
+        if ($id_delivered) {
+            $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
+        }
+
+        if ($id_state_skip && is_array($id_state_skip)) {
+            $sql->where('o.current_state NOT IN (' . implode(',', $id_state_skip) . ')');
+        }
+
         $tracking = $db->executeS($sql);
         if (!$tracking) {
             $tracking = [];
@@ -136,7 +156,7 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
     public function ajaxFetchTracking($post_json)
     {
         $processed = 0;
-        $orders = $post_json['shipments_id'];
+        $orders = $post_json['list'];
         foreach ($orders as $order) {
             $id_order = (int) $order['id_order'];
             $tracking_number = TrackingNumber::get($id_order);
@@ -166,7 +186,7 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
     {
         $response = [];
         $processed = 0;
-        $orders = $post_json['shipments_id'];
+        $orders = $post_json['list'];
         foreach ($orders as $order) {
             if (!isset($order['id_order']) || !isset($order['tracking_number'])) {
                 continue;
@@ -181,16 +201,13 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
             if ($shipmentData) {
                 $processed++;
                 $this->processEvents($info, $id_order, $tracking);
-                if (count($orders) == 1) {
-                    $response = $this->sendResponse($shipmentData, $id_order, $tracking);
-                }
             }
         }
 
         return [
             'status' => 'success',
             'processed' => $processed,
-            'total' => count($orders),
+            'total' => is_array($orders) ? count($orders) : 0,
             'response' => $response,
         ];
     }
@@ -340,11 +357,54 @@ class MpBrtInfoFetchShippingModuleFrontController extends ModuleFrontController
             ];
         }
 
+        // Recupera il tracking number se non fornito
+        if (!$tracking_number) {
+            $tracking_number = TrackingNumber::get($id_order);
+            if ($tracking_number && $tracking_number['esito'] == 0) {
+                $tracking_number = $tracking_number['spedizione_id'];
+                $db = Db::getInstance();
+                $sql = new DbQuery();
+                $sql->select('id_order_carrier')
+                    ->from('order_carrier')
+                    ->where('id_order = ' . (int) $id_order)
+                    ->where('id_carrier = '. (int) $order->id_carrier)
+                    ->orderBy('id_order_carrier DESC');
+                $id_order_carrier = $db->getValue($sql);
+                if ($id_order_carrier) {
+                    try {
+                        $result = $db->update(
+                            'order_carrier',
+                            [
+                                'tracking_number' => $tracking_number
+                            ],
+                            'id_order_carrier = ' . (int) $id_order_carrier
+                        );
+                        if (!$result) {
+                            return [
+                                'success' => false,
+                                'message' => 'Errore durante l\'aggiornamento del tracking number:' . $db->getMsgError(),
+                            ];
+                        }
+                    } catch (\Throwable $th) {
+                        return [
+                            'success' => false,
+                            'message' => 'Errore durante l\'aggiornamento del tracking number: ' . $th->getMessage(),
+                        ];
+                    }
+                }
+            }
+        }
+
         try {
             // Recupera i dati della spedizione tramite SOAP
             $info = TrackingInfo::get($id_order, $tracking_number, $year_shipped);
             if ($info) {
                 $shipmentData = TrackingInfo::prepareShipmentData($info);
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Spedizione non trovata',
+                ];
             }
             if (!isset($shipmentData['rmn'])) {
                 return [

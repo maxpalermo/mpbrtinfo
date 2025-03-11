@@ -36,65 +36,63 @@ export async function fetchTotalShippings() {
     }
 }
 
-export async function fetchShippingsInfo(shipments_id) {
+export async function fetchShippingsInfo(list) {
     var current_processed = 0;
-    var total_shipments = shipments_id.length;
+    var total_shipments = list.length;
     const CHUNK_SIZE = 10;
 
-    do {
-        let chunk = shipments_id.splice(0, CHUNK_SIZE);
-        let data = {
-            ajax: true,
-            action: "fetchShippingInfo",
-            shipments_id: chunk
-        };
+    let chunk = list.splice(0, CHUNK_SIZE);
+    let data = {
+        ajax: true,
+        action: "fetchShippingInfo",
+        list: chunk
+    };
 
-        let response = await fetch(fetchController, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            body: JSON.stringify(data),
-            ...(abortSignal ? { signal: abortSignal } : {})
-        });
+    let response = await fetch(fetchController, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify(data),
+        ...(abortSignal ? { signal: abortSignal } : {})
+    });
 
-        const json = await response.json();
+    const json = await response.json();
 
-        if (json.status == "success") {
-            current_processed += chunk.length;
-            let percProgress = Math.round((current_processed / total_shipments) * 100);
+    if (json.status == "success") {
+        current_processed += chunk.length;
+        let percProgress = Math.round((current_processed / total_shipments) * 100);
 
-            // Verifica se l'operazione è stata annullata
-            if (progressModalInstance && typeof progressModalInstance.isCancelled === "function" && progressModalInstance.isCancelled()) {
-                return false;
-            }
-
-            // Aggiorna la barra di progresso
-            if (updateProgressBarCallback) {
-                updateProgressBarCallback(percProgress, "Processate " + current_processed + "/" + total_shipments + " spedizioni");
-            }
-
-            // Aggiorna il testo informativo nel pannello
-            const textElement = document.querySelector(".swal-progress-text");
-            if (textElement) {
-                textElement.innerHTML = "<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p>" + "<p>Spedizioni BRT cambiate: " + response.order_changed + ".</p>" + "<p>Tempo di esecuzione: " + response.elapsed_time + ".</p>";
-            }
-
-            // Aggiorna i dettagli tecnici
-            if (progressModalInstance && typeof progressModalInstance.updateDetails === "function") {
-                progressModalInstance.updateDetails("Elaborazione in corso\n" + "Processate: " + current_processed + "/" + total_shipments + "\n" + "Spedizioni cambiate: " + response.order_changed + "\n" + "Tempo di esecuzione: " + response.elapsed_time + "\n" + "Ultima risposta: " + JSON.stringify(response, null, 2));
-            }
-        } else {
-            // Mostra un messaggio di errore nel pannello
-            if (completeProgressCallback) {
-                completeProgressCallback("Errore", "Errore durante il recupero delle spedizioni.", true);
-            }
+        // Verifica se l'operazione è stata annullata
+        if (progressModalInstance && typeof progressModalInstance.isCancelled === "function" && progressModalInstance.isCancelled()) {
             return false;
         }
-    } while (shipments_id.length > 0);
 
-    return true;
+        // Aggiorna la barra di progresso
+        if (updateProgressBarCallback) {
+            updateProgressBarCallback(percProgress, "Processate " + current_processed + "/" + total_shipments + " spedizioni");
+        }
+
+        // Aggiorna il testo informativo nel pannello
+        const textElement = document.querySelector(".swal-progress-text");
+        if (textElement) {
+            textElement.innerHTML = "<p>Processate " + current_processed + "/" + total_shipments + " spedizioni.</p>" + "<p>Spedizioni BRT cambiate: " + response.order_changed + ".</p>" + "<p>Tempo di esecuzione: " + response.elapsed_time + ".</p>";
+        }
+
+        // Aggiorna i dettagli tecnici
+        if (progressModalInstance && typeof progressModalInstance.updateDetails === "function") {
+            progressModalInstance.updateDetails("Elaborazione in corso\n" + "Processate: " + current_processed + "/" + total_shipments + "\n" + "Spedizioni cambiate: " + response.order_changed + "\n" + "Tempo di esecuzione: " + response.elapsed_time + "\n" + "Ultima risposta: " + JSON.stringify(response, null, 2));
+        }
+    } else {
+        // Mostra un messaggio di errore nel pannello
+        if (completeProgressCallback) {
+            completeProgressCallback("Errore", "Errore durante il recupero delle spedizioni.", true);
+        }
+        return false;
+    }
+
+    return list;
 }
 
 export async function fetchTracking(list) {
@@ -109,14 +107,14 @@ export async function fetchTracking(list) {
         body: JSON.stringify({
             ajax: true,
             action: "fetchTracking",
-            shipments_id: chunk
+            list: chunk
         })
     });
 
     const json = await response.json();
 
     if (json.status == "success") {
-        return json;
+        return list;
     } else {
         return false;
     }

@@ -53,8 +53,6 @@ class Response
         http_response_code($status);
         header('Content-Type: ' . self::CONTENT_TYPE_JSON . '; charset=utf-8');
 
-        ob_flush();
-
         // Add any additional headers
         foreach ($headers as $key => $value) {
             header("$key: $value");

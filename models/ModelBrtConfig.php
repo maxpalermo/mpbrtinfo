@@ -105,12 +105,16 @@ class ModelBrtConfig extends ConfigurationCore
         return true;
     }
 
-    public static function getConfigValue($config_key)
+    public static function getConfigValue($config_key, $default = null)
     {
         $value = \Configuration::get($config_key);
         $json = json_decode($value, true);
         if (is_array($json)) {
             $value = $json;
+        }
+
+        if (!$value && $default !== null) {
+            return $default;
         }
 
         return $value;

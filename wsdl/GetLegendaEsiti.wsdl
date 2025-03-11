@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsp1_2="http://schemas.xmlsoap.org/ws/2004/09/policy" xmlns:wsp="http://www.w3.org/ns/ws-policy" xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata" xmlns:tns="http://getlegendaesiti.wsbeans.iseries" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns="http://schemas.xmlsoap.org/wsdl/" name="GetLegendaEsiti" targetNamespace="http://getlegendaesiti.wsbeans.iseries">
+  <types>
+<xs:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsp1_2="http://schemas.xmlsoap.org/ws/2004/09/policy" xmlns:wsp="http://www.w3.org/ns/ws-policy" xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata" xmlns:tns="http://getlegendaesiti.wsbeans.iseries" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://getlegendaesiti.wsbeans.iseries" version="1.0">
+
+      
+  <xs:element name="getlegendaesiti" type="tns:getlegendaesiti"></xs:element>
+
+      
+  <xs:element name="getlegendaesitiResponse" type="tns:getlegendaesitiResponse"></xs:element>
+
+      
+  <xs:complexType name="getlegendaesiti">
+        
+    <xs:sequence>
+          
+      <xs:element minOccurs="0" name="arg0" nillable="true" type="tns:getlegendaesitiInput"></xs:element>
+        
+    </xs:sequence>
+      
+  </xs:complexType>
+
+      
+  <xs:complexType name="getlegendaesitiInput">
+        
+    <xs:sequence>
+          
+      <xs:element minOccurs="0" name="LINGUA_ISO639_ALPHA2" nillable="true" type="xs:string"></xs:element>
+          
+      <xs:element minOccurs="0" name="ULTIMO_ID_RICEVUTO" nillable="true" type="xs:int"></xs:element>
+        
+    </xs:sequence>
+      
+  </xs:complexType>
+
+      
+  <xs:complexType name="getlegendaesitiResponse">
+        
+    <xs:sequence>
+          
+      <xs:element minOccurs="0" name="return" nillable="true" type="tns:getlegendaesitiResult"></xs:element>
+        
+    </xs:sequence>
+      
+  </xs:complexType>
+
+      
+  <xs:complexType name="getlegendaesitiResult">
+        
+    <xs:sequence>
+          
+      <xs:element minOccurs="0" name="ESITO" nillable="true" type="xs:int"></xs:element>
+          
+      <xs:element minOccurs="0" name="VERSIONE" nillable="true" type="xs:int"></xs:element>
+          
+      <xs:element minOccurs="0" name="LEGENDA_CONTATORE" nillable="true" type="xs:int"></xs:element>
+          
+      <xs:element maxOccurs="unbounded" minOccurs="0" name="LEGENDA" nillable="true" type="tns:legendaESITO"></xs:element>
+        
+    </xs:sequence>
+      
+  </xs:complexType>
+
+      
+  <xs:complexType name="legendaESITO">
+        
+    <xs:sequence>
+          
+      <xs:element minOccurs="0" name="ID" nillable="true" type="xs:int"></xs:element>
+          
+      <xs:element minOccurs="0" name="TESTO1" nillable="true" type="xs:string"></xs:element>
+          
+      <xs:element minOccurs="0" name="TESTO2" nillable="true" type="xs:string"></xs:element>
+        
+    </xs:sequence>
+      
+  </xs:complexType>
+
+</xs:schema>
+  </types>
+  <message name="getlegendaesitiResponse">
+    <part element="tns:getlegendaesitiResponse" name="parameters">
+    </part>
+  </message>
+  <message name="getlegendaesiti">
+    <part element="tns:getlegendaesiti" name="parameters">
+    </part>
+  </message>
+  <portType name="GetLegendaEsitiServices">
+    <operation name="getlegendaesiti">
+      <input message="tns:getlegendaesiti" wsam:Action="http://getlegendaesiti.wsbeans.iseries/GetLegendaEsitiServices/getlegendaesitiRequest">
+    </input>
+      <output message="tns:getlegendaesitiResponse" wsam:Action="http://getlegendaesiti.wsbeans.iseries/GetLegendaEsitiServices/getlegendaesitiResponse">
+    </output>
+    </operation>
+  </portType>
+  <binding name="GetLegendaEsitiServicesPortBinding" type="tns:GetLegendaEsitiServices">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"></soap:binding>
+    <operation name="getlegendaesiti">
+      <soap:operation soapAction=""></soap:operation>
+      <input>
+        <soap:body use="literal"></soap:body>
+      </input>
+      <output>
+        <soap:body use="literal"></soap:body>
+      </output>
+    </operation>
+  </binding>
+  <service name="GetLegendaEsiti">
+    <port binding="tns:GetLegendaEsitiServicesPortBinding" name="GetLegendaEsitiServicesPort">
+      <soap:address location="http://wsr.brt.it:10052/web/GetLegendaEsitiService/GetLegendaEsiti"></soap:address>
+    </port>
+  </service>
+</definitions>

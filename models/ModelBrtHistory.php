@@ -225,27 +225,33 @@ class ModelBrtHistory extends ObjectModel
                 break;
         }
 
-        $sql->select('a.id_order, a.event_id,a.id_order_state, a.id_collo, a.tracking_number, a.current_state, a.date_add, o.total_paid_tax_incl, c.email, concat(c.firstname, " ", c.lastname) as customer, evt.name as evento')
+        $sql->select('a.id_order')
+            ->select('a.event_id')
+            ->select('a.event_name as evento')
+            ->select('a.id_order_state')
+            ->select('a.id_collo as tracking_number')
+            ->select('a.date_add')
+            ->select('o.current_state')
+            ->select('o.total_paid_tax_incl')
+            ->select('c.email')
+            ->select('CONCAT(c.firstname, " ", c.lastname) as customer')
             ->from(self::$definition['table'], 'a')
             ->leftJoin('orders', 'o', 'a.id_order = o.id_order and o.id_order is not null')
             ->leftJoin('customer', 'c', 'o.id_customer = c.id_customer and c.id_customer is not null')
-            ->leftJoin('mpbrtinfo_evento', 'evt', 'a.event_id = evt.id_evento and evt.id_evento is not null')
             ->groupBy('a.id_order')
-            ->where('a.event_id in (' . implode(',', $id_order_state) . ')')
             ->having('a.date_add = MAX(a.date_add)')
             ->orderBy(self::$definition['primary'] . ' DESC')
             ->limit(50);
+
+        if ($order_state) {
+            $sql->where('a.event_id = ' . (int) $order_state);
+        }
+
         $sql = $sql->build();
         $rows = Db::getInstance()->executeS($sql);
 
         if (!$rows) {
             return [];
-        }
-
-        foreach ($rows as &$row) {
-            if ($row['id_collo'] && $row['tracking_number']) {
-                $row['tracking_number'] = $row['id_collo'];
-            }
         }
 
         return $rows;
@@ -465,6 +471,19 @@ class ModelBrtHistory extends ObjectModel
         }
 
         return false;
+    }
+
+    public static function getLastOrderEvent($id_order)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+
+        $sql->select('*')
+            ->from(self::$definition['table'])
+            ->where('id_order = ' . (int) $id_order)
+            ->orderBy(self::$definition['primary'] . ' DESC');
+
+        return $db->getRow($sql);
     }
 
     public static function countDays($date_start, $date_end)

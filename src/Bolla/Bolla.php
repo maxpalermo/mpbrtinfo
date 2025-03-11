@@ -336,6 +336,17 @@ class Bolla
         self::changeIdOrderState($id_order, $evento, $rmn, $id_collo);
     }
 
+    public function isDelivered()
+    {
+        $lastEvent = $this->getLastEvent();
+
+        try {
+            return $lastEvent->isDelivered();
+        } catch (\Throwable $th) {
+            return false;
+        }
+    }
+
     public static function changeIdOrderState(int $id_order, Evento $evento, $rmn, $id_collo)
     {
         // TODO::

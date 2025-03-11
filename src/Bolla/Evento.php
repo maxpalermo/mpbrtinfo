@@ -20,6 +20,8 @@
 
 namespace MpSoft\MpBrtInfo\Bolla;
 
+use PrestaShopLogger;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -59,6 +61,102 @@ class Evento
         $this->row = $this->getRow();
     }
 
+    /**
+     * Restituisce un oggetto EVENTO da una riga evento della tabella
+     * @param array $event_row
+     * @return bool|Evento
+     */
+    public static function getEventoByEventRow($event_row)
+    {
+        if (!$event_row) {
+            return false;
+        }
+
+        try {
+            $date = date('d.m.Y', strtotime($event_row['event_date']));
+            $ora = date('H:i', strtotime($event_row['event_date']));
+            $filiale = "{$event_row['event_filiale_name']} ({$event_row['event_filiale_id']})";
+            $event = [
+                'DATA' => $date,
+                'DESCRIZIONE' => $event_row['event_name'],
+                'FILIALE' => $filiale,
+                'ID' => $event_row['event_id'],
+                'ORA' => $ora,
+            ];
+    
+            return new Evento($event);
+        } catch (\Throwable $th) {
+            PrestaShopLogger::addLog($th->getMessage(), 3, $th->getCode(), 'Evento', $th->getLine(), true);
+            return false;
+        }
+    }
+
+    public static function getEventRowsByEventType($event_type)
+    {
+        if (!$event_type) {
+            return false;
+        }
+
+        if ($event_type == 'shipped') {
+            $event_type = 'sent';
+        }
+
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('*')
+            ->from('mpbrtinfo_evento')
+            ->where("is_{$event_type} = 1")
+            ->orderBy('id_evento ASC, name ASC');
+            
+        return $db->executeS($sql);
+    }
+
+    public static function getPrestashopIdOrderStateByIdEvent($eventId)
+    {
+        if (!$eventId) {
+            return false;
+        }
+
+        $event = new \ModelBrtEvento($eventId);
+        $out = [];
+
+        if ($event->is_delivered) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
+        }
+
+        if ($event->is_transit) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
+        }
+
+        if ($event->is_sent) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
+        }
+
+        if ($event->is_fermopoint) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
+        }
+
+        if ($event->is_waiting) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
+        }
+
+        if ($event->is_refused) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
+        }
+
+        if ($event->is_error) {
+            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Summary of getOrderEventById
+     * @param mixed $id_order
+     * @param mixed $event_id
+     * @return bool|Evento
+     */
     public static function getOrderEventById($id_order, $event_id)
     {
         $db = \Db::getInstance();

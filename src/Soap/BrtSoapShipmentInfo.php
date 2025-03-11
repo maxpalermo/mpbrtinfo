@@ -26,7 +26,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
-class BrtSoapShipmentInfo extends BrtSoap
+class BrtSoapShipmentInfo extends BrtSoapClient
 {
     protected $shipment_id;
     protected $year;
@@ -36,9 +36,9 @@ class BrtSoapShipmentInfo extends BrtSoap
         $url = '';
         $ssl = \ModelBrtConfig::useSSL();
         if ($ssl) {
-            $url = BrtSoap::URL_GET_SHIPMENT_INFO_SSL;
+            $url = 'https://wsr.brt.it:10052/web/TrackingByBRTshipmentIDService/TrackingByBRTshipmentID?wsdl';
         } else {
-            $url = BrtSoap::URL_GET_SHIPMENT_INFO;
+            $url = 'http://wsr.brt.it:10041/web/TrackingByBRTshipmentIDService/TrackingByBRTshipmentID?wsdl';
         }
         $this->shipment_id = $shipment_id;
         $this->year = $year;
@@ -72,22 +72,18 @@ class BrtSoapShipmentInfo extends BrtSoap
     public function getShipmentInfoBySoap($shipment_id, $year)
     {
         $request = $this->createRequest();
-        $response = [];
-        if ($client = $this->getClient()) {
-            try {
-                $result = $client->brt_trackingbybrtshipmentid(['arg0' => $request]);
-                if ($result) {
-                    $response = json_decode(json_encode($result->return), true);
-                }
-            } catch (\Throwable $th) {
-                $this->errors[] = 'getShipmentId: request -> ' . print_r($request, 1);
-                $this->errors[] = 'getShipmentId: error -> ' . $th->getMessage();
-
-                return false;
+        try {
+            $response = $this->exec('brt_trackingbybrtshipmentid', ['arg0' => $request]);
+            if (isset($response['return'])) {
+                return $response['return'];
             }
+        } catch (\Throwable $th) {
+            $this->errors[] = 'getShipmentId: request -> ' . print_r($request, 1);
+            $this->errors[] = 'getShipmentId: error -> ' . $th->getMessage();
+            return false;
         }
 
-        return $response;
+        return [];
     }
 
     public function getLastEvento($shipment_id = null, $year = null)

@@ -20,567 +20,410 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
-use MpSoft\MpBrtInfo\Brt\BrtGetSoapTracking;
-use MpSoft\MpBrtInfo\Brt\MpBrtDays;
-use MpSoft\MpBrtInfo\Helpers\BrtInfoHelper;
+
+require_once _PS_MODULE_DIR_ . '/mpbrtinfo/vendor/autoload.php';
+require_once _PS_MODULE_DIR_ . '/mpbrtinfo/models/autoload.php';
+
+use MpSoft\MpBrtInfo\Dashboard\ChartPanel;
+use MpSoft\MpBrtInfo\Dashboard\Dashboard;
 use MpSoft\MpBrtInfo\Soap\BrtSoapAlerts;
-use MpSoft\MpBrtInfo\Soap\BrtSoapShipmentInfo;
-use MpSoft\MpBrtInfo\Sql\SqlValues;
 
 class AdminMpBrtDeliveredController extends ModuleAdminController
 {
-    public $id_shop;
-    public $id_lang;
-    public $id_employee;
-    protected $current_display;
-    protected $eventi_list = [];
-    protected $esiti_list = [];
-    protected $adminClassName;
-    /** @var BrtSoapAlerts */
-    protected $soapAlerts;
-    protected $eventi;
+    protected $id_shop;
+    protected $id_lang;
+    protected $id_employee;
 
     public function __construct()
     {
+        $table = ModelBrtHistory::$definition['table'];
+        $primary = ModelBrtHistory::$definition['primary'];
+
         $this->bootstrap = true;
-        $this->className = 'ModelBrtDelivered';
-        $this->controller_name = 'AdminMpBrtDelivered';
+        $this->table = $table;
+        $this->className = 'ModelBrtHistory';
+        $this->identifier = $primary;
+        $this->multilang = false;
+        $this->translator = Context::getContext()->getTranslator();
         parent::__construct();
+        $this->toolbar_title = $this->module->l('Storico spedizioni');
+
+        $this->_defaultOrderBy = $primary;
+        $this->_defaultOrderWay = 'DESC';
+
+        $this->initTable();
         $this->id_lang = (int) $this->context->language->id;
         $this->id_shop = (int) $this->context->shop->id;
         $this->id_employee = (int) $this->context->employee->id;
         $this->soapAlerts = BrtSoapAlerts::getInstance();
     }
 
-    public function init()
+    public function setMedia($isNewTheme = false)
     {
-        $this->initTable();
-        $this->initFieldsList();
-        parent::init();
-    }
+        parent::setMedia($isNewTheme);
+        $this->addJS([
+            'https://cdn.jsdelivr.net/npm/chart.js',
+        ]);
 
-    public function initTable()
-    {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('*')
-            ->from('mpbrtinfo_evento')
-            ->orderBy('name');
+        $this->addCSS([
+            'https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css',
+        ]);
 
-        $result = $db->executeS($sql);
-        if ($result) {
-            $eventi = [];
-            $id_consegnati = [];
-            foreach ($result as $row) {
-                if ($row['is_delivered']) {
-                    $id_consegnati[] = $row['id_evento'];
-                }
-                $eventi[$row['id_evento']] = $row['name'];
-            }
-            $this->eventi = $eventi;
-            $id_consegnati = array_map(function ($item) {
-                return "'" . pSQL($item) . "'";
-            }, $id_consegnati);
-            $id_consegnati = implode(',', $id_consegnati);
-        }
-
-        $this->_pagination = [20, 50, 100, 200, 500, 1000];
-        $this->list_no_link = true;
-        $this->table = ModelBrtTrackingNumber::$definition['table'];
-        $this->identifier = ModelBrtTrackingNumber::$definition['primary'];
-        $this->list_id = $this->table;
-        $this->_defaultOrderBy = 'id_order';
-        $this->_defaultOrderWay = 'DESC';
-        $this->_bulk_actions = [
-            'print' => [
-                'text' => $this->module->l('Print selected', $this->controller_name),
-                'icon' => 'icon-print',
-                'confirm' => $this->module->l('Print selected items?', $this->controller_name),
-            ],
-            'csvExport' => [
-                'text' => $this->module->l('Export Excel', $this->controller_name),
-                'icon' => 'icon-file',
-                'confirm' => $this->module->l('Export selected items?', $this->controller_name),
-            ],
-        ];
-        $this->_join = 'INNER JOIN ' . _DB_PREFIX_ . 'orders ord on (ord.id_order=a.id_order) '
-            . 'LEFT JOIN ' . _DB_PREFIX_ . 'customer cust on (cust.id_customer=ord.id_customer) '
-            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_state_lang ostl on '
-            . "(ostl.id_order_state=ord.current_state and ostl.id_lang={$this->id_lang}) "
-            . 'LEFT JOIN ' . _DB_PREFIX_ . 'order_carrier ocar on (ocar.id_order=ord.id_order) ';
-        $this->_select = 'ord.reference, ord.date_add, ord.id_carrier,'
-            . "UPPER(CONCAT(UPPER(SUBSTRING(cust.firstname, 1, 1)), '. ', UPPER(cust.lastname))) as customer,"
-            . ' ostl.name as order_state_name';
-        $this->_where = 'AND a.id_brt_state in (' . $id_consegnati . ')';
-    }
-
-    protected function initFieldsList()
-    {
-        $this->fields_list = [
-            'id_order' => [
-                'title' => $this->module->l('Id order', $this->controller_name),
-                'align' => 'left',
-                'width' => 'auto',
-                'float' => true,
-                'filter_key' => 'ord!id_order',
-            ],
-            'reference' => [
-                'title' => $this->module->l('Reference', $this->controller_name),
-                'align' => 'left',
-                'width' => 'auto',
-                'float' => true,
-                'filter_key' => 'ord!reference',
-            ],
-            'customer' => [
-                'title' => $this->module->l('Customer', $this->controller_name),
-                'align' => 'left',
-                'width' => 'auto',
-                'filter_key' => 'cust!lastname',
-            ],
-            'id_brt_state' => [
-                'title' => $this->module->l('BRT state', $this->controller_name),
-                'align' => 'left',
-                'width' => 'auto',
-                'filter_key' => 'a!id_brt_state',
-                'type' => 'select',
-                'list' => $this->eventi,
-                'callback' => 'getBrtStateName',
-            ],
-            'order_state_name' => [
-                'title' => $this->module->l('Current state', $this->controller_name),
-                'align' => 'left',
-                'width' => 'auto',
-                'filter_key' => 'ostl!id_order_state',
-                'type' => 'select',
-                'list' => $this->getSelectOrderStates(),
-            ],
-            'tracking_number' => [
-                'title' => $this->module->l('Tracking number', $this->controller_name),
-                'align' => 'text-center',
-                'class' => 'tracking_number',
-                'width' => 'auto',
-                'filter_key' => 'a!tracking_number',
-                'float' => true,
-            ],
-            'date_add' => [
-                'title' => $this->module->l('Order date', $this->controller_name),
-                'type' => 'datetime',
-                'align' => 'text-center',
-                'width' => 'auto',
-                'filter_key' => 'ord!date_add',
-            ],
-            'date_shipped' => [
-                'title' => $this->module->l('Shipped', $this->controller_name),
-                'type' => 'datetime',
-                'align' => 'text-center',
-                'width' => 'auto',
-                'filter_key' => 'a!date_shipped',
-            ],
-            'date_delivered' => [
-                'title' => $this->module->l('Delivered', $this->controller_name),
-                'type' => 'datetime',
-                'align' => 'text-center',
-                'width' => 'auto',
-                'filter_key' => 'a!date_delivered',
-            ],
-            'days' => [
-                'title' => $this->module->l('Interval', $this->controller_name),
-                'align' => 'text-right',
-                'width' => 'auto',
-                'type' => 'text',
-                'float' => true,
-                'filter_key' => 'a!days',
-                'class' => 'fixed-width-sm',
-            ],
-        ];
-    }
-
-    public function initPageHeaderToolbar()
-    {
-        parent::initPageHeaderToolbar();
-        $this->toolbar_title = $this->module->l('Elenco Spedizioni', $this->controller_name);
-        $this->page_header_toolbar_btn['import'] = [
-            'href' => $this->context->link->getAdminLink($this->controller_name) . '&action=import_delivered',
-            'desc' => $this->module->l('Aggiorna gli ordini', $this->controller_name),
-            'imgclass' => 'download',
-        ];
-    }
-
-    public function getSelectOrderStates()
-    {
-        $states = OrderState::getOrderStates((int) Context::getContext()->language->id);
-        $output = [];
-        foreach ($states as $st) {
-            $output[$st['id_order_state']] = $st['name'];
-        }
-
-        return $output;
-    }
-
-    public function getIdOrders()
-    {
-        $cookie = Context::getContext()->cookie;
-        $id_order_history = (int) $cookie->id_order_history;
-        $id_order_state = (int) $cookie->id_order_state;
-
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $query = new DbQuery();
-
-        $sql->select('id_order')
-            ->from('orders')
-            ->where('current_state=' . (int) $id_order_state);
-        $query->select('id_order_history')
-            ->select('id_order')
-            ->select('date_add')
-            ->from('order_history')
-            ->where('id_order_state=' . (int) $id_order_history)
-            ->where('id_order in (' . $sql->build() . ')')
-            ->orderBy('id_order ASC')
-            ->orderBy('id_order_history DESC');
-        $res = $db->executeS($query);
-        $output = [];
-        if ($res) {
-            $current_id_order = 0;
-            $parsed_id_order = 0;
-            foreach ($res as $row) {
-                if (count($output) == 0) {
-                    $current_id_order = $row['id_order'];
-                    $parsed_id_order = $row['id_order'];
-                    $output[] = $row['id_order_history'];
-                } else {
-                    $parsed_id_order = $row['id_order'];
-                    if ($current_id_order != $parsed_id_order) {
-                        $output[] = $row['id_order_history'];
-                        $current_id_order = $row['id_order'];
-                    }
-                }
-            }
-
-            return $output;
-        }
-
-        return [];
     }
 
     public function initContent()
     {
+        $options = [
+            'responsive' => true,
+            'maintainAspectRatio' => false
+        ];
+        $colors = [
+            'rgba(255, 99, 132, 0.5)',
+            'rgba(54, 162, 235, 0.5)',
+            'rgba(255, 206, 86, 0.5)',
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(153, 102, 255, 0.5)',
+            'rgba(255, 159, 64, 0.5)',
+            'rgba(255, 99, 132, 0.5)',
+            'rgba(54, 162, 235, 0.5)',
+            'rgba(255, 206, 86, 0.5)',
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(153, 102, 255, 0.5)',
+            'rgba(255, 159, 64, 0.5)',
+            'rgba(200, 100, 200, 0.5)',
+            'rgba(100, 200, 100, 0.5)',
+            'rgba(50, 150, 200, 0.5)',
+            'rgba(200, 150, 50, 0.5)',
+
+        ];
+
+        $borderColors = [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(200, 100, 200, 1)',
+            'rgba(100, 200, 100, 1)',
+            'rgba(50, 150, 200, 1)',
+            'rgba(200, 150, 50, 1)',
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+        ];
+
+        $months = [
+            'Non specificato',
+            'Gennaio',
+            'Febbraio',
+            'Marzo',
+            'Aprile',
+            'Maggio',
+            'Giugno',
+            'Luglio',
+            'Agosto',
+            'Settembre',
+            'Ottobre',
+            'Novembre',
+            'Dicembre',
+        ];
+
+
+        $dashboard = new MpSoft\MpBrtInfo\Dashboard\Dashboard($this->module);
+        $panel = new MpSoft\MpBrtInfo\Dashboard\Panel($this->module);
+        $chartPanel = new MpSoft\MpBrtInfo\Dashboard\ChartPanel($this->module);
+
+        $totalDelivered = $this->getTotalShippedByType(['delivered=1', 'fermopoint=0']);
+        $totalFermoPoint = $this->getTotalShippedByType(['fermopoint=1', 'delivered=0']);
+        $totalInTransit = $this->getTotalShippedByType(['transit=1', 'delivered=0', 'fermopoint=0']);
+        $totalRefused = $this->getTotalShippedByType(['refused=1', 'delivered=0', 'fermopoint=0', 'transit=0']);
+        $totalWaiting = $this->getTotalShippedByType(['waiting=1', 'delivered=0', 'fermopoint=0', 'transit=0', 'refused=0']);
+        $totalError = $this->getTotalShippedByType(['error=1', 'delivered=0', 'fermopoint=0', 'transit=0', 'refused=0', 'waiting=0']);
+
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_GREEN, Dashboard::ICON_DELIVERED, $totalDelivered, 'Consegnati', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_BLUE, Dashboard::ICON_FERMOPOINT, $totalFermoPoint, 'FermoPoint', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_ORANGE, Dashboard::ICON_TRANSIT, $totalInTransit, 'In transito', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_BROWN, Dashboard::ICON_REFUSED, $totalRefused, 'Rifiutati', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_YELLOW, Dashboard::ICON_WAITING, $totalWaiting, 'In attesa', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_RED, Dashboard::ICON_ERROR, $totalError, 'Errore', 'Spedizioni'));
+
+        $this->content = $dashboard->renderDashboard();
+
+        $dashboard->clearPanels();
+
+        $shippedDays = $this->getShippedDays('max');
+        $shippedDaysData = [];
+        if ($shippedDays) {
+            foreach ($shippedDays as $shippedDay) {
+                $shippedDaysData['labels'][] = $shippedDay['event_name'];
+                $shippedDaysData['datasets'][0]['label'] = $shippedDay['event_name'];
+                $shippedDaysData['datasets'][0]['data'][] = $shippedDay['days'];
+                $shippedDaysData['datasets'][0]['backgroundColor'][] = $colors[rand(0, count($colors) - 1)];
+                $shippedDaysData['datasets'][0]['borderColor'][] = $borderColors[rand(0, count($borderColors) - 1)];
+                $shippedDaysData['datasets'][0]['borderWidth'][] = 1;
+            }
+        }
+        $dashboard->addPanel($chartPanel->renderChartPanel("Massimo giorni di consegna", $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
+
+        $shippedDays = $this->getShippedDays('min');
+        $shippedDaysData = [];
+        if ($shippedDays) {
+            foreach ($shippedDays as $shippedDay) {
+                $shippedDaysData['labels'][] = $shippedDay['event_name'];
+                $shippedDaysData['datasets'][0]['label'] = $shippedDay['event_name'];
+                $shippedDaysData['datasets'][0]['data'][] = $shippedDay['days'];
+                $shippedDaysData['datasets'][0]['backgroundColor'][] = $colors[rand(0, count($colors) - 1)];
+                $shippedDaysData['datasets'][0]['borderColor'][] = $borderColors[rand(0, count($borderColors) - 1)];
+                $shippedDaysData['datasets'][0]['borderWidth'][] = 1;
+            }
+        }
+        $dashboard->addPanel($chartPanel->renderChartPanel("Minimo giorni di consegna", $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
+
+        $shippedMonths = $this->getShippedOrdersByMonth();
+        $shippedMonthsData = [];
+        if ($shippedMonths) {
+            foreach ($shippedMonths as $shippedMonth) {
+                $month = $months[$shippedMonth['month']];
+                $shippedMonthsData['labels'][] = $month;
+                $shippedMonthsData['datasets'][0]['label'] = "{$month}: {$shippedMonth['orders']}";
+                $shippedMonthsData['datasets'][0]['data'][] = $shippedMonth['orders'];
+                $shippedMonthsData['datasets'][0]['backgroundColor'][] = $colors[rand(0, count($colors) - 1)];
+                $shippedMonthsData['datasets'][0]['borderColor'][] = $borderColors[rand(0, count($borderColors) - 1)];
+                $shippedMonthsData['datasets'][0]['borderWidth'][] = 1;
+            }
+        }
+        $dashboard->addPanel($chartPanel->renderChartPanel("Ordini consegnati per mese", $shippedMonthsData, $options, ChartPanel::CHART_TYPE_BAR, 'col-md-4'));
+
+        $this->content .= $dashboard->renderDashboard();
+
         parent::initContent();
     }
 
-    public function getHistoryDate($id_order, $id_order_state)
+    protected function initTable()
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('date_add')
-            ->from('order_history')
-            ->where('id_order_state=' . (int) $id_order_state)
-            ->where('id_order=' . (int) $id_order)
-            ->orderBy('date_add DESC');
-        $date = $db->getValue($sql);
-        if ($date) {
-            return $date;
-        }
+        $primary = ModelBrtHistory::$definition['primary'];
 
-        return false;
+        $this->fields_list = [
+            $primary => [
+                'title' => $this->module->l('ID'),
+                'width' => 100,
+            ],
+            'id_order' => [
+                'title' => $this->module->l('ID Order'),
+                'width' => 100,
+            ],
+            'id_order_state' => [
+                'title' => $this->module->l('Stato Ordine'),
+                'type' => 'select',
+                'list' => $this->getOrderStates(),
+                'filter_key' => 'a!id_order_state',
+            ],
+            'date_shipped' => [
+                'title' => $this->module->l('Data Spedizione'),
+                'width' => 100,
+                'type' => 'date',
+            ],
+            'date_delivered' => [
+                'title' => $this->module->l('Data Consegna'),
+                'width' => 100,
+                'type' => 'date',
+            ],
+            'days' => [
+                'title' => $this->module->l('Giorni'),
+                'width' => 100,
+                'align' => 'text-center',
+                'callback' => 'callbackFormatDays',
+            ],
+            'event_id' => [
+                'title' => $this->module->l('Evento'),
+                'width' => 64,
+                'align' => 'text-center',
+                'callback' => 'callbackFormatEventId',
+            ],
+            'event_name' => [
+                'title' => $this->module->l('Nome Evento'),
+                'width' => 'auto',
+            ],
+            'event_date' => [
+                'title' => $this->module->l('Data Evento'),
+                'width' => 100,
+                'type' => 'date',
+            ],
+            'event_filiale_id' => [
+                'title' => $this->module->l('Filiale'),
+                'width' => 100,
+            ],
+            'event_filiale_name' => [
+                'title' => $this->module->l('Nome Filiale'),
+                'width' => 'auto',
+            ],
+            'id_collo' => [
+                'title' => $this->module->l('ID Collo'),
+                'width' => 100,
+            ],
+            'rmn' => [
+                'title' => $this->module->l('RMN'),
+                'width' => 100,
+            ],
+            'rma' => [
+                'title' => $this->module->l('RMA'),
+                'width' => 100,
+            ],
+            'anno_spedizione' => [
+                'title' => $this->module->l('Anno Spedizione'),
+                'width' => 64,
+            ],
+        ];
     }
 
-    public function getHistoryYear($id_order, $id_order_state)
+    protected function getOrderStates()
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('YEAR(date_add)')
-            ->from('order_history')
-            ->where('id_order_state=' . (int) $id_order_state)
-            ->where('id_order=' . (int) $id_order)
-            ->orderBy('date_add DESC');
-        $year = (int) $db->getValue($sql);
-        if ($year) {
-            return $year;
+        $states = OrderState::getOrderStates($this->context->language->id);
+        $options = [];
+        foreach ($states as $state) {
+            $options[$state['id_order_state']] = $state['name'];
         }
-
-        return false;
+        return $options;
     }
 
-    public function getIdOrderStates()
+    protected function getTotalShippedByType(array $types)
     {
-        $orderStates = OrderState::getOrderStates($this->id_lang);
-        $output = [];
-        foreach ($orderStates as $os) {
-            $output[] = [
-                'id' => $os['id_order_state'],
-                'name' => $os['name'],
-            ];
+        $query = new DbQuery();
+        $query->select('COUNT(b.id_mpbrtinfo_history) as total')
+            ->from('mpbrtinfo_history', 'b')
+            ->innerJoin('mpbrtinfo_evento', 'e', 'e.id_evento = b.event_id')
+            ->groupBy('b.event_id')
+            ->orderBy('b.id_mpbrtinfo_history DESC');
+
+        foreach ($types as $type) {
+            $query->where('e.is_' . $type);
         }
 
-        return $output;
-    }
+        $sql = $query->build();
 
-    public function getIdOrderByTrackingNumber($tracking)
-    {
-        $sql = 'id_order '
-        . 'from ' . _DB_PREFIX_ . 'order_carrier '
-        . 'where tracking_number = \'' . pSQL($tracking) . '\'';
-        $id_order = (int) Db::getInstance()->getValue($sql);
-
-        return $id_order;
-    }
-
-    public function processBulkPrint()
-    {
-        $rows = [];
-        foreach ($this->boxes as $box) {
-            $class = new ModelBrtDelivered($box);
-            $row = $class->getFields();
-            $rows[] = $row;
-            unset($row);
-        }
-        $template = $this->module->getLocalPath() . 'views/templates/admin/report.tpl';
-        $this->context->smarty->assign('rows', $rows);
-        $html = $this->context->smarty->fetch($template);
-        $this->showReport($html);
-    }
-
-    public function processBulkExcelExport()
-    {
-        $rows = [];
-        foreach ($this->boxes as $box) {
-            $class = new ModelBrtDelivered($box);
-            $row = $class->getFields();
-            $rows[] = $row;
-            unset($row);
-        }
-        $filename = rand(11111111, 99999999);
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '.csv"');
-
-        if ($rows) {
-            $head = $rows[0];
-            $header = [];
-            foreach ($head as $item) {
-                $header[] = Tools::strtoupper(key($item));
+        $result = Db::getInstance()->executeS($sql);
+        if ($result) {
+            $total = 0;
+            foreach ($result as $row) {
+                $total += (int) $row['total'];
             }
-            echo implode(';', $header) . PHP_EOL;
+            return $total;
         }
 
-        foreach ($rows as $row) {
-            echo implode(';', $row) . PHP_EOL;
+        return 0;
+    }
+
+    public function getShippedDays($type = 'max')
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('b.event_name, ' . $type . '(b.days) as days')
+            ->from('mpbrtinfo_history', 'b')
+            ->innerJoin('mpbrtinfo_evento', 'e', 'e.id_evento = b.event_id')
+            ->groupBy('b.event_id')
+            ->where('e.is_delivered = 1')
+            ->where('b.days > 0')
+            ->orderBy('b.id_mpbrtinfo_history DESC');
+
+        $result = $db->executeS($sql);
+        return $result ? $result : [];
+    }
+
+    public function getShippedOrdersByMonth()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('month(b.date_shipped) as month, count(b.id_mpbrtinfo_history) as orders')
+            ->from('mpbrtinfo_history', 'b')
+            ->innerJoin('mpbrtinfo_evento', 'e', 'e.id_evento = b.event_id')
+            ->groupBy('month(b.date_shipped)')
+            ->where('YEAR(b.date_shipped) = ' . (int) date('Y'))
+            ->where('b.days > 0')
+            ->orderBy('b.id_mpbrtinfo_history DESC');
+
+        $result = $db->executeS($sql);
+        return $result ? $result : [];
+    }
+
+    public function callbackFormatDays($value)
+    {
+        if ($value) {
+            return "<span class='label label-success'>{$value}</span>";
         }
-        exit;
+
+        return "--";
     }
 
-    protected function showReport($html)
+    public function callbackFormatEventId($value)
     {
-        $logo = _PS_ROOT_DIR_ . '/img/' . Configuration::get('PS_LOGO');
-        $tcpdf_logo = $logo;
-        if (!file_exists($tcpdf_logo)) {
-            copy($logo, $tcpdf_logo);
-            chmod($tcpdf_logo, 0775);
+        if ($value) {
+            return "<span class='label label-info'>{$value}</span>";
         }
-        // create new PDF document
-        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
-        // set document information
-        $pdf->SetCreator(PDF_CREATOR);
-        $pdf->SetAuthor('Massimiliano Palermo');
-        $pdf->SetTitle('Order delivered report');
-        $pdf->SetSubject('Show a list of order delivered');
-        $pdf->SetKeywords('TCPDF, PDF, prestashop, order, delivered');
-        // set default header data
-        $title = $this->module->l('Order delivered report', $this->controller_name);
-        $date = Tools::displayDate(date('Y-m-d'));
-        $pdf->SetHeaderData('shop_logo.jpg', 50, $title, $date);
-        // set header and footer fonts
-        $pdf->setHeaderFont([PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN]);
-        $pdf->setFooterFont([PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA]);
-        // set default monospaced font
-        $pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
-        // set margins
-        $pdf->SetMargins(PDF_MARGIN_LEFT, PDF_MARGIN_TOP, PDF_MARGIN_RIGHT);
-        $pdf->SetHeaderMargin(PDF_MARGIN_HEADER);
-        $pdf->SetFooterMargin(PDF_MARGIN_FOOTER);
-        // set auto page breaks
-        $pdf->SetAutoPageBreak(true, PDF_MARGIN_BOTTOM);
-        // set image scale factor
-        $pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
-        // set some language-dependent strings (optional)
-        $l = [];
-        if (@file_exists(dirname(__FILE__) . '/lang/eng.php')) {
-            require_once dirname(__FILE__) . '/lang/eng.php';
-            $pdf->setLanguageArray($l);
-        }
-        // ---------------------------------------------------------
-        // set font
-        $pdf->SetFont('dejavusans', '', 10);
-        // add a page
-        $pdf->AddPage();
-        // writeHTML($html, $ln=true, $fill=false, $reset=false, $cell=false, $align='')
-        // writeHTMLCell($w,$h,$x,$y,$html='', $border=0, $ln=0, $fill=0, $reseth=true, $align='', $autopadding=true)
-        // output the HTML content
-        $pdf->writeHTML($html, true, false, true, false, '');
-        // reset pointer to the last page
-        $pdf->lastPage();
-        // Close and output PDF document
-        $filename = rand(11111111, 99999999);
-        $pdf->Output($filename . '.pdf', 'I');
+
+        return "--";
     }
 
-    public function ajaxProcessGetTrackingNumber()
+    public function callbackFormatEventName($value)
     {
-        $id_order = (int) Tools::getValue('id_order');
-        $id_carrier = (int) Tools::getValue('id_carrier');
-
-        $this->response(BrtSoapShipmentInfo::getTrackingNumber($id_order, $id_carrier));
+        return $value;
     }
 
-    public function ajaxProcessGetBrtInfo()
+    /**
+     * Process the collation change for all tables in the database
+     * 
+     * @return void
+     */
+    public function processCollate()
     {
-        $id_order = (int) Tools::getValue('id_order');
-        $id_carrier = (int) Tools::getValue('id_carrier');
-        $brtInfo = new BrtInfoHelper($id_order, $id_carrier);
-
-        $this->response($brtInfo->getOrderInfo());
+        $this->setCollationForAllTables();
     }
 
-    public function processGetSoapBrtInfo()
+    /**
+     * Set collation for all tables in the database using a stored procedure
+     * 
+     * @param string $charset The character set to use
+     * @param string $collation The collation to use
+     * @return void
+     */
+    private function setCollationForAllTables($charset = 'utf8mb4', $collation = 'utf8mb4_unicode_ci')
     {
-        $soapTracking = new BrtGetSoapTracking($this->module);
-        $trackings = $soapTracking->get();
+        $database = _DB_NAME_;
 
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminOrders'));
-    }
+        // Check if the procedure exists, create it if not
+        $checkProcedure = Db::getInstance()->executeS("SHOW PROCEDURE STATUS WHERE Db = '$database' AND Name = 'convert_database_charset_collate'");
 
-    public function processGetSoapEsiti()
-    {
-        $sql = new SqlValues();
-        $sql->getSoapEsiti();
-        $sql->InsertSqlEsiti();
-
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminModules') . '&configure=mpbrtinfo');
-    }
-
-    public function processGetSoapEventi()
-    {
-        $sql = new SqlValues();
-        $sql->getSoapEventi();
-        $sql->insertSoapEventi();
-
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminModules') . '&configure=mpbrtinfo');
-    }
-
-    public function processInsertSqlEsiti()
-    {
-        $sql = new SqlValues();
-        $sql->InsertSqlEsiti();
-
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminModules') . '&configure=mpbrtinfo');
-    }
-
-    public function processInsertSqlEventi()
-    {
-        $sql = new SqlValues();
-        $sql->InsertSqlEventi();
-
-        Tools::redirectAdmin($this->context->link->getAdminLink('AdminModules') . '&configure=mpbrtinfo');
-    }
-
-    public function processImportDelivered()
-    {
-        $file = 'MPBRTINFO_JSON_DELIVERED_' . $this->context->employee->id . '.dat';
-        $path = $this->module->getLocalPath() . $file;
-        $sent = [];
-        $data = '';
-        if (file_exists($path)) {
-            $data = Tools::file_get_contents($path);
-        }
-        if ($data) {
-            $sent = Tools::jsonDecode($data, true);
-        }
-        if (!$sent) {
-            $os_sent = ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_OS_CHECK_FOR_TRACKING, true);
-            $os_delivered = ModelBrtConfig::getConfigValue(ModelBrtConfig::CONFIG_OS_CHECK_FOR_DELIVERED, true);
-            $db = Db::getInstance();
-            $sql = new DbQuery();
-
-            $sql->select('a.id_order, a.date_add, b.current_state, oc.tracking_number')
-                ->from('order_history', 'a')
-                ->innerJoin('orders', 'b', '(a.id_order=b.id_order)')
-                ->leftJoin('order_carrier', 'oc', '(oc.id_order=a.id_order AND oc.id_carrier=b.id_carrier)')
-                ->where('a.id_order_state in (' . implode(',', $os_sent) . ')')
-                ->orderBy('a.date_add ASC');
-            $rows = $db->executeS($sql);
-
-            foreach ($rows as $row) {
-                if (in_array($row['current_state'], $os_delivered)) {
-                    $qry = 'SELECT date_add FROM ' . _DB_PREFIX_ . 'order_history ' .
-                    "WHERE id_order={$row['id_order']} AND id_order_state={$row['current_state']} " .
-                    'ORDER BY date_add DESC';
-                    $date_add = $db->getValue($qry);
-                    $row['date_delivered'] = $date_add;
-                    $row['days'] = MpBrtDays::countDays($row['date_add'], $row['date_delivered']);
-                } else {
-                    $row['date_delivered'] = '';
-                    $row['days'] = 0;
+        if (empty($checkProcedure)) {
+            // Load and execute the procedure creation SQL
+            $sqlFile = _PS_MODULE_DIR_ . 'mpbrtinfo/sql/convert_charset_collate.sql';
+            if (file_exists($sqlFile)) {
+                $sql = file_get_contents($sqlFile);
+                // Split by delimiter to execute multi-statement SQL
+                $statements = explode('DELIMITER ;', $sql);
+                if (isset($statements[0])) {
+                    $procedureSQL = str_replace('DELIMITER //', '', $statements[0]);
+                    $queries = explode('//', $procedureSQL);
+                    foreach ($queries as $query) {
+                        $query = trim($query);
+                        if (!empty($query)) {
+                            Db::getInstance()->execute($query);
+                        }
+                    }
                 }
-                $sent[$row['id_order']] = $row;
-            }
-            unset($row);
-            $data = Tools::jsonEncode($sent);
-
-            file_put_contents($path, $data);
-        }
-        $counter = 0;
-        foreach ($sent as $key => $row) {
-            $model = new ModelBrtDelivered($row['id_order']);
-            $model->tracking_number = $row['tracking_number'];
-            $model->date_shipped = $row['date_add'];
-            $model->date_delivered = $row['date_delivered'];
-            $model->days = $row['days'];
-
-            if (Validate::isLoadedObject($model)) {
-                $model->update();
-            } else {
-                $model->force_id = true;
-                $model->id = $row['id_order'];
-                $model->add();
-            }
-
-            ++$counter;
-            unset($sent[$key]);
-
-            if ($counter == 1000) {
-                $counter = 0;
-                $data = Tools::jsonEncode($sent);
-
-                file_put_contents($path, $data);
             }
         }
-        unlink($path);
-        $this->confirmations[] = $this->module->l('Operazione Eseguita.', $this->controller_name);
-    }
 
-    public function ajaxProcessUpdateEventi()
-    {
-        $rows = json_decode(Tools::getValue('rows', []), true);
-        $errors = (new SqlValues())->updateEventi($rows);
+        // Call the stored procedure
+        $result = Db::getInstance()->execute("CALL convert_database_charset_collate('$database', '$charset', '$collation')");
 
-        $this->response([
-            'result' => true,
-            'errors' => $errors,
-        ]);
-    }
-
-    protected function response($params)
-    {
-        header('Content-Type: application/json; charset=utf-8');
-        exit(json_encode($params));
-    }
-
-    public function getBrtStateName($value)
-    {
-        try {
-            return $this->eventi[$value];
-        } catch (\Throwable $th) {
-            return '--';
+        if ($result) {
+            $this->confirmations[] = $this->module->l('Database charset and collation successfully updated to ') . $charset . '/' . $collation;
+        } else {
+            $this->errors[] = $this->module->l('Error updating database charset and collation');
         }
     }
+
 }

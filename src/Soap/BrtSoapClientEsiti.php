@@ -41,9 +41,31 @@ class BrtSoapClientEsiti extends BrtSoapClient
             $this->endpoint = self::ENDPOINT;
         }
 
-        parent::__construct($this->endpoint);
+        // Opzioni specifiche per questo client
+        $options = [
+            // Aumenta il timeout per dare più tempo alla connessione
+            'connection_timeout' => 30,
+            // Disabilita la cache WSDL per evitare problemi con WSDL obsoleti
+            'cache_wsdl' => WSDL_CACHE_NONE,
+            // Forza la versione SOAP 1.1 che è più compatibile
+            'soap_version' => SOAP_1_1
+        ];
+
+        // Crea una directory locale per salvare i WSDL se non esiste
+        $wsdl_dir = _PS_MODULE_DIR_ . 'mpbrtinfo/wsdl';
+        if (!is_dir($wsdl_dir)) {
+            mkdir($wsdl_dir, 0755, true);
+        }
+
+        parent::__construct($this->endpoint, $options);
     }
 
+    /**
+     * Ottiene la legenda degli esiti dal servizio BRT
+     *
+     * @param string $iso_lang Codice lingua ISO (es. 'IT')
+     * @return array|false Array di esiti o false in caso di errore
+     */
     public function getSoapLegendaEsiti($iso_lang = '')
     {
         $last_id = '';
@@ -51,7 +73,6 @@ class BrtSoapClientEsiti extends BrtSoapClient
         $legenda = [];
         $esiti = [];
         $esito = 0;
-        $legenda = [];
 
         do {
             $request = new \stdClass();
@@ -68,13 +89,29 @@ class BrtSoapClientEsiti extends BrtSoapClient
                     $last_id = end($legenda)['ID'];
                     $esito = (int) $response['ESITO'];
                 } else {
+                    $this->errors[] = 'Errore durante la chiamata SOAP';
                     $this->errors[] = $response;
+                    if ($esiti) {
+                        $this->errors[] = $esiti;
+                    }
 
                     return false;
                 }
             } catch (\SoapFault $e) {
-                $this->errors[] = $e->getMessage();
-
+                $this->errors[] = 'SoapFault in getSoapLegendaEsiti: ' . $e->getMessage();
+                $this->errors[] = 'Endpoint: ' . $this->endpoint;
+                $this->errors[] = 'Parametri: ISO=' . $iso_lang . ', ULTIMO_ID=' . $last_id;
+                
+                // Verifica se è un problema di connessione SSL
+                if (strpos($e->getMessage(), 'SSL') !== false || 
+                    strpos($e->getMessage(), 'certificate') !== false ||
+                    strpos($e->getMessage(), 'failed to load external entity') !== false) {
+                    $this->errors[] = 'Possibile problema di certificato SSL. Prova a disabilitare SSL nelle impostazioni.';
+                }
+                
+                return false;
+            } catch (\Exception $e) {
+                $this->errors[] = 'Exception in getSoapLegendaEsiti: ' . $e->getMessage();
                 return false;
             }
         } while ($esito != 100);

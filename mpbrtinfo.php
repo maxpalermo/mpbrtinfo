@@ -24,6 +24,7 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/models/autoload.php';
 
+use Doctrine\ORM\QueryBuilder;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
 use MpSoft\MpBrtInfo\Core\Grid\Column\Type\CarrierColumn;
@@ -56,7 +57,7 @@ class MpBrtInfo extends Module
     {
         $this->name = 'mpbrtinfo';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.7.5';
+        $this->version = '1.8.0.2785';
         $this->author = 'Massimiliano Palermo';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -330,6 +331,7 @@ class MpBrtInfo extends Module
         $searchQueryBuilder = $params['search_query_builder'];
         /** @var CustomerFilters $searchCriteria */
         $searchCriteria = $params['search_criteria'];
+        
         $searchQueryBuilder
             ->addSelect('car.name as `carrier_name`')
             ->addSelect('o.id_carrier')
@@ -370,6 +372,7 @@ class MpBrtInfo extends Module
             $path . 'css/spacer.bs.css',
             $path . 'css/material-icons.css',
             $path . 'js/swal2/sweetalert2.min.css',
+            $path . 'css/style.css',
         ]);
         // $this->context->controller->addCSS($this->getLocalPath() . 'views/css/bootstrap.min.css', 'all', 1000);
         // $this->context->controller->addJs($this->getLocalPath() . 'views/js/bootstrap.bundle.min.js');
@@ -459,6 +462,10 @@ class MpBrtInfo extends Module
 
     public function getContent()
     {
+        if (!extension_loaded('soap')) {
+            $this->context->controller->errors[] = $this->l('The SOAP extension for PHP is not installed. Please install it to use this module.');
+        }
+
         return $this->renderForm();
     }
 
@@ -573,19 +580,13 @@ class MpBrtInfo extends Module
                         'class' => 'chosen',
                     ],
                     [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Stato SPEDITO'),
-                        'name' => ModelBrtConfig::MP_BRT_SHIPPED_STATES . '[]',
-                        'desc' => $this->l('Seleziona tutti gli stati SPEDITO. Il modulo cercherà tutti gli ordini in questo stato negli ultimi 15gg'),
+                        'col' => 6,
+                        'type' => 'html',
+                        'label' => $this->l('Stati da saltare'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_SKIP . '[]',
+                        'desc' => $this->l('Spunta dall\'elenco tutti gli stati da non considerare durante la ricerca'),
                         'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'multiple' => true,
-                        'class' => 'chosen',
+                        'html_content' => $this->renderSkipStates(),
                     ],
                     [
                         'type' => 'radio',
@@ -775,6 +776,16 @@ class MpBrtInfo extends Module
         return $message . $modal . $tpl . $form . $tables . $modal_query;
     }
 
+    public function renderSkipStates()
+    {
+        $skip_states = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []);
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/skip_states.tpl';
+        $tpl = $this->context->smarty->createTemplate($file);
+        $tpl->assign('skip_states', $skip_states);
+        $tpl->assign('order_states', OrderState::getOrderStates($this->context->language->id));
+        $tpl->assign('input_skip_name', ModelBrtConfig::MP_BRT_INFO_OS_SKIP);
+        return $tpl->fetch();
+    }
     public function postProcess()
     {
         if (Tools::isSubmit('submitForm')) {
@@ -791,7 +802,7 @@ class MpBrtInfo extends Module
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING, 0));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED, 0));
             Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR, 0));
-
+            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []));
             return $this->l('Configurazione aggiornata.');
         }
 
@@ -800,7 +811,7 @@ class MpBrtInfo extends Module
 
     public static function getConfigValues()
     {
-        $cronTaskInfoShipping = Context::getContext()->link->getModuleLink('mpbrtinfo', 'CronJobs', ['action' => 'getShippingInfo']);
+        $cronTaskInfoShipping = Context::getContext()->link->getModuleLink('mpbrtinfo', 'Cron', ['action' => 'getShippingsInfo']);
 
         return [
             ModelBrtConfig::MP_BRT_INFO_USE_SSL => (int) Configuration::get(ModelBrtConfig::MP_BRT_INFO_USE_SSL),

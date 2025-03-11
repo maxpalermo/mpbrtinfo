@@ -67,8 +67,6 @@
 
                 e.preventDefault();
                 e.stopImmediatePropagation();
-
-                //getBrtInfo(order_id, tracking, this);
             });
         })
 
@@ -125,24 +123,39 @@
                     }
 
                     // Aggiorna il pannello con il numero di spedizioni trovate
-                    updateProgressBar(5, "Trovate " + (shippings.list.getTracking.length + shippings.list.getShipment.length) + " spedizioni da aggiornare");
+                    {literal}
+                    updateProgressBar(
+                        5,
+                        `Trovate <strong>${shippings.list.getTracking.length}</strong> spedizioni senza tracking e <br> <strong>${shippings.list.getShipment.length}</strong> spedizioni da aggiornare`
+                    );
+                    {/literal}
 
-                    /*
+                    //aspetto 2 secondi
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+
                     // Aggiorna le spedizioni che necessitano di tracking
-                    if (shippings.list.getTracking.length > 0) {
+                    do {
                         updateProgressBar(10, "Ricerca tracking per " + shippings.list.getTracking.length + " spedizioni");
-                        await fetchShippings.fetchTracking(shippings.list.getTracking);
-                    }
-                    */
+                        shippings.list.getTracking = await fetchShippings.fetchTracking(shippings.list.getTracking);
+                        if (shippings.list.getTracking === false) {
+                            break;
+                        }
+                        console.log("get Tracking: remains" + shippings.list.getTracking.length);
+                    } while (shippings.list.getTracking.length > 0);
 
                     // Aggiorna le informazioni delle spedizioni
-                    if (shippings.list.getShipment.length > 0) {
+                    do {
                         updateProgressBar(30, "Aggiornamento informazioni per " + shippings.list.getShipment.length + " spedizioni");
-                        await fetchShippings.fetchShippingsInfo(shippings.list.getShipment);
-                    }
+                        shippings.list.getShipment = await fetchShippings.fetchShippingsInfo(shippings.list.getShipment);
+                        if (shippings.list.getShipment === false) {
+                            completeProgress("Errore", "Si è verificato un errore durante l'aggiornamento delle spedizioni.", true);
+                            break;
+                        }
+                        console.log("get Shipment: remains" + shippings.list.getShipment.length);
+                    } while (shippings.list.getShipment.length > 0);
 
                     // Completa l'operazione
-                    completeProgress("Operazione completata", "Tutte le spedizioni sono state aggiornate con successo!", false);
+                    completeProgress("Operazione completata", "Tutte le spedizioni sono state aggiornate con successo! La pagina sarà aggiornata in 2 secondi.", false);
 
                     // Ricarica la pagina per mostrare i dati aggiornati
                     setTimeout(() => {
@@ -200,7 +213,7 @@
 
         const textElement = document.querySelector('.swal-progress-text');
         if (textElement) {
-            textElement.textContent = text;
+            textElement.innerHTML = text;
         }
     }
 

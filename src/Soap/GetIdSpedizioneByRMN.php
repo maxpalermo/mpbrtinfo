@@ -157,4 +157,9 @@ class GetIdSpedizioneByRMN extends BrtSoapClient
             return false;
         }
     }
+
+    public function getErrors()
+    {
+        return $this->errors;
+    }
 }

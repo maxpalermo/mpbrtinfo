@@ -26,7 +26,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
-class BrtSoapShipmentId extends BrtSoap
+class BrtSoapShipmentId extends BrtSoapClient
 {
     protected $id;
     protected $type;
@@ -66,9 +66,9 @@ class BrtSoapShipmentId extends BrtSoap
         switch ($search_type) {
             case 'RMN':
                 if ($ssl) {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_RMN_SSL;
+                    $url = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
                 } else {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_RMN;
+                    $url = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
                 }
                 $this->request->RIFERIMENTO_MITTENTE_NUMERICO = $this->id;
                 $this->request->CLIENTE_ID = $this->brt_customer_id;
@@ -77,9 +77,9 @@ class BrtSoapShipmentId extends BrtSoap
                 break;
             case 'RMA':
                 if ($ssl) {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_RMA_SSL;
+                    $url = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
                 } else {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_RMA;
+                    $url = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
                 }
                 $this->request->RIFERIMENTO_MITTENTE_ALFABETICO = $this->id;
                 $this->request->CLIENTE_ID = $this->brt_customer_id;
@@ -89,9 +89,9 @@ class BrtSoapShipmentId extends BrtSoap
             case 'ID':
             default:
                 if ($ssl) {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_ID_SSL;
+                    $url = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdColloN?wsdl';
                 } else {
-                    $url = BrtSoap::URL_GET_SHIPMENT_BY_ID;
+                    $url = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdCollo?wsdl';
                 }
                 $this->request->COLLO_ID = $this->id;
                 $this->request->CLIENTE_ID = $this->brt_customer_id;
@@ -128,21 +128,17 @@ class BrtSoapShipmentId extends BrtSoap
     public function getShipmentId()
     {
         $request = $this->createRequest();
-        $response = [];
-        if ($client = $this->getClient()) {
-            try {
-                $result = $client->{$this->action}(['arg0' => $request]);
-                if ($result) {
-                    $response = json_decode(json_encode($result->return), true);
-                }
-            } catch (\Throwable $th) {
-                $this->errors[] = 'getShipmentId: request -> ' . print_r($request, 1);
-                $this->errors[] = 'getShipmentId: error -> ' . $th->getMessage();
-
-                return false;
+        try {
+            $response = $this->exec($this->action, ['arg0' => $request]);
+            if (isset($response['return'])) {
+                return $response['return'];
             }
+        } catch (\Throwable $th) {
+            $this->errors[] = 'getShipmentId: request -> ' . print_r($request, 1);
+            $this->errors[] = 'getShipmentId: error -> ' . $th->getMessage();
+            return false;
         }
 
-        return $response;
+        return [];
     }
 }

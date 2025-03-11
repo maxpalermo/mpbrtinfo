@@ -131,88 +131,18 @@ const BrtEsiti = {
             title: "Dettagli Spedizione BRT",
             html: html,
             width: "70%",
-            showCloseButton: false,
-            showCancelButton: true,
+            showCloseButton: true,
+            showCancelButton: false,
             showClass: {
                 popup: "animate__animated animate__fadeInDown"
             },
             hideClass: {
                 popup: "animate__animated animate__fadeOutUp"
             },
-            closeOnCancel: true,
-            focusConfirm: false,
-            confirmButtonText: "Imposta come Consegnato",
-            confirmButtonColor: "#28a745",
-            cancelButtonText: "Chiudi",
-            cancelButtonColor: "#6c757d",
             customClass: {
                 container: "brt-swal-container",
                 popup: "brt-swal-popup",
                 content: "brt-swal-content"
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Azione per impostare l'ordine come consegnato
-                BrtEsiti.setOrderAsDelivered(data.id_order);
-            }
-        });
-    },
-
-    /**
-     * Imposta l'ordine come consegnato
-     * @param {number} id_order - ID dell'ordine
-     */
-    setOrderAsDelivered: function (id_order) {
-        // Mostra un messaggio di conferma
-        Swal.fire({
-            title: "Conferma",
-            text: `Sei sicuro di voler impostare l'ordine #${id_order} come consegnato?`,
-            icon: "question",
-            showCancelButton: true,
-            confirmButtonText: "Sì, conferma",
-            cancelButtonText: "Annulla",
-            confirmButtonColor: "#28a745",
-            cancelButtonColor: "#6c757d"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Qui inserire la chiamata AJAX per impostare l'ordine come consegnato
-                // Esempio:
-                $.ajax({
-                    url: baseAdminUrl + "&ajax=1&action=setOrderAsDelivered",
-                    type: "POST",
-                    data: {
-                        id_order: id_order
-                    },
-                    dataType: "json",
-                    success: function (response) {
-                        if (response.success) {
-                            Swal.fire({
-                                title: "Successo",
-                                text: "Ordine impostato come consegnato con successo!",
-                                icon: "success",
-                                confirmButtonColor: "#28a745"
-                            }).then(() => {
-                                // Ricarica la pagina per mostrare lo stato aggiornato
-                                window.location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                title: "Errore",
-                                text: response.message || "Si è verificato un errore durante l'impostazione dell'ordine come consegnato.",
-                                icon: "error",
-                                confirmButtonColor: "#dc3545"
-                            });
-                        }
-                    },
-                    error: function () {
-                        Swal.fire({
-                            title: "Errore",
-                            text: "Si è verificato un errore di comunicazione con il server.",
-                            icon: "error",
-                            confirmButtonColor: "#dc3545"
-                        });
-                    }
-                });
             }
         });
     },
@@ -223,8 +153,6 @@ const BrtEsiti = {
      * @param {string} tracking_number - Numero di tracking
      */
     loadAndShowPanel: async (id_order, tracking_number) => {
-        console.log("loadAndShowPanel", id_order, tracking_number);
-
         // Mostra un loader mentre si caricano i dati
         Swal.fire({
             title: "Caricamento in corso...",

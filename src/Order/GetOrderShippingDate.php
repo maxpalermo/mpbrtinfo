@@ -20,6 +20,8 @@
 
 namespace MpSoft\MpBrtInfo\Order;
 
+use MpSoft\MpBrtInfo\Bolla\Evento;
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -35,28 +37,41 @@ class GetOrderShippingDate
 
     protected function run($type = 'date')
     {
-        $config = \Configuration::get(\ModelBrtConfig::MP_BRT_SHIPPED_STATES);
-        $id_states = implode(',', json_decode($config, true));
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
+        $events = Evento::getEventRowsByEventType('shipped');
+        $date = date('Y-m-d H:i:s');
 
-        $sql->select('date_add')
-            ->from('order_history')
-            ->where('id_order = ' . (int) $this->id_order)
-            ->where('id_order_state IN (' . $id_states . ')')
-            ->orderBy('date_add DESC');
+        if ($events) {
+            $id_events = array_column($events, \ModelBrtEvento::$definition['primary']);
+            $id_order_states = [];
+            foreach ($id_events as $id_event) {
+                $result = Evento::getPrestashopIdOrderStateByIdEvent($id_event);
+                if ($result) {
+                    $id_order_states = array_merge($id_order_states, $result);
+                }
+            }
+            $id_state_shipped = implode(',', array_unique($id_order_states));
 
-        $result = $db->getValue($sql);
-
-        if (!$result) {
-            $result = date('Y-m-d H:i:s');
+            $db = \Db::getInstance();
+            $sql = new \DbQuery();
+    
+            $sql->select('date_add')
+                ->from('order_history')
+                ->where('id_order = ' . (int) $this->id_order)
+                ->where('id_order_state IN (' . $id_state_shipped . ')')
+                ->orderBy('date_add DESC');
+    
+            $date = $db->getValue($sql);
+    
+            if (!$date) {
+                $date = date('Y-m-d H:i:s');
+            }
         }
 
         if ($type == 'year') {
-            return (int) date('Y', strtotime($result));
+            return (int) date('Y', strtotime($date));
         }
 
-        return $result;
+        return $date;
     }
 
     public function getShippingYear()

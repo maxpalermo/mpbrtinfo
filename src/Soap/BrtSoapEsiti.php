@@ -26,7 +26,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
-class BrtSoapEsiti extends BrtSoap
+class BrtSoapEsiti extends BrtSoapClient
 {
     const ENDPOINT =
         'http://wsr.brt.it:10041/web/GetLegendaEsitiService/GetLegendaEsiti?wsdl';
@@ -36,11 +36,9 @@ class BrtSoapEsiti extends BrtSoap
     public function __construct()
     {
         $ssl = \ModelBrtConfig::useSSL();
-        if ($ssl) {
-            parent::__construct(self::ENDPOINT_SSL);
-        } else {
-            parent::__construct(self::ENDPOINT);
-        }
+        $endpoint = $ssl ? self::ENDPOINT_SSL : self::ENDPOINT;
+        
+        parent::__construct($endpoint);
     }
 
     protected function createRequest(string $language = '', string $last_id = '')
@@ -57,22 +55,17 @@ class BrtSoapEsiti extends BrtSoap
         $last_id = '';
         $esito = 0;
         $legenda = [];
-        $client = $this->getClient();
-
-        if (!$client) {
-            return false;
-        }
 
         do {
             $request = $this->createRequest($iso_lang, $last_id);
 
             try {
-                $result = $client->getlegendaesiti(['arg0' => $request]);
-                if ($result) {
-                    $response = json_decode(json_encode($result->return), true);
-                    $esito = $response['ESITO'];
-                    $contatore = $response['LEGENDA_CONTATORE'];
-                    $list = array_splice($response['LEGENDA'], 0, $contatore);
+                $response = $this->exec('getlegendaesiti', ['arg0' => $request]);
+                if (isset($response['return'])) {
+                    $result = $response['return'];
+                    $esito = $result['ESITO'];
+                    $contatore = $result['LEGENDA_CONTATORE'];
+                    $list = array_splice($result['LEGENDA'], 0, $contatore);
                     foreach ($list as $item) {
                         $legenda[] = $item;
                     }
@@ -92,21 +85,17 @@ class BrtSoapEsiti extends BrtSoap
     public function getEsiti($iso_lang = '', $last_id = '')
     {
         $request = $this->createRequest($iso_lang, $last_id);
-        $response = [];
-        if ($client = $this->getClient()) {
-            try {
-                $result = $client->getlegendaesiti(['arg0' => $request]);
-                if ($result) {
-                    $response = json_decode(json_encode($result->return), true);
-                }
-            } catch (\Throwable $th) {
-                $this->errors[] = 'getLegendaEsiti: request -> ' . print_r($request, 1);
-                $this->errors[] = 'getLegendaEsiti: error -> ' . $th->getMessage();
-
-                return false;
+        try {
+            $response = $this->exec('getlegendaesiti', ['arg0' => $request]);
+            if (isset($response['return'])) {
+                return $response['return'];
             }
+        } catch (\Throwable $th) {
+            $this->errors[] = 'getLegendaEsiti: request -> ' . print_r($request, 1);
+            $this->errors[] = 'getLegendaEsiti: error -> ' . $th->getMessage();
+            return false;
         }
 
-        return $response;
+        return [];
     }
 }

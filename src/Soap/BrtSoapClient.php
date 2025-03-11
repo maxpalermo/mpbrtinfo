@@ -94,9 +94,35 @@ class BrtSoapClient extends \SoapClient
         }
 
         try {
+            // Verifica se il WSDL è accessibile prima di inizializzare SoapClient
+            $wsdl_content = @file_get_contents($wsdl, false, $arrContextOptions);
+            if ($wsdl_content === false) {
+                $error = error_get_last();
+                $this->errors[] = "Impossibile accedere al WSDL: " . ($error ? $error['message'] : 'Errore sconosciuto');
+                $this->errors[] = "URL WSDL: " . $wsdl;
+                
+                // Tenta di usare una versione locale del WSDL se disponibile
+                $local_wsdl = _PS_MODULE_DIR_ . 'mpbrtinfo/wsdl/' . basename($wsdl);
+                if (file_exists($local_wsdl)) {
+                    $this->errors[] = "Utilizzo WSDL locale: " . $local_wsdl;
+                    $wsdl = $local_wsdl;
+                } else {
+                    // Se non è disponibile una versione locale, continua comunque
+                    // ma probabilmente fallirà
+                    $this->errors[] = "Nessun WSDL locale disponibile. Tentativo di connessione diretta.";
+                }
+            }
+            
             parent::__construct($wsdl, $options);
+        } catch (\SoapFault $sf) {
+            $this->errors[] = "SoapFault: " . $sf->getMessage();
+            $this->errors[] = "Codice: " . $sf->getCode();
+            if (property_exists($sf, 'detail')) {
+                $this->errors[] = "Dettagli: " . print_r($sf->detail, true);
+            }
         } catch (\Throwable $th) {
-            $this->errors[] = $th->getMessage();
+            $this->errors[] = "Errore generico: " . $th->getMessage();
+            $this->errors[] = "File: " . $th->getFile() . " Line: " . $th->getLine();
         }
     }
 
