@@ -66,7 +66,7 @@
 
 <script type="text/javascript">
     async function insertEsitiSQL() {
-        esiti = await fetch(ajax_controller, {
+        esiti = await fetch(adminControllerURL, {
                 method: 'POST',
                 headers: new Headers({
                     'Content-Type': 'application/json; charset=UTF-8'
@@ -88,7 +88,7 @@
     }
 
     async function insertEsitiSOAP() {
-        esiti = await fetch(ajax_controller, {
+        esiti = await fetch(adminControllerURL, {
                 method: 'POST',
                 headers: new Headers({
                     'Content-Type': 'application/json; charset=UTF-8'
@@ -135,7 +135,7 @@
             rows: JSON.stringify(rows)
         };
 
-        $.post( "{$ajax_controller}", data, function(response)
+        $.post( "{$adminControllerURL}", data, function(response)
         {
             if (response.errors.length) {
                 $.growl.error({ title: "{l s='Update esiti' mod='mpbrtinfo'}", message: response.errors.join("<br>") });

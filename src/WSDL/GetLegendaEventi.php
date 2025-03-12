@@ -18,7 +18,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-namespace MpSoft\MpBrtInfo\Soap;
+namespace MpSoft\MpBrtInfo\WSDL;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -26,11 +26,11 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
-class BrtSoapEventi extends SoapClient
+class GetLegendaEventi extends BrtSoapClient
 {
-    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetLegendaEventiService/GetLegendaEventi?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetLegendaEventiService/GetLegendaEventi?wsdl';
     const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetLegendaEventiService/GetLegendaEventi?wsdl';
-    
+
     /**
      * Array per memorizzare gli errori
      *
@@ -83,22 +83,22 @@ class BrtSoapEventi extends SoapClient
             try {
                 // Crea la richiesta secondo il formato richiesto dal WSDL
                 $request = $this->createRequest($iso_lang, $last_id);
-                
+
                 // Esegue la chiamata SOAP e ottiene il risultato
                 $output = null;
                 $result_code = null;
-                
+
                 // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL: 'getlegendaeventi'
                 // Non incapsulare ulteriormente i parametri, sono già formattati correttamente
                 $success = $this->exec('getlegendaeventi', [$request], $output, $result_code);
-                
+
                 if ($success) {
                     // Verifica se $output è un oggetto e ha la proprietà return
                     if (is_object($output) && property_exists($output, 'return')) {
                         // Converti l'oggetto in array
                         $result = json_decode(json_encode($output->return), true);
                         $esito = isset($result['ESITO']) ? $result['ESITO'] : 0;
-                        
+
                         if (isset($result['LEGENDA_CONTATORE']) && isset($result['LEGENDA'])) {
                             $contatore = $result['LEGENDA_CONTATORE'];
                             $list = array_splice($result['LEGENDA'], 0, $contatore);
@@ -144,14 +144,14 @@ class BrtSoapEventi extends SoapClient
         try {
             // Crea la richiesta secondo il formato richiesto dal WSDL
             $request = $this->createRequest($iso_lang, $last_id);
-            
+
             // Esegue la chiamata SOAP e ottiene il risultato
             $output = null;
             $result_code = null;
-            
+
             // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL
             $success = $this->exec('getlegendaeventi', [$request], $output, $result_code);
-            
+
             if ($success && is_object($output) && property_exists($output, 'return')) {
                 // Converti l'oggetto in array
                 $result = json_decode(json_encode($output->return), true);
@@ -181,7 +181,7 @@ class BrtSoapEventi extends SoapClient
             ]
         ];
     }
-    
+
     /**
      * Restituisce gli errori accumulati durante l'esecuzione
      * 

@@ -98,7 +98,7 @@
 
 <script type="text/javascript">
     async function insertEventiSQL() {
-        eventi = await fetch(ajax_controller, {
+        eventi = await fetch(adminControllerURL, {
                 method: 'POST',
                 headers: new Headers({
                     'Content-Type': 'application/json; charset=UTF-8'
@@ -120,7 +120,7 @@
     }
 
     async function insertEventiSOAP() {
-        eventi = await fetch(ajax_controller, {
+        eventi = await fetch(adminControllerURL, {
                 method: 'POST',
                 headers: new Headers({
                     'Content-Type': 'application/json; charset=UTF-8'
@@ -147,7 +147,7 @@
         let chk_eventi = $("#table-eventi tbody tr input[type=checkbox]:checked").map(function() {
             return { name: $(this).attr("name"), checked: $(this).is(":checked"), id: $(this).data("id_evento") };
         });
-        eventi = await fetch(ajax_controller, {
+        eventi = await fetch(adminControllerURL, {
                 method: 'POST',
                 headers: new Headers({
                     'Content-Type': 'application/json; charset=UTF-8'

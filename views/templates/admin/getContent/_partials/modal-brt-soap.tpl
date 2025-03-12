@@ -119,203 +119,28 @@
 
     </div>
 </div>
-<script type="text/javascript">
-    ajax_controller = "{$ajax_controller}";
+<script type="module">
+    import { fetchBrtWsdl } from '../../WSDL/fetchBrtWSDL.js';
 
-    function ucfirst(string) {
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
+    // Inizializza la classe con l'URL del controller e le traduzioni
+    const adminControllerURL = "{$adminControllerURL}";
+    const translations = {
+        error: '{l s="Errore" d="Modules.Mpbrtinfo.Admin"}',
+        success: '{l s="Successo" d="Modules.Mpbrtinfo.Admin"}',
+        loading: '{l s="Caricamento in corso..." d="Modules.Mpbrtinfo.Admin"}'
+    };
 
-    async function fetchEsiti() {
-        esiti = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'getLegendaEsiti'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#esiti  div.panel").empty();
-                if ("esiti" in data) {
-                    $(data.esiti).each(function() {
-                        ul = "<ul>" +
-                            "<li>ID: <strong>" + this.ID + "</strong></li>" +
-                            "<li>TESTO1: <strong>" + this.TESTO1 + "</strong></li>" +
-                            "<li>TESTO2: <strong>" + this.TESTO2 + "</strong></li>" +
-                            "</ul>";
-                        $("#esiti div.panel").append(ul + "\n");
-                    });
-                }
-            });
-    }
+    // Crea un'istanza della classe
+    const brtWsdl = new fetchBrtWsdl();
+    brtWsdl.init(adminControllerURL, translations);
 
-    async function fetchEventi() {
-        eventi = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'getLegendaEventi'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#eventi div.panel").empty();
-                if ("eventi" in data) {
-                    $(data.eventi).each(function() {
-                        ul = "<ul>" +
-                            "<li>ID: <strong>" + this.ID + "</strong></li>" +
-                            "<li>DESCRIZIONE: <strong>" + this.DESCRIZIONE + "</strong></li>" +
-                            "</ul>";
-                        $("#eventi div.panel").append(ul + "\n");
-                    });
-                }
-            });
-    }
-
-    async function fetchRmn() {
-        brt_customer_id = $("#brt_customer_id_rmn").val();
-        brt_rmn = $("#brt_rmn").val();
-
-        eventi = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'getIdSpedizioneByRMN',
-                    brt_customer_id: brt_customer_id,
-                    brt_rmn: brt_rmn
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#rmn div.panel").empty();
-                if ("response" in data) {
-                    console.log("RESPONSE", data.response);
-                    ul = "<ul>" +
-                        "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
-                        "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
-                        "</ul>";
-                    $("#rmn div.panel").append(ul + "\n");
-                }
-            });
-    }
-
-    async function fetchRma() {
-        brt_customer_id = $("#brt_customer_id_rma").val();
-        brt_rma = $("#brt_rma").val();
-
-        eventi = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'getIdSpedizioneByRMA',
-                    brt_customer_id: brt_customer_id,
-                    brt_rma: brt_rma
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#rma div.panel").empty();
-                if ("response" in data) {
-                    console.log("RESPONSE", data.response);
-                    ul = "<ul>" +
-                        "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
-                        "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
-                        "</ul>";
-                    $("#rma div.panel").append(ul + "\n");
-                }
-            });
-    }
-
-    async function fetchIdc() {
-        brt_customer_id = $("#brt_customer_id_idc").val();
-        collo_id = $("#brt_idc").val();
-
-        eventi = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'getIdSpedizioneByIdCollo',
-                    brt_customer_id: brt_customer_id,
-                    collo_id: collo_id
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#idc div.panel").empty();
-                if ("response" in data) {
-                    console.log("RESPONSE", data.response);
-                    ul = "<ul>" +
-                        "<li>ID: <strong>" + data.response.esito + "</strong></li>" +
-                        "<li>DESCRIZIONE: <strong>" + data.response.spedizione_id + "</strong></li>" +
-                        "</ul>";
-                    $("#idc div.panel").append(ul + "\n");
-                }
-            });
-    }
-
-    async function fetchInfo() {
-        spedizione_anno = $("#brt_spedizione_anno").val();
-        spedizione_id = $("#brt_spedizione_id").val();
-
-        eventi = await fetch(ajax_controller, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'fetchInfoBySpedizioneId',
-                    spedizione_anno: spedizione_anno,
-                    spedizione_id: spedizione_id
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                $("#info div.panel").empty();
-
-                if ('errors' in data) {
-                    ul = $("<ul>");
-                    $.each(data.errors, function(key, value) {
-                        ul.append($("<li>", {
-                            text: value.error
-                        }));
-                    });
-
-                    alert = $("<div>", { class: 'alert alert-danger' }).append(ul);
-                    console.log(alert);
-
-                    $("#info div.panel").append(alert);
-                    return false;
-                }
-
-                if ("content" in data) {
-                    $("#BrtBolla").remove();
-                    $("body #main #content").append(data.content);
-                    $('#BrtBolla').modal('show');
-                }
-            });
-    }
-
-    $(function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gestione apertura modale
         $("#test-soap").on('click', function() {
             $('#modalBrtSoap').modal('show');
         });
+
+        // Gestione cambio selezione
         $("#soap_calls").on('change', function() {
             var value = $(this).val();
             $("#esiti").hide();
@@ -326,6 +151,8 @@
             $("#info").hide();
             $("#" + value).show();
         });
+
+        // Gestione click sui pulsanti
         $("#modalBrtSoap button").on('click', function() {
             let parent_id = $(this).parent().attr('id');
             let divs = [
@@ -337,9 +164,14 @@
                 'info'
             ];
             if (divs.includes(parent_id)) {
-                let soap_call = "fetch" + ucfirst(parent_id);
-                console.log(soap_call);
-                window[soap_call]();
+                let methodName = "fetch" + brtWsdl.ucfirst(parent_id);
+                console.log("Chiamata al metodo: " + methodName);
+                // Chiamiamo il metodo corrispondente dell'istanza brtWsdl
+                if (typeof brtWsdl[methodName] === 'function') {
+                    brtWsdl[methodName]();
+                } else {
+                    console.error("Metodo non trovato: " + methodName);
+                }
             }
         });
     });

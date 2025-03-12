@@ -3,6 +3,7 @@
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSOAP;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSOAP;
 use MpSoft\MpBrtInfo\Bolla\TemplateBolla;
+use MpSoft\MpBrtInfo\Helpers\BrtOrder;
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -25,7 +26,6 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-use MpSoft\MpBrtInfo\Helpers\BrtOrder;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEsiti;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientEventi;
@@ -33,9 +33,12 @@ use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
 use MpSoft\MpBrtInfo\Soap\BrtSoapClientTrackingByShipmentId;
+use MpSoft\MpBrtInfo\Soap\BrtSoapEsiti;
 use MpSoft\MpBrtInfo\Soap\GetIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\Soap\GetIdSpedizioneByRMA;
 use MpSoft\MpBrtInfo\Soap\GetIdSpedizioneByRMN;
+use MpSoft\MpBrtInfo\Soap\SoapClient;
+use MpSoft\MpBrtInfo\WSDL\GetLegendaEventi;
 
 class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 {
@@ -114,14 +117,15 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
     protected function getLegendaEsiti()
     {
-        $class = new BrtSoapClientEsiti();
-        $esiti = $class->getSoapLegendaEsiti();
+        $client = new BrtSoapEsiti();
+        $risultati = $client->getLegendaEsiti('it', 0);
 
-        if ($esiti === false) {
-            return ['error' => $class->getErrors()];
+        if ($risultati === false) {
+            // Gestione errori
+            return ['error' => implode(", ", $client->getErrors())];
+        } else {
+            return $risultati;
         }
-
-        return $esiti;
     }
 
     public function displayAjaxGetLegendaEsiti()
@@ -135,14 +139,15 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
     public function getLegendaEventi()
     {
-        $class = new BrtSoapClientEventi();
-        $esiti = $class->getSoapLegendaEventi();
+        $client = new GetLegendaEventi();
+        $risultati = $client->getLegendaEventi('it', '');
 
-        if ($esiti === false) {
-            return ['error' => $class->getErrors()];
+        if ($risultati === false) {
+            // Gestione errori
+            return ['error' => implode(", ", $client->getErrors())];
+        } else {
+            return $risultati;
         }
-
-        return $esiti;
     }
 
     public function displayAjaxGetLegendaEventi()
@@ -307,8 +312,8 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         foreach ($event_list as $id => $events) {
             $sql = 'UPDATE ' . _DB_PREFIX_ . 'mpbrtinfo_evento SET '
-                    . 'is_error = 0, is_transit = 0, is_delivered = 0, is_fermopoint = 0, is_waiting = 0, is_refused = 0, is_sent=0 '
-                    . 'WHERE id_evento = ' . (int) $id;
+                . 'is_error = 0, is_transit = 0, is_delivered = 0, is_fermopoint = 0, is_waiting = 0, is_refused = 0, is_sent=0 '
+                . 'WHERE id_evento = ' . (int) $id;
             $db->execute($sql);
 
             foreach ($events as $event) {
@@ -410,11 +415,13 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
 
         $order = new Order($order_id);
         if (!Validate::isLoadedObject($order)) {
-            $this->response(['content' => [
-                'error' => true,
-                'error_code' => -99,
-                'message' => sprintf('Ordine %s non trovato.', $order_id),
-            ]]);
+            $this->response([
+                'content' => [
+                    'error' => true,
+                    'error_code' => -99,
+                    'message' => sprintf('Ordine %s non trovato.', $order_id),
+                ]
+            ]);
         }
 
         if (!$spedizione_id) {
@@ -428,11 +435,13 @@ class MpBrtInfoCronJobsModuleFrontController extends ModuleFrontController
         }
 
         if (!$spedizione_id) {
-            $this->response(['content' => [
-                'error' => true,
-                'error_code' => -98,
-                'message' => sprintf('Id Spedizione per l\'Ordine %s non trovato.', $order_id),
-            ]]);
+            $this->response([
+                'content' => [
+                    'error' => true,
+                    'error_code' => -98,
+                    'message' => sprintf('Id Spedizione per l\'Ordine %s non trovato.', $order_id),
+                ]
+            ]);
         }
 
         $anno_spedizione = ModelBrtHistory::getAnnoSpedizione($order_id);

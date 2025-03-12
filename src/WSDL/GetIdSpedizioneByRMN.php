@@ -18,7 +18,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-namespace MpSoft\MpBrtInfo\Soap;
+namespace MpSoft\MpBrtInfo\WSDL;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -32,12 +32,12 @@ require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
  * Implementa il web service GetIdSpedizioneByRMN che consente di ottenere
  * l'ID di una spedizione BRT utilizzando il riferimento mittente numerico e l'ID cliente.
  */
-class GetIdSpedizioneByRMN extends SoapClient
+class GetIdSpedizioneByRMN extends BrtSoapClient
 {
     /**
      * Endpoint HTTP (non SSL)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
 
     /**
      * Endpoint HTTPS (SSL)

@@ -305,11 +305,11 @@ class MpBrtInfo extends Module
         // For search filter dropdown
         $definition->getFilters()->add(
             (new Filter('id_carrier', ChoiceType::class))
-            ->setTypeOptions([
-                'required' => false,
-                'choices' => $choices, // This key added to show dropdown in search options
-            ])
-            ->setAssociatedColumn('id_carrier')
+                ->setTypeOptions([
+                    'required' => false,
+                    'choices' => $choices, // This key added to show dropdown in search options
+                ])
+                ->setAssociatedColumn('id_carrier')
         );
     }
 
@@ -331,7 +331,7 @@ class MpBrtInfo extends Module
         $searchQueryBuilder = $params['search_query_builder'];
         /** @var CustomerFilters $searchCriteria */
         $searchCriteria = $params['search_criteria'];
-        
+
         $searchQueryBuilder
             ->addSelect('car.name as `carrier_name`')
             ->addSelect('o.id_carrier')
@@ -511,10 +511,10 @@ class MpBrtInfo extends Module
 
     public function renderForm()
     {
-        $message = $this->postProcess();
+        $postProcessMessage = $this->postProcess();
         $order_states = OrderState::getOrderStates($this->id_lang);
         $carriers = Carrier::getCarriers($this->id_lang);
-        $cronJobsClass = $this->context->link->getModuleLink($this->name, 'CronJobs');
+        $cronJobsClass = $this->context->link->getModuleLink($this->name, 'Cron');
 
         foreach ($carriers as &$carrier) {
             $carrier['id_carrier'] = $carrier['name'];
@@ -526,6 +526,15 @@ class MpBrtInfo extends Module
                     'title' => $this->l('Settings'),
                 ],
                 'input' => [
+                    [
+                        'col' => 6,
+                        'type' => 'html',
+                        'label' => $this->l('Test WSDL'),
+                        'name' => 'test_wsdl',
+                        'desc' => $this->l('Permette di testare il WSDL'),
+                        'required' => true,
+                        'html_content' => $this->renderTestWSDL(),
+                    ],
                     [
                         'type' => 'switch',
                         'label' => $this->l('Usa API SSL'),
@@ -752,31 +761,31 @@ class MpBrtInfo extends Module
 
         $form = $helper->generateForm([$fields_form]);
 
-        $smarty = $this->context->smarty;
+        $tplIconsPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/00-icons.tpl';
+        $tplIcons = $this->context->smarty->createTemplate($tplIconsPath);
+        $tplIcons->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
+        $tplIcons->assign('icons', $this->getIcons());
+        $htmlIcons = $tplIcons->fetch();
 
-        $tpl_modal = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/modal-brt-soap.tpl';
-        $smarty->assign('ajax_controller', $cronJobsClass);
-        $modal = $smarty->fetch($tpl_modal);
+        $tplEventiPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-eventi.tpl';
+        $tplEventi = $this->context->smarty->createTemplate($tplEventiPath);
+        $tplEventi->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
+        $tplEventi->assign('eventi', (new AjaxInsertEventiSQL)->getList());
+        $htmlEventi = $tplEventi->fetch();
 
-        $tpl_icons = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/00-icons.tpl';
-        $smarty->assign('icons', $this->getIcons());
-        $tpl = $smarty->fetch($tpl_icons);
-
-        $tpl_eventi = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-eventi.tpl';
-        $smarty->assign('eventi', (new AjaxInsertEventiSQL)->getList());
-        $tables = $smarty->fetch($tpl_eventi);
-
-        $tpl_esiti = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-esiti.tpl';
-        $smarty->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
-        $tables .= $smarty->fetch($tpl_esiti);
+        $tplEsitiPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-esiti.tpl';
+        $tplEsiti = $this->context->smarty->createTemplate($tplEsitiPath);
+        $tplEsiti->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
+        $tplEsiti->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
+        $htmlEsiti = $tplEsiti->fetch();
 
         $tpl_query = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/modal_query.tpl';
-        $modal_query = $smarty->fetch($tpl_query);
+        //$modal_query = $this->context->smarty->fetch($tpl_query);
 
-        return $message . $modal . $tpl . $form . $tables . $modal_query;
+        return $postProcessMessage . $htmlIcons . $form . $htmlEventi . $htmlEsiti;
     }
 
-    public function renderSkipStates()
+    protected function renderSkipStates()
     {
         $skip_states = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []);
         $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/skip_states.tpl';
@@ -784,6 +793,17 @@ class MpBrtInfo extends Module
         $tpl->assign('skip_states', $skip_states);
         $tpl->assign('order_states', OrderState::getOrderStates($this->context->language->id));
         $tpl->assign('input_skip_name', ModelBrtConfig::MP_BRT_INFO_OS_SKIP);
+        return $tpl->fetch();
+    }
+
+    protected function renderTestWSDL()
+    {
+        $importPath = $this->getPathUri() . 'views/js/WSDL/fetchBrtWSDL.js';
+        $adminControllerURL = $this->context->link->getModuleLink($this->name, 'Cron');
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/test_wsdl.tpl';
+        $tpl = $this->context->smarty->createTemplate($file);
+        $tpl->assign('adminControllerURL', $adminControllerURL);
+        $tpl->assign('importPath', $importPath);
         return $tpl->fetch();
     }
     public function postProcess()

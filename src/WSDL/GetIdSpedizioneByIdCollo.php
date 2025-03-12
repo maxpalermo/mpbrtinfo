@@ -18,7 +18,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-namespace MpSoft\MpBrtInfo\Soap;
+namespace MpSoft\MpBrtInfo\WSDL;
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -27,22 +27,22 @@ if (!defined('_PS_VERSION_')) {
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
 /**
- * Client SOAP per ottenere l'ID spedizione BRT tramite riferimento mittente numerico
+ * Client SOAP per ottenere l'ID spedizione BRT tramite ID collo
  * 
- * Implementa il web service GetIdSpedizioneByRMN che consente di ottenere
- * l'ID di una spedizione BRT utilizzando il riferimento mittente numerico e l'ID cliente.
+ * Implementa il web service GetIdSpedizioneByIdCollo che consente di ottenere
+ * l'ID di una spedizione BRT utilizzando l'ID collo e l'ID cliente.
  */
-class GetIdSpedizioneByRMN extends SoapClient
+class GetIdSpedizioneByIdCollo extends BrtSoapClient
 {
     /**
      * Endpoint HTTP (non SSL)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdCollo?wsdl';
 
     /**
      * Endpoint HTTPS (SSL)
      */
-    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMNService/GetIdSpedizioneByRMN?wsdl';
+    const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdCollo?wsdl';
 
     /**
      * Array per memorizzare gli errori
@@ -65,22 +65,21 @@ class GetIdSpedizioneByRMN extends SoapClient
     }
 
     /**
-     * Crea l'oggetto di richiesta per la chiamata SOAP getidspedizionebyrmn
+     * Crea l'oggetto di richiesta per la chiamata SOAP getidspedizionebyidcollo
      * 
      * @param string|int $cliente_id ID del cliente BRT
-     * @param string|int $riferimento_mittente_numerico Riferimento mittente numerico (RMN)
+     * @param string $collo_id ID del collo
      * @return object Oggetto di richiesta formattato secondo il WSDL
      */
-    protected function createRequest($cliente_id, $riferimento_mittente_numerico)
+    protected function createRequest($cliente_id, $collo_id)
     {
-        // Verifica e converte i parametri in decimali come richiesto dal WSDL
+        // Verifica e converte i parametri come richiesto dal WSDL
         $cliente_id = (float) $cliente_id;
-        $riferimento_mittente_numerico = (float) $riferimento_mittente_numerico;
 
         // Crea l'oggetto di input secondo la struttura del WSDL
         $input = new \stdClass();
         $input->CLIENTE_ID = $cliente_id;
-        $input->RIFERIMENTO_MITTENTE_NUMERICO = $riferimento_mittente_numerico;
+        $input->COLLO_ID = $collo_id;
 
         // Incapsula l'input in arg0 come richiesto dal WSDL
         $request = new \stdClass();
@@ -90,17 +89,17 @@ class GetIdSpedizioneByRMN extends SoapClient
     }
 
     /**
-     * Ottiene l'ID di una spedizione BRT tramite riferimento mittente numerico
+     * Ottiene l'ID di una spedizione BRT tramite ID collo
      * 
      * @param string|int $cliente_id ID del cliente BRT
-     * @param string|int $riferimento_mittente_numerico Riferimento mittente numerico (RMN)
+     * @param string $collo_id ID del collo
      * @return array|false Array con l'ID spedizione o false in caso di errore
      */
-    public function getIdSpedizione($cliente_id, $riferimento_mittente_numerico)
+    public function getIdSpedizione($cliente_id, $collo_id)
     {
         // Verifica i parametri obbligatori
-        if (empty($riferimento_mittente_numerico)) {
-            $this->errors[] = 'Riferimento mittente numerico non valido';
+        if (empty($collo_id)) {
+            $this->errors[] = 'ID collo non valido';
             return false;
         }
 
@@ -111,14 +110,14 @@ class GetIdSpedizioneByRMN extends SoapClient
 
         try {
             // Crea la richiesta secondo il formato richiesto dal WSDL
-            $request = $this->createRequest($cliente_id, $riferimento_mittente_numerico);
+            $request = $this->createRequest($cliente_id, $collo_id);
 
             // Esegue la chiamata SOAP e ottiene il risultato
             $output = null;
             $result_code = null;
 
-            // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL: 'getidspedizionebyrmn'
-            $success = $this->exec('getidspedizionebyrmn', [$request], $output, $result_code);
+            // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL: 'getidspedizionebyidcollo'
+            $success = $this->exec('getidspedizionebyidcollo', [$request], $output, $result_code);
 
             if ($success) {
                 // Verifica se $output è un oggetto e ha la proprietà return
@@ -132,7 +131,7 @@ class GetIdSpedizioneByRMN extends SoapClient
                             '-1' => 'Errore generico/sconosciuto',
                             '-3' => 'Errore connessione database server',
                             '-11' => 'Spedizione non trovata',
-                            '-20' => 'Riferimento mittente numerico non ricevuto',
+                            '-20' => 'ID collo non ricevuto',
                             '-21' => 'ID cliente non ricevuto o non valido',
                             '-22' => 'Trovata più di una spedizione',
                         ];
@@ -148,6 +147,7 @@ class GetIdSpedizioneByRMN extends SoapClient
                     return [
                         'esito' => $result['ESITO'],
                         'spedizione_id' => isset($result['SPEDIZIONE_ID']) ? $result['SPEDIZIONE_ID'] : '',
+                        'spedizione_anno' => isset($result['SPEDIZIONE_ANNO']) ? $result['SPEDIZIONE_ANNO'] : '',
                         'versione' => isset($result['VERSIONE']) ? $result['VERSIONE'] : '',
                     ];
                 } else {
@@ -177,5 +177,20 @@ class GetIdSpedizioneByRMN extends SoapClient
     public function getErrors()
     {
         return $this->errors;
+    }
+    
+    /**
+     * Aggiunge un separatore (divider) nelle bulk actions di PrestaShop
+     * 
+     * @param string $key Chiave del separatore
+     * @return array Configurazione del separatore
+     */
+    public function addDivider($key = 'divider1')
+    {
+        return [
+            $key => [
+                'text' => 'divider'
+            ]
+        ];
     }
 }
