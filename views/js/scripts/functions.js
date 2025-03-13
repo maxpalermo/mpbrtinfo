@@ -1,40 +1,3 @@
-/**
- * Mostra un pannello SweetAlert2 con barra di progresso
- * @param {number} progress - Percentuale iniziale della barra di progresso
- * @returns {Object} Istanza SweetAlert2 con metodi per l'aggiornamento
- */
-function displayProgress(progress) {
-    // Crea un nuovo controller di annullamento
-    abortController = new AbortController();
-    signal = abortController.signal;
-
-    // Crea il pannello SweetAlert2 con barra di progresso
-    progressModal = createProgressModal({
-        title: "Aggiornamento spedizioni BRT",
-        text: "Stiamo recuperando le informazioni sulle spedizioni...",
-        initialProgress: progress,
-        progressText: "Avanzamento: 0%",
-        allowClose: false,
-        showCancelButton: true,
-        cancelButtonText: "Annulla",
-        onCancel: () => {
-            // Annulla tutte le richieste fetch in corso
-            if (abortController) {
-                abortController.abort();
-            }
-
-            // Mostra un messaggio di annullamento
-            completeProgress("Operazione annullata", "L'operazione è stata annullata dall'utente.", true);
-        },
-        showDetails: true,
-        detailsButtonText: "Dettagli tecnici",
-        detailsText: "Inizializzazione operazione...",
-        animateProgress: true
-    });
-
-    return progressModal;
-}
-
 async function getBrtInfo(order_id, tracking, target) {
     current_target = target;
     current_id_order = order_id;
@@ -72,19 +35,6 @@ async function getBrtInfo(order_id, tracking, target) {
             $("#BrtBolla").modal("show");
             return data;
         });
-}
-
-/**
- * Completa la barra di progresso
- * @param {string} title - Nuovo titolo del pannello
- * @param {string} text - Nuovo testo del pannello
- * @param {boolean} showClose - Se mostrare il pulsante di chiusura
- */
-
-function completeProgress(title, text, showClose = true) {
-    if (progressModal) {
-        progressModal.completeProgress(title, text, showClose);
-    }
 }
 
 /**

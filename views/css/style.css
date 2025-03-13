@@ -201,3 +201,35 @@
     overflow-y: auto;
     max-height: 400px;
 }
+
+.brt-swal-container {
+    z-index: 9999;
+}
+.brt-swal-popup {
+    padding: 1.25rem;
+}
+.brt-swal-content {
+    font-size: 0.9rem;
+}
+.brt-esiti-container .table th {
+    background-color: #f8f9fa;
+}
+.brt-esiti-container .card-header {
+    padding: 0.5rem 1rem;
+}
+.brt-esiti-container .card-body {
+    padding: 0;
+}
+.brt-esiti-container .table {
+    margin-bottom: 0;
+}
+.brt-esiti-container .table td,
+.brt-esiti-container .table th {
+    padding: 0.5rem;
+}
+
+.header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}

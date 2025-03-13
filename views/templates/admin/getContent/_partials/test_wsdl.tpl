@@ -22,25 +22,35 @@
         {literal}
             function transformToTable(data, type) {
                 let rows = '';
-                switch (type) {
-                    case "esiti":
-                        rows = data.map(item => {
-                            let tdId = `<td style="width: 48px; text-align: right; padding-right: 8px; font-weight: bold;">${item.ID}</td>`;
-                            let tdTesto1 = `<td style="width: auto; text-align: left;">${item.TESTO1}</td>`;
-                            let tdTesto2 = `<td style="width: auto; text-align: left;">${item.TESTO2}</td>`;
-                            return "<tr>" + tdId + tdTesto1 + tdTesto2 + "</tr>";
-                        }).join('');
-                        break;
-                    case "eventi":
-                        rows = data.map(item => {
-                            let tdId = `<td style="width: 48px; text-align: right; padding-right: 8px; font-weight: bold;">${item.ID}</td>`;
-                            let tdDescrizione = `<td style="width: auto; text-align: left;">${item.DESCRIZIONE}</td>`;
-                            return "<tr>" + tdId + tdDescrizione + "</tr>";
-                        }).splice(0, 10).join('');
-                        break;
-                    default:
-                        rows = `<tr><td><div class="alert alert-danger">${translations.error}</div></td></tr>`;
-                        break;
+                if ("error" in data) {
+                    rows = `<tr><td><div class="alert alert-danger">${data.error}</div></td></tr>`;
+                } else if (Array.isArray(data)) {
+                    if ("error" in data) {
+                        rows = `<tr><td><div class="alert alert-danger">${data.error}</div></td></tr>`;
+                    } else {
+                        switch (type) {
+                            case "esiti":
+                                rows = data.map(item => {
+                                    let tdId = `<td style="width: 48px; text-align: right; padding-right: 8px; font-weight: bold;">${item.ID}</td>`;
+                                    let tdTesto1 = `<td style="width: auto; text-align: left;">${item.TESTO1}</td>`;
+                                    let tdTesto2 = `<td style="width: auto; text-align: left;">${item.TESTO2}</td>`;
+                                    return "<tr>" + tdId + tdTesto1 + tdTesto2 + "</tr>";
+                                }).join('');
+                                break;
+                            case "eventi":
+                                rows = data.map(item => {
+                                    let tdId = `<td style="width: 48px; text-align: right; padding-right: 8px; font-weight: bold;">${item.ID}</td>`;
+                                    let tdDescrizione = `<td style="width: auto; text-align: left;">${item.DESCRIZIONE}</td>`;
+                                    return "<tr>" + tdId + tdDescrizione + "</tr>";
+                                }).splice(0, 10).join('');
+                                break;
+                            default:
+                                rows = `<tr><td><div class="alert alert-danger">${translations.error}</div></td></tr>`;
+                                break;
+                        }
+                    }
+                } else {
+                    rows = `<tr><td><div class="alert alert-danger">${translations.error}</div></td></tr>`;
                 }
                 const table = `<table class="minitable"><tbody>${rows}</tbody></table>`;
                 return table;

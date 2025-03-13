@@ -37,7 +37,7 @@ class GetIdSpedizioneByIdCollo extends BrtSoapClient
     /**
      * Endpoint HTTP (non SSL)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdCollo?wsdl';
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByIdColloService/GetIdSpedizioneByIdCollo?wsdl';
 
     /**
      * Endpoint HTTPS (SSL)
@@ -178,7 +178,7 @@ class GetIdSpedizioneByIdCollo extends BrtSoapClient
     {
         return $this->errors;
     }
-    
+
     /**
      * Aggiunge un separatore (divider) nelle bulk actions di PrestaShop
      * 

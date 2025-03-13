@@ -27,7 +27,7 @@
     const spinner = "{$spinner}";
 </script>
 
-<script type="module">
+<script type="module" defer>
     const baseAdminUrl = "{$baseAdminUrl}";
     const fetchController = "{$fetchController}";
     const ajax_controller = "{$ajax_controller}";
@@ -71,7 +71,7 @@
         })
 
         // CONTROLLO LE SPEDIZIONI PER IL TRACKING E I CONSEGNATI
-        document.getElementById("brt-fetch-orders").addEventListener("click", async (e) => {
+        document.getElementById("@brt-fetch-orders").addEventListener("click", async (e) => {
             Swal.fire({
                 title: "Aggiornare le spedizioni Bartolini?",
                 icon: 'question',

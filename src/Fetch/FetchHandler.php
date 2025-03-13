@@ -66,10 +66,13 @@ class FetchHandler
         $this->ajaxRender(['error' => 'NO METHOD FOUND']);
     }
 
-    public function getLegendaEventi()
+    public function getLegendaEventi($params)
     {
+        $lang = $params['lang'];
+        $last_update = $params['last_update'];
+
         $client = new GetLegendaEventi();
-        $risultati = $client->getLegendaEventi('it', '');
+        $risultati = $client->getLegendaEventi($lang, $last_update);
 
         if ($risultati === false) {
             // Gestione errori

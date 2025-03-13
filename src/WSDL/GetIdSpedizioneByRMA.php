@@ -37,13 +37,13 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
     /**
      * Endpoint HTTP (non SSL)
      */
-    const ENDPOINT = 'http://wsr.brt.it:10052/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
-    
+    const ENDPOINT = 'http://wsr.brt.it:10041/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
+
     /**
      * Endpoint HTTPS (SSL)
      */
     const ENDPOINT_SSL = 'https://wsr.brt.it:10052/web/GetIdSpedizioneByRMAService/GetIdSpedizioneByRMA?wsdl';
-    
+
     /**
      * Array per memorizzare gli errori
      *
@@ -60,7 +60,7 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
     {
         $ssl = \ModelBrtConfig::useSSL();
         $endpoint = $ssl ? self::ENDPOINT_SSL : self::ENDPOINT;
-        
+
         parent::__construct($endpoint);
     }
 
@@ -75,16 +75,16 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
     {
         // Verifica e converte i parametri come richiesto dal WSDL
         $cliente_id = (float) $cliente_id;
-        
+
         // Crea l'oggetto di input secondo la struttura del WSDL
         $input = new \stdClass();
         $input->CLIENTE_ID = $cliente_id;
         $input->RIFERIMENTO_MITTENTE_ALFABETICO = $riferimento_mittente_alfabetico;
-        
+
         // Incapsula l'input in arg0 come richiesto dal WSDL
         $request = new \stdClass();
         $request->arg0 = $input;
-        
+
         return $request;
     }
 
@@ -111,20 +111,20 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
         try {
             // Crea la richiesta secondo il formato richiesto dal WSDL
             $request = $this->createRequest($cliente_id, $riferimento_mittente_alfabetico);
-            
+
             // Esegue la chiamata SOAP e ottiene il risultato
             $output = null;
             $result_code = null;
-            
+
             // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL: 'getidspedizionebyrma'
             $success = $this->exec('getidspedizionebyrma', [$request], $output, $result_code);
-            
+
             if ($success) {
                 // Verifica se $output è un oggetto e ha la proprietà return
                 if (is_object($output) && property_exists($output, 'return')) {
                     // Converti l'oggetto in array
                     $result = json_decode(json_encode($output->return), true);
-                    
+
                     // Verifica l'esito della chiamata
                     if (isset($result['ESITO']) && $result['ESITO'] < 0) {
                         $error_messages = [
@@ -177,7 +177,7 @@ class GetIdSpedizioneByRMA extends BrtSoapClient
     {
         return $this->errors;
     }
-    
+
     /**
      * Aggiunge un separatore (divider) nelle bulk actions di PrestaShop
      * 

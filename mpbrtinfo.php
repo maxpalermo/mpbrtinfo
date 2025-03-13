@@ -51,7 +51,6 @@ class MpBrtInfo extends Module
     protected $InstallMenu;
     protected $displayCarrier;
     protected $tpl;
-    protected $soapAlerts;
 
     public function __construct()
     {
@@ -75,7 +74,6 @@ class MpBrtInfo extends Module
         $this->id_lang = (int) Context::getContext()->language->id;
         $this->displayCarrier = new MpSoft\MpBrtInfo\Carriers\DisplayCarrier($this);
         $this->tpl = new MpSoft\MpBrtInfo\Helpers\SmartyTpl();
-        $this->soapAlerts = MpSoft\MpBrtInfo\Soap\BrtSoapAlerts::getInstance();
     }
 
     public function install()
@@ -236,6 +234,29 @@ class MpBrtInfo extends Module
         return $value;
     }
 
+    protected function isAdminOrdersController()
+    {
+        $controller = Tools::getValue('controller');
+        if (!preg_match('/AdminOrders/i', $controller)) {
+            return false;
+        }
+        if (Tools::getValue('id_order')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function isAdminModulesController()
+    {
+        $controller = Tools::getValue('controller');
+        if (!preg_match('/AdminModules/i', $controller)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function hookDashboardZoneTwo()
     {
         $fermopoint = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::FERMOPOINT);
@@ -268,14 +289,16 @@ class MpBrtInfo extends Module
 
     public function hookDisplayDashboardToolbarTopMenu($params)
     {
-        if (Tools::strtolower($this->context->controller->controller_name) == 'adminorders' && !Tools::getValue('id_order')) {
-            $path = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
-            $tpl = $this->context->smarty->createTemplate($path);
-            $tpl->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
-            $html = $tpl->fetch();
-
-            return $html;
+        if (!$this->isAdminOrdersController()) {
+            return;
         }
+
+        $path = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
+        $tpl = $this->context->smarty->createTemplate($path);
+        $tpl->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
+        $html = $tpl->fetch();
+
+        return $html;
     }
 
     public function hookActionOrderGridDefinitionModifier(array $params)
@@ -359,23 +382,26 @@ class MpBrtInfo extends Module
     public function hookActionAdminControllerSetMedia($params)
     {
         $path = $this->getLocalPath() . 'views/';
-        $this->context->controller->addJS([
-            $path . 'js/XmlBeautify/XmlBeautify.min.js',
-            $path . 'js/swal2/sweetalert2.all.min.js',
-            $path . 'js/htmx/htmx.min.js',
-            $path . 'js/panels/brt-esiti.js',
-            $path . 'js/panels/swal-progress.js',
-            $path . 'js/scripts/functions.js',
-        ]);
         $this->context->controller->addCSS([
             $path . 'css/icon.css',
-            $path . 'css/spacer.bs.css',
             $path . 'css/material-icons.css',
-            $path . 'js/swal2/sweetalert2.min.css',
-            $path . 'css/style.css',
         ]);
-        // $this->context->controller->addCSS($this->getLocalPath() . 'views/css/bootstrap.min.css', 'all', 1000);
-        // $this->context->controller->addJs($this->getLocalPath() . 'views/js/bootstrap.bundle.min.js');
+
+        if ($this->isAdminOrdersController() || $this->isAdminModulesController()) {
+            $this->context->controller->addJS([
+                $path . 'js/XmlBeautify/XmlBeautify.min.js',
+                $path . 'js/swal2/sweetalert2.all.min.js',
+                $path . 'js/htmx/htmx.min.js',
+                $path . 'js/panels/brt-esiti.js',
+                $path . 'js/scripts/AdminOrders.js'
+            ]);
+            $this->context->controller->addCSS([
+                $path . 'js/swal2/sweetalert2.min.css',
+                $path . 'css/spacer.bs.css',
+                $path . 'css/style.css',
+            ]);
+        }
+
     }
 
     public function hookActionObjectOrderHistoryAddAfter($params)
@@ -383,54 +409,38 @@ class MpBrtInfo extends Module
         // TODO:
     }
 
-    public function insertValueAtPosition($arr, $insertedArray, $position)
-    {
-        $i = 0;
-        $new_array = [];
-        foreach ($arr as $key => $value) {
-            if ($i == $position) {
-                foreach ($insertedArray as $iKey => $iValue) {
-                    $new_array[$iKey] = $iValue;
-                }
-            }
-            $new_array[$key] = $value;
-            ++$i;
-        }
-
-        return $new_array;
-    }
-
     public function hookDisplayBackOfficeFooter(&$params)
     {
-        $controller = Tools::getValue('controller');
-        if (!preg_match('/AdminOrders/i', $controller)) {
-            return '';
-        }
-        if (Tools::getValue('id_order')) {
+        if (!$this->isAdminOrdersController()) {
             return;
         }
 
-        $ajax_controller = $this->context->link->getModuleLink($this->name, 'CronJobs');
+        $fetchController = $this->context->link->getModuleLink($this->name, 'FetchOrders');
 
         $data = [
             'id_order' => 0,
             'id_carrier' => 0,
-            'ajax_controller' => $ajax_controller,
-            'baseAdminUrl' => $ajax_controller,
-            'fetchController' => $this->context->link->getModuleLink($this->name, 'FetchShipping'),
+            'fetchController' => $fetchController,
+            'fetchShippingOrdersPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/WSDL/fetchShippingOrders.js',
+            'GetTotalShippingsPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/modules/GetTotalShippings.js',
+            'GetOrderTrackingPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/modules/GetOrderTracking.js',
+            'GetOrderInfoPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/modules/GetOrderInfo.js',
+            'BrtEsitiPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/panels/BrtEsiti.js',
             'module_dir' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/',
             'spinner' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/img/spinner/spinner.gif',
         ];
 
+        /*
         $tpl_modal = $this->context->smarty->createTemplate($this->getLocalPath() . 'views/templates/admin/brtInfo/modal_fetch.tpl');
         $tpl_modal->assign($data);
         $modal = $tpl_modal->fetch();
+        */
 
-        $tpl_script = $this->context->smarty->createTemplate($this->getLocalPath() . 'views/templates/admin/brtInfo/script.tpl');
+        $tpl_script = $this->context->smarty->createTemplate($this->getLocalPath() . 'views/templates/admin/AdminOrderList/AdminScript.tpl');
         $tpl_script->assign($data);
         $script = $tpl_script->fetch();
 
-        return $modal . $script;
+        return $script;
     }
 
     public function getFrontControllerLink($params = [])
