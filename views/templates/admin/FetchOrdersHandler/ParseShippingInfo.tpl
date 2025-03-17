@@ -70,7 +70,7 @@
                     {foreach $data.storico as $key =>$evento}
                         <tr>
                             <td>{$key + 1}</td>
-                            <td style="width: 72px; text-align: center;"><i class="material-icons text-{$evento.color}">{$evento.icon}</i></td>
+                            <td style="width: 72px; text-align: center;"><i class="material-icons" style="color: {$evento.color}">{$evento.icon}</i></td>
                             <td>{$evento.id}</td>
                             <td>{$evento.data}</td>
                             <td>{$evento.ora}</td>

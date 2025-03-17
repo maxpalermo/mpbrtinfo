@@ -1,0 +1,14 @@
+Aggiornamento spedizione ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La tua spedizione è stata presa in carico da Bartolini
+
+Lo stato della tua spedizione è stato aggiornato: {tracking_status}
+Numero di tracking: {tracking_number}
+Data ultimo aggiornamento: {last_update}
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

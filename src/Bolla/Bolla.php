@@ -62,9 +62,11 @@ class Bolla
     protected static $event_list = [];
     protected $customer;
     protected $bolla;
+    protected $id_order;
 
-    public function __construct($bolla)
+    public function __construct($bolla, $id_order = 0)
     {
+        $this->id_order = $id_order;
         $this->bolla = $bolla;
         $this->assicurazione = isset($bolla['BOLLA']['ASSICURAZIONE']) ? new Assicurazione($bolla['BOLLA']['ASSICURAZIONE']) : null;
         $this->contrassegno = isset($bolla['BOLLA']['CONTRASSEGNO']) ? new Contrassegno($bolla['BOLLA']['CONTRASSEGNO']) : null;
@@ -291,7 +293,7 @@ class Bolla
     protected function addEventi($eventi)
     {
         foreach ($eventi as $evento) {
-            $this->eventi[] = new Evento($evento['EVENTO']);
+            $this->eventi[] = new Evento($evento['EVENTO'], $this->id_order);
         }
     }
 
@@ -352,78 +354,5 @@ class Bolla
         // TODO::
 
         return;
-
-        $id_state_sent = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
-        $id_state_transit = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
-        $id_state_waiting = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
-        $id_state_delivered = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
-        $id_state_error = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
-        $id_state_fermopoint = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
-        $id_state_refused = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
-        $id_order_state = 0;
-        $order_state = '';
-        $event_list = self::$event_list;
-
-        if ($evento->isSent()) {
-            $id_order_state = $id_state_sent;
-            $db = \Db::getInstance();
-            $db->update(
-                'order_carrier',
-                ['tracking_number' => str_pad($id_collo, 12, '0', STR_PAD_LEFT)],
-                'id_order = ' . (int) $id_order
-            );
-        } elseif ($evento->isTransit()) {
-            $id_order_state = $id_state_transit;
-        } elseif ($evento->isWaiting() && $evento->isFermopoint()) {
-            $id_order_state = $id_state_fermopoint;
-        } elseif ($evento->isDelivered() && $evento->isFermopoint()) {
-            $id_order_state = $id_state_delivered;
-        } elseif ($evento->isWaiting()) {
-            $id_order_state = $id_state_waiting;
-        } elseif ($evento->isDelivered()) {
-            $id_order_state = $id_state_delivered;
-        } elseif ($evento->isError()) {
-            $id_order_state = $id_state_error;
-        } elseif ($evento->isFermopoint()) {
-            $id_order_state = $id_state_fermopoint;
-        } elseif ($evento->isRefused()) {
-            $id_order_state = $id_state_refused;
-        } else {
-            $id_order_state = 0;
-        }
-
-        if ($id_order_state == 0) {
-            return false;
-        }
-
-        $order_state = $event_list[$evento->getId()] ?? '';
-        $last_brt_state = \ModelBrtHistory::getLastState($id_order);
-
-        if ($last_brt_state && $last_brt_state == $order_state['id_evento']) {
-            return false;
-        }
-
-        $model = new \ModelBrtHistory();
-        $model->id_order = $id_order;
-        $model->id_order_state = $id_order_state;
-        $model->id_brt_state = $order_state['id_evento'];
-        $model->date_event = date('Y-m-d H:i:s', strtotime($evento->getData() . ' ' . $evento->getOra()));
-        $model->tracking_number = '';
-        $model->rmn = $rmn;
-        $model->id_collo = $id_collo;
-        $model->current_state = $order_state['name'];
-        $model->anno_spedizione = date('Y', strtotime($evento->getData() . ' ' . $evento->getOra()));
-        $model->date_add = date('Y-m-d H:i:s');
-        $model->add();
-
-        $order = new \Order($id_order);
-        $current_state = $order->getCurrentState();
-        if ($current_state == $id_order_state) {
-            return false;
-        }
-
-        $order->setCurrentState($id_order_state);
-
-        return sprintf('Ordine %s: stato cambiato da %s a %s', $id_order, $current_state, $id_order_state);
     }
 }

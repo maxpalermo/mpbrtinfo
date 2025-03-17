@@ -174,7 +174,11 @@ class SqlValues
         $sql = str_replace('PFX_', _DB_PREFIX_, $file);
 
         try {
-            \Db::getInstance()->execute($sql);
+            // divido $sql in parti delimitate dal punto e virgola
+            $sqls = explode(';', $sql);
+            foreach ($sqls as $sql) {
+                \Db::getInstance()->execute($sql);
+            }
         } catch (\Throwable $th) {
             \PrestaShopLogger::addLog($th->getMessage(), 2, $th->getCode(), 'SqlValues');
             $this->controller->errors[] = $th->getMessage();

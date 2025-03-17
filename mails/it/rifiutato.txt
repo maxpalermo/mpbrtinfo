@@ -1,0 +1,24 @@
+Spedizione rifiutata per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La consegna del tuo ordine è stata rifiutata al momento della consegna.
+
+Secondo le informazioni fornite dal corriere BRT, la consegna è stata rifiutata al momento dell'arrivo.
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data del rifiuto: {last_update}
+- Motivo del rifiuto: {reason}
+
+Il pacco sta tornando al nostro magazzino. Una volta ricevuto, ti contatteremo per determinare come procedere:
+- Organizzare una nuova consegna
+- Procedere con un rimborso
+- Altre opzioni disponibili
+
+Se hai domande o desideri fornirci ulteriori informazioni sul motivo del rifiuto, ti preghiamo di contattarci.
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

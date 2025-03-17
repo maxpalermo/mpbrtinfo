@@ -27,14 +27,6 @@ if (!defined('_PS_VERSION_')) {
 
 class ModelBrtHistory extends ObjectModel
 {
-    const SENT = 'SENT';
-    const DELIVERED = 'DELIVERED';
-    const TRANSIT = 'TRANSIT';
-    const FERMOPOINT = 'FERMOPOINT';
-    const REFUSED = 'REFUSED';
-    const WAITING = 'WAITING';
-    const ERROR = 'ERROR';
-
     protected static $errors = [];
     public $id_order;
     public $id_order_state;
@@ -51,6 +43,7 @@ class ModelBrtHistory extends ObjectModel
     public $date_shipped;
     public $date_delivered;
     public $days;
+    public $note;
     public $json;
     public $date_add;
     public $date_upd;
@@ -136,11 +129,17 @@ class ModelBrtHistory extends ObjectModel
                 'validate' => 'isUnsignedInt',
                 'required' => false,
             ],
-            'json' => [
+            'note' => [
                 'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
                 'required' => false,
                 'size' => 999999999,
+            ],
+            'json' => [
+                'type' => self::TYPE_STRING,
                 'validate' => 'isAnything',
+                'required' => false,
+                'size' => 999999999,
             ],
             'date_add' => [
                 'type' => self::TYPE_DATE,
@@ -171,59 +170,10 @@ class ModelBrtHistory extends ObjectModel
         return Db::getInstance()->executeS($sql);
     }
 
-    public static function getOrderByLastOrderState(int $id_order_state)
-    {
-        $sql = new DbQuery();
-        $sql->select('id_order')
-            ->from(self::$definition['table'])
-            ->where('id_order_state = ' . (int) $id_order_state)
-            ->orderBy(self::$definition['primary'] . ' DESC');
-
-        return Db::getInstance()->getValue($sql);
-    }
-
-    public static function getOrdersByLastCurrentState(string $order_state)
+    public static function getDashBoardShippings(string $order_state)
     {
         $id_lang = (int) Context::getContext()->language->id;
         $sql = new DbQuery();
-
-        switch ($order_state) {
-            case self::SENT:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_SENT);
-
-                break;
-            case self::DELIVERED:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_DELIVERED);
-
-                break;
-            case self::TRANSIT:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_TRANSIT);
-
-                break;
-            case self::FERMOPOINT:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_FERMOPOINT);
-
-                break;
-            case self::REFUSED:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_REFUSED);
-
-                break;
-            case self::WAITING:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_WAITING);
-
-                break;
-            case self::ERROR:
-                $order_state = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
-                $id_order_state = ModelBrtEvento::getOrderStatesByBrtState(ModelBrtEvento::EVENT_ERROR);
-
-                break;
-        }
 
         $sql->select('a.id_order')
             ->select('a.event_id')
@@ -317,119 +267,6 @@ class ModelBrtHistory extends ObjectModel
             ->orderBy(self::$definition['primary'] . ' DESC');
 
         return Db::getInstance()->getRow($sql);
-    }
-
-    public static function getIdOrderStateByIdOrder($id_order)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('id_order_state')
-            ->from(self::$definition['table'])
-            ->where('id_order = ' . (int) $id_order)
-            ->orderBy(self::$definition['primary'] . ' DESC');
-
-        $value = (int) $db->getValue($sql);
-
-        if (!$value) {
-            $order = new Order($id_order);
-            if (!\Validate::isLoadedObject($order) ) {
-                return 0;
-            }
-
-            $event_id = ModelBrtConfig::getBrtStateFromIdOrderState($order->current_state);
-        }
-
-        return $value;
-    }
-
-    public static function getIdColloByIdOrder($id_order)
-    {
-        $order = new Order($id_order);
-        if (!Validate::isLoadedObject($order)) {
-            return false;
-        }
-
-        $tracking_by = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE);
-        $tracking_on = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE);
-        $rmn = '';
-        $rma = '';
-
-        if ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-            $rmn = $order->id;
-            $rma = '';
-        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-            $rmn = $order->reference;
-            $rma = '';
-        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
-            $rmn = '';
-            $rma = $order->id;
-        } elseif ($tracking_by == ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA && $tracking_on == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
-            $rmn = '';
-            $rma = $order->reference;
-        }
-
-        $sql = new DbQuery();
-        $sql->select('`id_collo` as `tracking_number`, `anno_spedizione`')
-            ->from(self::$definition['table'])
-            ->where('id_order = ' . (int) $id_order)
-            ->where('id_collo is not null')
-            ->orderBy(self::$definition['primary'] . ' DESC');
-
-        $tracking = Db::getInstance()->getRow($sql);
-        if ($tracking && strlen($tracking['tracking_number']) == 12) {
-            return $tracking;
-        }
-
-        // Cerco il tracking nella tabella order_carrier
-        $sql = new DbQuery();
-        $sql->select("`tracking_number`, YEAR('date_add') as `anno_spedizione`")
-            ->from('order_carrier')
-            ->where('id_order = ' . (int) $id_order)
-            ->where('tracking_number is not null')
-            ->orderBy('id_order_carrier DESC');
-        $tracking = Db::getInstance()->getRow($sql);
-
-        if ($tracking && strlen($tracking['tracking_number']) == 12) {
-            return $tracking;
-        }
-
-        // se l'ordine è più vecchio di 15 giorni dalla data odierna, il tracking non può più essere richiesto
-        $db = Db::getInstance();
-        $sql = 'SELECT date_add from ' . _DB_PREFIX_ . 'orders where id_order = ' . (int) $id_order;
-        $date_add = $db->getValue($sql);
-        if ($date_add && Validate::isDate($date_add)) {
-            $date_add = new DateTime($date_add);
-            $date_now = new DateTime();
-            $diff = $date_add->diff($date_now);
-            if ($diff->days > 15) {
-                return false;
-            }
-        }
-
-        // Cerco il tracking nel DB di BRT
-        if ($rmn) {
-            $tracking = self::getTrackingNumberByRMN($rmn);
-        } elseif ($rma) {
-            $tracking = self::getTrackingNumberByRMA($rma);
-        }
-
-        if ($tracking) {
-            // Aggiorno il tracking nella tabella order_carrier
-            $db = db::getInstance();
-            $db->update(
-                'order_carrier',
-                [
-                    'tracking_number' => pSQL($tracking),
-                ],
-                'id_order = ' . (int) $id_order
-            );
-
-            return [
-                'tracking_number' => $tracking,
-            ];
-        }
-
-        return false;
     }
 
     public static function getIdColloByTrackingNumber($tracking_number, $anno)

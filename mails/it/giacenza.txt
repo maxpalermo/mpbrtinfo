@@ -1,0 +1,22 @@
+Spedizione in giacenza per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La tua spedizione è attualmente in giacenza presso il magazzino BRT.
+Dopo diversi tentativi di consegna non andati a buon fine, il pacco è stato portato in giacenza.
+
+Cosa puoi fare ora:
+1. Contattare direttamente BRT al numero di assistenza clienti per concordare una nuova consegna
+2. Richiedere il ritiro del pacco presso la filiale BRT
+3. Attendere che il pacco venga restituito al mittente (dopo 7 giorni di giacenza)
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data di messa in giacenza: {last_update}
+
+Ti preghiamo di contattarci il prima possibile per indicarci come desideri procedere.
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

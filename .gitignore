@@ -71,7 +71,6 @@
 *.hot-update.js
 *.hot-update.json
 
-
 /admin-dev/autoupgrade/*
 !/admin-dev/autoupgrade/index.php
 !/admin-dev/autoupgrade/backup/index.php
@@ -132,7 +131,6 @@ php-cs-fixer
 # Translations and emails templates
 
 translations/*
-mails/*
 !mails/themes/
 !mails/_partials/
 themes/default-bootstrap/lang/*
@@ -170,4 +168,3 @@ themes/default-bootstrap/modules/*/mails/*
 !var/SymfonyRequirements.php
 /vendor/
 /web/bundles/
-

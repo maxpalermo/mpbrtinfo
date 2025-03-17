@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Spedizione consegnata al FermoPoint</title>
+        <style>
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                color: #333;
+                line-height: 1.6;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .header {
+                border-bottom: 4px solid #333333;
+                padding-bottom: 15px;
+                text-align: center;
+            }
+            .content {
+                padding: 20px 0;
+            }
+            .footer {
+                border-top: 1px solid #ddd;
+                padding-top: 15px;
+                font-size: 12px;
+                color: #777;
+            }
+            h1 {
+                color: #0077b6;
+            }
+            .highlight {
+                font-weight: bold;
+                color: #0077b6;
+            }
+            .button {
+                display: inline-block;
+                padding: 10px 20px;
+                background-color: #0077b6;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+                margin-top: 15px;
+            }
+            .success {
+                background-color: #d4edda;
+                border: 1px solid #c3e6cb;
+                color: #155724;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 15px 0;
+            }
+            .info {
+                background-color: #d1ecf1;
+                border: 1px solid #bee5eb;
+                color: #0c5460;
+                padding: 10px;
+                border-radius: 4px;
+                margin: 15px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <a title="{shop_name}" href="{shop_url}">
+                    <img src="{shop_logo}" alt="{shop_name}" />
+                </a>
+            </div>
+            <div class="content">
+                <h1>Aggiornamento spedizione ordine #{id_order}</h1>
+                <p>Gentile {firstname} {lastname},</p>
+                
+                <div class="success">
+                    <p><strong>La tua spedizione è stata presa in carico da Bartolini</p>
+                </div>
+                
+                <div class="info">
+                    <p>Lo stato della tua spedizione è stato aggiornato: <strong>{tracking_status}</strong></p>
+                    <p>Numero di tracking: <strong>{tracking_number}</strong></p>
+                    <p>Data ultimo aggiornamento: {last_update}</p>
+                    <p>Codice di consegna: {reason}</p>
+                </div>
+                
+                <p>Puoi seguire la tua spedizione cliccando sul seguente link:</p>
+                <a href="{tracking_url}" class="button">Traccia la tua spedizione</a>
+            </div>
+            <div class="footer">
+                <p>Grazie per aver scelto {shop_name}!</p>
+                <p>Per qualsiasi domanda o assistenza, non esitare a contattarci.</p>
+            </div>
+        </div>
+    </body>
+</html>

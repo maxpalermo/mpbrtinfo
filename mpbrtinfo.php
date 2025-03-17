@@ -1,4 +1,7 @@
 <?php
+
+use Doctrine\ORM\QueryBuilder;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -24,10 +27,10 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/models/autoload.php';
 
-use Doctrine\ORM\QueryBuilder;
 use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
-use MpSoft\MpBrtInfo\Ajax\AjaxInsertEventiSQL;
+use MpSoft\MpBrtInfo\Bolla\Evento;
 use MpSoft\MpBrtInfo\Core\Grid\Column\Type\CarrierColumn;
+use MpSoft\MpBrtInfo\Fetch\FetchConfigHandler;
 use PrestaShop\PrestaShop\Core\Grid\Filter\Filter;
 use PrestaShop\PrestaShop\Core\Search\Filters\CustomerFilters;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -67,7 +70,7 @@ class MpBrtInfo extends Module
         $this->displayName = $this->l('MP BRT Tracking & Delivery results with SOAP');
         $this->description = $this->l('Manage Bartolini tracking & delivery results, with state change');
         $this->adminClassName = 'AdminMpBrtDelivered';
-        $this->ps_versions_compliancy = ['min' => '1.8.0', 'max' => _PS_VERSION_];
+        $this->ps_versions_compliancy = ['min' => '8.0', 'max' => _PS_VERSION_];
         $this->db = Db::getInstance();
         $this->link = $this->context->link;
         $this->InstallMenu = new MpSoft\MpBrtInfo\Helpers\InstallHelper();
@@ -87,6 +90,7 @@ class MpBrtInfo extends Module
             'dashboardData',
             'actionOrderGridDefinitionModifier',
             'actionOrderGridQueryBuilderModifier',
+            'actionBeforeSendTrackingEmail',
         ];
 
         $install =
@@ -208,6 +212,21 @@ class MpBrtInfo extends Module
                 false, // pdf delivery
                 'waiting'
             );
+            $this->InstallMenu->createOrderState(
+                'BRT - Lasciato Avviso',
+                '#FFA500',
+                false,
+                '',
+                $this->name,
+                false, // hidden
+                true, // logable
+                false, // delivered
+                true, // shipped
+                true, // paid
+                false, // pdf invoice
+                false, // pdf delivery
+                'warning'
+            );
             ModelBrtConfig::setDefaultValues();
         } catch (Throwable $th) {
             PrestaShopLogger::addLog($th->getMessage(), 2, $th->getCode(), 'MpBrtInfo');
@@ -259,27 +278,7 @@ class MpBrtInfo extends Module
 
     public function hookDashboardZoneTwo()
     {
-        $fermopoint = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::FERMOPOINT);
-        $delivered = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::DELIVERED);
-        $transit = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::TRANSIT);
-        $refused = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::REFUSED);
-        $waiting = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::WAITING);
-        $error = ModelBrtHistory::getOrdersByLastCurrentState(ModelBrtHistory::ERROR);
-
-        $params = [
-            'orders_fermopoint' => $fermopoint,
-            'orders_delivered' => $delivered,
-            'orders_transit' => $transit,
-            'orders_refused' => $refused,
-            'orders_waiting' => $waiting,
-            'orders_error' => $error,
-            'token' => Tools::getAdminTokenLite('AdminOrders'),
-        ];
-
-        $smarty = Context::getContext()->smarty;
-        $smarty->assign($params);
-
-        return $this->display(__FILE__, 'dashboard/order_info.tpl');
+        return '';
     }
 
     public function hookDashboardData()
@@ -295,10 +294,15 @@ class MpBrtInfo extends Module
 
         $path = $this->getLocalPath() . 'views/templates/admin/toolbar/buttons.tpl';
         $tpl = $this->context->smarty->createTemplate($path);
-        $tpl->assign('ajax_controller', $this->context->link->getModuleLink($this->name, 'CronJobs'));
         $html = $tpl->fetch();
 
         return $html;
+    }
+
+    public function hookActionBeforeSendTrackingEmail($params)
+    {
+        // Permette ad altri moduli di modificare i dati dell'email
+        return $params;
     }
 
     public function hookActionOrderGridDefinitionModifier(array $params)
@@ -334,13 +338,6 @@ class MpBrtInfo extends Module
                 ])
                 ->setAssociatedColumn('id_carrier')
         );
-    }
-
-    public function displayCarrierIcon($id_order)
-    {
-        $icon = $this->displayCarrier->display($id_order);
-
-        return $icon;
     }
 
     /**
@@ -393,15 +390,17 @@ class MpBrtInfo extends Module
                 $path . 'js/swal2/sweetalert2.all.min.js',
                 $path . 'js/htmx/htmx.min.js',
                 $path . 'js/panels/brt-esiti.js',
-                $path . 'js/scripts/AdminOrders.js'
+                $path . 'js/scripts/AdminOrders.js',
+                $path . 'js/tippy/popper-core2.js',
+                $path . 'js/tippy/tippy.js',
             ]);
             $this->context->controller->addCSS([
                 $path . 'js/swal2/sweetalert2.min.css',
                 $path . 'css/spacer.bs.css',
                 $path . 'css/style.css',
+                $path . 'js/tippy/scale.css',
             ]);
         }
-
     }
 
     public function hookActionObjectOrderHistoryAddAfter($params)
@@ -443,31 +442,15 @@ class MpBrtInfo extends Module
         return $script;
     }
 
-    public function getFrontControllerLink($params = [])
+    public function displayCarrierIcon($id_order)
     {
-        return $this->context->link->getModuleLink($this->name, 'CronJobs', $params);
-    }
+        // $evento = Evento::getLastEventByOrderId($id_order);
+        $evento = ModelBrtEvento::getEventFull($id_order);
+        if (!$evento) {
+            return false;
+        }
 
-    public function setTrackingLink($row)
-    {
-        $id_carrier = (int) $row['id_carrier'];
-        $carrier = new Carrier($id_carrier);
-        $url = $carrier->url;
-        $tracking_number = $row['tracking_number'];
-        $link = str_replace('@', $tracking_number, $url);
-        $html = '<a href="' . $link . '" target="_blank">' . $tracking_number . '</a>';
-
-        return $html;
-    }
-
-    public function setOrderLink($reference)
-    {
-        $sql = 'select id_order from ' . _DB_PREFIX_ . "orders where reference = '" . pSQL($reference) . "'";
-        $id_order = (int) $this->db->getValue($sql);
-        $url = $this->link->getAdminLink('AdminOrders') . '&id_order=' . $id_order . '&vieworder';
-        $html = '<a href="' . $url . '" target="_blank">' . $reference . '</a>';
-
-        return $html;
+        return $evento;
     }
 
     public function getContent()
@@ -479,56 +462,9 @@ class MpBrtInfo extends Module
         return $this->renderForm();
     }
 
-    protected function getIcons()
-    {
-        $icons = [
-            'CONSEGNATO' => MpSoft\MpBrtInfo\Helpers\Icons::getIconDelivered(),
-            'ERRORE' => MpSoft\MpBrtInfo\Helpers\Icons::getIconError(),
-            'FERMOPOINT' => MpSoft\MpBrtInfo\Helpers\Icons::getIconFermopoint(),
-            'RIFIUTATO' => MpSoft\MpBrtInfo\Helpers\Icons::getIconRefused(),
-            'SPEDITO' => MpSoft\MpBrtInfo\Helpers\Icons::getIconShipped(),
-            'IN TRANSITO' => MpSoft\MpBrtInfo\Helpers\Icons::getIconTransit(),
-            'SCONOSCIUTO' => MpSoft\MpBrtInfo\Helpers\Icons::getIconUnknown(),
-            'IN ATTESA' => MpSoft\MpBrtInfo\Helpers\Icons::getIconWaiting(),
-        ];
-
-        return $icons;
-    }
-
-    public function gridGetTrackingNumber($id_order)
-    {
-        return $this->brtDb->getOrderTracking($id_order);
-    }
-
-    public function gridGetTrans($type)
-    {
-        switch ($type) {
-            case 'transit':
-                return $this->l('Get shipment info.');
-            case 'shipped':
-                return $this->l('Get tracking number.');
-            case 'delivered':
-                return $this->l('Get delivered info.');
-            default:
-                return '';
-        }
-    }
-
-    public function processCallbackDisplayCarrier($value, $row)
-    {
-        return $this->displayCarrier->display($row['id_order']);
-    }
-
     public function renderForm()
     {
-        $postProcessMessage = $this->postProcess();
-        $order_states = OrderState::getOrderStates($this->id_lang);
-        $carriers = Carrier::getCarriers($this->id_lang);
-        $cronJobsClass = $this->context->link->getModuleLink($this->name, 'Cron');
-
-        foreach ($carriers as &$carrier) {
-            $carrier['id_carrier'] = $carrier['name'];
-        }
+        $postProcess = $this->postProcess();
 
         $fields_form = [
             'form' => [
@@ -542,7 +478,7 @@ class MpBrtInfo extends Module
                         'label' => $this->l('Test WSDL'),
                         'name' => 'test_wsdl',
                         'desc' => $this->l('Permette di testare il WSDL'),
-                        'required' => true,
+                        'required' => false,
                         'html_content' => $this->renderTestWSDL(),
                     ],
                     [
@@ -565,14 +501,13 @@ class MpBrtInfo extends Module
                         ],
                     ],
                     [
-                        'type' => 'text',
+                        'col' => 6,
+                        'type' => 'html',
                         'label' => $this->l('Automazione'),
                         'name' => ModelBrtConfig::MP_BRT_INFO_CRON_JOB,
                         'desc' => $this->l('Copia questo link e usalo per automatizzare le operazioni,'),
-                        'required' => true,
-                        'suffix' => '<i class="icon icon-edit"></i>',
-                        'class' => 'copy-clipboard',
-                        'col' => 6,
+                        'required' => false,
+                        'html_content' => $this->renderCronJob(),
                     ],
                     [
                         'col' => 3,
@@ -592,11 +527,19 @@ class MpBrtInfo extends Module
                         'required' => true,
                         'multiple' => true,
                         'options' => [
-                            'query' => $carriers,
-                            'id' => 'id_carrier',
+                            'query' => Carrier::getCarriers($this->context->language->id),
+                            'id' => 'name',
                             'name' => 'name',
                         ],
                         'class' => 'chosen',
+                    ],
+                    [
+                        'col' => 3,
+                        'type' => 'text',
+                        'label' => $this->l('Inizia la ricerca da'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_START_FROM,
+                        'desc' => $this->l('Le ricerca dello stato delle spedizioni inizierà da questo codice ordine'),
+                        'required' => true,
                     ],
                     [
                         'col' => 6,
@@ -606,6 +549,36 @@ class MpBrtInfo extends Module
                         'desc' => $this->l('Spunta dall\'elenco tutti gli stati da non considerare durante la ricerca'),
                         'required' => true,
                         'html_content' => $this->renderSkipStates(),
+                    ],
+                    [
+                        'col' => 6,
+                        'type' => 'select',
+                        'label' => $this->l('Seleziona gli stati SPEDITO'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_SHIPPED . '[]',
+                        'desc' => $this->l('Questi stati saranno considerati come SPEDITO'),
+                        'required' => true,
+                        'multiple' => true,
+                        'options' => [
+                            'query' => OrderState::getOrderStates($this->id_lang),
+                            'id' => 'id_order_state',
+                            'name' => 'name',
+                        ],
+                        'class' => 'chosen',
+                    ],
+                    [
+                        'col' => 6,
+                        'type' => 'select',
+                        'label' => $this->l('Seleziona gli stati CONSEGNATO'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_OS_DELIVERED . '[]',
+                        'desc' => $this->l('Questi stati saranno considerati come CONSEGNATO'),
+                        'required' => true,
+                        'multiple' => true,
+                        'options' => [
+                            'query' => OrderState::getOrderStates($this->id_lang),
+                            'id' => 'id_order_state',
+                            'name' => 'name',
+                        ],
+                        'class' => 'chosen',
                     ],
                     [
                         'type' => 'radio',
@@ -646,102 +619,22 @@ class MpBrtInfo extends Module
                         ],
                     ],
                     [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento spedito'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_SENT,
-                        'desc' => $this->l('Seleziona l\'evento spedito'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
+                        'type' => 'switch',
+                        'label' => $this->l('Invia email di aggiornamento'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL,
+                        'desc' => $this->l('Invia email al cliente quando lo stato della spedizione viene aggiornato'),
+                        'values' => [
+                            [
+                                'id' => 'active_on',
+                                'value' => 1,
+                                'label' => $this->l('Abilitato'),
+                            ],
+                            [
+                                'id' => 'active_off',
+                                'value' => 0,
+                                'label' => $this->l('Disabilitato'),
+                            ],
                         ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento in transito'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT,
-                        'desc' => $this->l('Seleziona l\'evento in transito'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento consegnato'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED,
-                        'desc' => $this->l('Seleziona l\'evento consegnato'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento Fermopoint'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT,
-                        'desc' => $this->l('Seleziona l\'evento Fermopoint'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento giacenza'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING,
-                        'desc' => $this->l('Seleziona l\'evento in giacenza'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento rifiutato'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED,
-                        'desc' => $this->l('Seleziona l\'evento rifiutato'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
-                    ],
-                    [
-                        'col' => 3,
-                        'type' => 'select',
-                        'label' => $this->l('Evento errore di spedizione'),
-                        'name' => ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR,
-                        'desc' => $this->l('Seleziona l\'evento errore di spedizione'),
-                        'required' => true,
-                        'options' => [
-                            'query' => $order_states,
-                            'id' => 'id_order_state',
-                            'name' => 'name',
-                        ],
-                        'class' => 'chosen',
                     ],
                 ],
                 'submit' => [
@@ -766,33 +659,63 @@ class MpBrtInfo extends Module
             ],
         ];
         $helper->tpl_vars = [
-            'fields_value' => self::getConfigValues(),
+            'fields_value' => ModelBrtConfig::getConfigValues(),
         ];
 
-        $form = $helper->generateForm([$fields_form]);
+        $htmlConfigForm = $helper->generateForm([$fields_form]);
+        $htmlMessage = $this->renderHtmlMessage($postProcess);
+        $htmlEventi = $this->renderEventsPanel();
+        $htmlEsiti = $this->renderEsitiPanel();
+        $htmlPreviewMail = $this->renderPreviewMail();
+        $htmlTabWrapper = $this->renderTabWrapper($htmlConfigForm, $htmlEventi, $htmlEsiti, $htmlPreviewMail);
 
-        $tplIconsPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/00-icons.tpl';
-        $tplIcons = $this->context->smarty->createTemplate($tplIconsPath);
-        $tplIcons->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
-        $tplIcons->assign('icons', $this->getIcons());
-        $htmlIcons = $tplIcons->fetch();
+        return $htmlMessage . $htmlTabWrapper;
+    }
 
-        $tplEventiPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-eventi.tpl';
-        $tplEventi = $this->context->smarty->createTemplate($tplEventiPath);
-        $tplEventi->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
-        $tplEventi->assign('eventi', (new AjaxInsertEventiSQL)->getList());
-        $htmlEventi = $tplEventi->fetch();
+    protected function renderCronJob()
+    {
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/cron-job.tpl';
+        $tpl = $this->context->smarty->createTemplate($file);
+        $tpl->assign('cronJobUrl', $this->context->link->getModuleLink($this->name, 'Cron'));
 
-        $tplEsitiPath = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-esiti.tpl';
-        $tplEsiti = $this->context->smarty->createTemplate($tplEsitiPath);
-        $tplEsiti->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
-        $tplEsiti->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
-        $htmlEsiti = $tplEsiti->fetch();
+        return $tpl->fetch();
+    }
 
-        $tpl_query = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/modal_query.tpl';
-        //$modal_query = $this->context->smarty->fetch($tpl_query);
+    protected function renderHtmlMessage($postProcess)
+    {
+        if ($postProcess) {
+            $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/html_message.tpl';
+            $tpl = $this->context->smarty->createTemplate($file);
 
-        return $postProcessMessage . $htmlIcons . $form . $htmlEventi . $htmlEsiti;
+            return $tpl->fetch();
+        }
+
+        return '';
+    }
+
+    protected function getEmailEvents()
+    {
+        return [
+            ['id' => 'tracking_assigned', 'name' => $this->l('Assegnazione numero tracking')],
+            ['id' => 'in_transit', 'name' => $this->l('In transito')],
+            ['id' => 'out_for_delivery', 'name' => $this->l('In consegna')],
+            ['id' => 'delivered', 'name' => $this->l('Consegnato')],
+            ['id' => 'exception', 'name' => $this->l('Eccezione di consegna')],
+        ];
+    }
+
+    protected function renderTabWrapper($htmlConfigForm, $htmlEventi, $htmlEsiti, $htmlPreviewMail)
+    {
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/tab-wrapper.tpl';
+        $tpl = $this->context->smarty->createTemplate($file);
+        $tpl->assign([
+            'htmlConfigForm' => $htmlConfigForm,
+            'htmlEventi' => $htmlEventi,
+            'htmlEsiti' => $htmlEsiti,
+            'htmlPreviewMail' => $htmlPreviewMail,
+        ]);
+
+        return $tpl->fetch();
     }
 
     protected function renderSkipStates()
@@ -803,7 +726,59 @@ class MpBrtInfo extends Module
         $tpl->assign('skip_states', $skip_states);
         $tpl->assign('order_states', OrderState::getOrderStates($this->context->language->id));
         $tpl->assign('input_skip_name', ModelBrtConfig::MP_BRT_INFO_OS_SKIP);
+
         return $tpl->fetch();
+    }
+
+    protected function renderEventsPanel()
+    {
+        $emails = FetchConfigHandler::getOptionsEmail();
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-eventi.tpl';
+        $tplEventi = $this->context->smarty->createTemplate($file);
+        $orderStates = OrderState::getOrderStates($this->context->language->id);
+        $tplEventi->assign([
+            'adminControllerURL' => $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name,
+            'eventi' => ModelBrtEvento::getList(),
+            'order_states' => $orderStates,
+            'emails' => $emails,
+        ]);
+        $htmlEventi = $tplEventi->fetch();
+
+        return $htmlEventi;
+    }
+
+    protected function renderEsitiPanel()
+    {
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/table-esiti.tpl';
+        $tplEsiti = $this->context->smarty->createTemplate($file);
+        $tplEsiti->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
+        $tplEsiti->assign('esiti', (new AjaxInsertEsitiSQL())->getList());
+        $htmlEsiti = $tplEsiti->fetch();
+
+        return $htmlEsiti;
+    }
+
+    protected function renderPreviewMail()
+    {
+        $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/preview-mail.tpl';
+        $tpl = $this->context->smarty->createTemplate($file);
+        $tpl->assign('adminControllerURL', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name);
+        $tpl->assign('emails', $this->getEmailTemplates());
+        $htmlPreviewMail = $tpl->fetch();
+
+        return $htmlPreviewMail;
+    }
+
+    protected function getEmailTemplates()
+    {
+        $path = $this->getLocalPath() . 'mails/it/';
+        $files = glob($path . '*.html');
+        $templates = [];
+        foreach ($files as $file) {
+            $templates[] = pathinfo($file, PATHINFO_FILENAME);
+        }
+
+        return $templates;
     }
 
     protected function renderTestWSDL()
@@ -814,50 +789,98 @@ class MpBrtInfo extends Module
         $tpl = $this->context->smarty->createTemplate($file);
         $tpl->assign('adminControllerURL', $adminControllerURL);
         $tpl->assign('importPath', $importPath);
+
         return $tpl->fetch();
     }
+
     public function postProcess()
     {
         if (Tools::isSubmit('submitForm')) {
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, false));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, ''));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, [])));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_SHIPPED_STATES, json_encode(Tools::getValue(ModelBrtConfig::MP_BRT_SHIPPED_STATES, [])));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, 'RMN'));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR, 0));
-            Configuration::updateValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []));
-            return $this->l('Configurazione aggiornata.');
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_USE_SSL, false));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER, ''));
+            ModelBrtConfig::setBrtCarriers(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS, []));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_START_FROM, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_START_FROM, 0));
+            ModelBrtConfig::setBrtOsSkip(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []));
+            ModelBrtConfig::setBrtOsShipped(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_SHIPPED, []));
+            ModelBrtConfig::setBrtOsDelivered(Tools::getValue(ModelBrtConfig::MP_BRT_INFO_OS_DELIVERED, []));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, 'RMN'));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, 0));
+
+            return true;
         }
 
-        return '';
+        return false;
     }
 
-    public static function getConfigValues()
+    public function getCarrierName($id_order)
     {
-        $cronTaskInfoShipping = Context::getContext()->link->getModuleLink('mpbrtinfo', 'Cron', ['action' => 'getShippingsInfo']);
+        $id_lang = (int) Context::getContext()->language->id;
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return '';
+        }
 
-        return [
-            ModelBrtConfig::MP_BRT_INFO_USE_SSL => (int) Configuration::get(ModelBrtConfig::MP_BRT_INFO_USE_SSL),
-            ModelBrtConfig::MP_BRT_INFO_CRON_JOB => $cronTaskInfoShipping,
-            ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER => Configuration::get(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER),
-            ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_INFO_BRT_CARRIERS), true),
-            ModelBrtConfig::MP_BRT_SHIPPED_STATES . '[]' => json_decode(Configuration::get(ModelBrtConfig::MP_BRT_SHIPPED_STATES), true),
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE),
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE => Configuration::get(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_SENT => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED),
-            ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR => Configuration::get(ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR),
-        ];
+        $carrier = new Carrier($order->id_carrier, $id_lang);
+        if (!Validate::isLoadedObject($carrier)) {
+            return '';
+        }
+
+        return $carrier->name;
+    }
+
+    public function getCarrierImage(...$params)
+    {
+        foreach ($params as $key => $param) {
+            $id_carrier = 0;
+            $id_order = 0;
+            if ($key == 'id_carrier') {
+                $id_carrier = (int) $param;
+            }
+            if ($key == 'id_order') {
+                $id_order = (int) $param;
+            }
+            if ($id_order && !$id_carrier) {
+                $order = new Order($id_order);
+                if (!Validate::isLoadedObject($order)) {
+                    $id_carrier = 0;
+                    $id_order = 0;
+                } else {
+                    $id_carrier = $order->id_carrier;
+                }
+            }
+            if ($id_carrier) {
+                return $this->context->link->getMediaLink('/img/s/' . $id_carrier . '.jpg');
+            }
+        }
+
+        return $this->context->link->getMediaLink('/404.jpg');
+    }
+
+    public function getTrackingNumber($id_order)
+    {
+        $order = new Order($id_order);
+        if (!Validate::isLoadedObject($order)) {
+            return '';
+        }
+
+        $sql = new DbQuery();
+        $sql->select('tracking_number')
+            ->from('order_carrier')
+            ->where('id_order=' . (int) $order->id)
+            ->where('id_carrier=' . (int) $order->id_carrier)
+            ->orderBy('id_order_carrier DESC');
+
+        return Db::getInstance()->getValue($sql);
+    }
+
+    public function getCarrierLink($id_carrier, $id_collo)
+    {
+        $carrier = new Carrier($id_carrier);
+        if (!Validate::isLoadedObject($carrier)) {
+            return 'javascript:void(0);';
+        }
+
+        return str_replace('@', $id_collo, $carrier->url);
     }
 }

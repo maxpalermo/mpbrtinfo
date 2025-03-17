@@ -1,26 +1,60 @@
-{% set key = column.options.callback_class %}
+{% set class = column.options.callback_class %}
 {% set method = column.options.callback_method %}
-{% set arguments = record[column.options.field] %}
-{% set carrier = attribute(key, method, [arguments]) %}
+{% set id_order = record[column.options.field] %}
+{% set event = attribute(class, method, [id_order]) %}
 
-<a
-    href="javascript:void(0);"
-    class="btn brt-info-button"
-    data-orderId="{{ carrier.order_id }}"
-    data-colloId="{{ carrier.collo_id }}"
-    data-carrierId="{{ carrier.carrier_id }}"
-    data-rmn="{{ carrier.rmn }}"
-    data-rma="{{ carrier.rma }}"
-    data-link="{{ carrier.link }}"
-    title="{{ 'Carrier'|trans({}, 'Modules.Mpbrtinfo.Admin') }}:{{ carrier.carrier_name }}{% if carrier.collo_id %} - Tracking: {{ carrier.collo_id }}{% endif %}"
-    >
-    {%if carrier.image%}
-    <img src="{{ carrier.image }}" style="width: 48px; object-fit: contain;" title="{{ carrier.carrier_name }}">
-    {%else%}
-    <div style="width: 48px; height: 48px; border: 4px double {{ carrier.status_color }}; display: flex; justify-content: center; align-items: center;">
-        <div class="material-icons" style="color: {{ carrier.status_color }};">
-            {{ carrier.status_icon }}
-        </div>
+{% if event is same as(false) %}
+    {% set carrier_image = attribute(class, 'getCarrierImage', {id_order:id_order}) %}
+    {% set carrier_name = attribute(class, 'getCarrierName', {id_order:id_order}) %}
+    {% set tracking_number = attribute(class, 'getTrackingNumber', [id_order]) %}
+    <div 
+        class="brt-info-button d-flex justify-content-center align-items-center" 
+        data-id_order="{{ id_order }}" 
+        data-id_collo="{{ tracking_number }}" 
+        data-tippy-content="
+            {{ 'Carrier'|trans({}, 'Modules.Mpbrtinfo.Admin') }}: {{ carrier_name }}
+            {% if tracking_number %} <br>Tracking: {{ tracking_number }}{% endif %}
+        ">
+        <img src="{{ carrier_image }}" style="max-width: 64px; object-fit: contain;">
     </div>
-    {%endif%}
-</a>
+{% else %}
+    {% set image = attribute(class, 'getCarrierImage', { id_carrier: event.carrier_id, id_order: id_order }) %}
+    {% set carrier_link = attribute(class, 'getCarrierLink', { id_carrier: event.carrier_id, id_collo: event.id_collo }) %}
+
+    <a
+        {%if event.event_icon is defined and event.event_icon %}
+            href="{{ carrier_link }}"
+        {%else%}
+            href="javascript:void(0);"
+        {%endif%}
+        class="btn brt-info-button"
+        data-id_order="{{ event.order_id }}"
+        data-id_collo="{{ event.id_collo }}"
+        data-id_carrier="{{ event.carrier_id }}"
+        data-rmn="{{ event.rmn }}"
+        data-rma="{{ event.rma }}"
+        data-days="{{ event.days }}"
+        data-anno_spedizione="{{ event.anno_spedizione }}"
+        {%if event.event_filiale_id is defined and event.event_filiale_id%}
+            data-filiale="({{ event.event_filiale_id }}) {{ event.event_filiale_name }}"
+        {%else%}
+            data-filiale=""
+        {%endif%}
+        data-note="{{ event.note }}"
+        data-tippy-content="
+            {{ 'Corriere'|trans({}, 'Modules.Mpbrtinfo.Admin') }}:{{ event.carrier_name }}
+            {% if event.id_collo %} <br>Tracking: {{ event.id_collo }}{% endif %}
+            {% if event.event_name %} <br>Stato attuale: {{ event.event_name }}{% endif %}
+            "
+        >
+        {%if not event.event_icon is defined or not event.event_icon%}
+            <img src="{{ image }}" style="width: 48px; object-fit: contain;">
+        {%else%}
+            <div style="width: 48px; height: 48px; border: 4px double {{ event.event_color }}; display: flex; justify-content: center; align-items: center;">
+                <div class="material-icons" style="color: {{ event.event_color }};">
+                    {{ event.event_icon }}
+                </div>
+            </div>
+        {%endif%}
+    </a>
+{% endif %}

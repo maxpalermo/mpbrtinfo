@@ -233,3 +233,16 @@
     top: 0;
     z-index: 1000;
 }
+
+.chosen-container.chosen-drop-up .chosen-drop {
+    top: auto;
+    bottom: 100%;
+}
+
+.badge-default {
+    background-color: #fcfcfc !important;
+    color: #555555 !important;
+    border: 2px solid #555555;
+    border-radius: 0 !important;
+    padding: 4px !important;
+}

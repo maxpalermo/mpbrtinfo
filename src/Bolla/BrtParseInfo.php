@@ -26,7 +26,7 @@ if (!defined('_PS_VERSION_')) {
 
 class BrtParseInfo
 {
-    public static function parseTrackingInfo($tracking_info, $esiti)
+    public static function parseTrackingInfo($tracking_info, $esiti, $id_order = 0)
     {
         $tracking = $tracking_info;
 
@@ -87,7 +87,7 @@ class BrtParseInfo
             ];
         }
 
-        $bolla = new Bolla($info);
+        $bolla = new Bolla($info, $id_order);
 
         return $bolla;
     }

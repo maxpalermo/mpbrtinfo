@@ -1,0 +1,22 @@
+Problema con la spedizione dell'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+Si è verificato un problema con la tua spedizione.
+BRT ha riscontrato un errore durante il processo di consegna.
+
+Stiamo lavorando con il corriere per risolvere il problema il prima possibile.
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data dell'errore: {last_update}
+- Motivo: {reason}
+
+Un membro del nostro team ti contatterà al più presto per fornirti maggiori informazioni e risolvere la situazione.
+
+Ci scusiamo per l'inconveniente e ti ringraziamo per la pazienza.
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

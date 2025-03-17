@@ -1,0 +1,15 @@
+Spedizione in arrivo al FermoPoint per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La tua spedizione è in transito verso il FermoPoint selezionato.
+Riceverai una notifica quando sarà disponibile per il ritiro.
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Ultimo aggiornamento: {last_update}
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

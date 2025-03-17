@@ -1,8 +1,17 @@
 window.addEventListener("modulesReady", function () {
+    //Tooltip con tippy
+
+    tippy(".brt-info-button", {
+        allowHTML: true,
+        animation: "scale",
+        placement: "top",
+        delay: [1000, 0]
+    });
+
     document.querySelectorAll(".brt-info-button").forEach((btn) => {
         btn.addEventListener("click", (e) => {
-            const id_order = btn.dataset.orderid;
-            const tracking = btn.dataset.colloid;
+            const id_order = btn.dataset.id_order;
+            const tracking = btn.dataset.id_collo;
             const rmn = btn.dataset.rmn;
             const rma = btn.dataset.rma;
 
@@ -31,6 +40,7 @@ window.addEventListener("modulesReady", function () {
             signal = window.GetTotalShippingsInstance.setAbortSignal();
             await window.GetTotalShippingsInstance.fetchTotalShippings();
             console.log("GetTotalShippingsInstance", window.GetTotalShippingsInstance);
+            // Se tutto va bene procedi
             if (window.GetTotalShippingsInstance.getStatus() == "success") {
                 totalShippings = window.GetTotalShippingsInstance.getTotalShippings();
                 Swal.fire({

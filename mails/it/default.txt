@@ -1,0 +1,8 @@
+Aggiornamento spedizione BRT
+
+Gentile {firstname} {lastname},
+
+[CONTENUTO SPECIFICO PER OGNI STATO]
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

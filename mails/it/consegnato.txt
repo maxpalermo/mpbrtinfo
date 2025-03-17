@@ -1,0 +1,17 @@
+Spedizione consegnata per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La tua spedizione è stata consegnata con successo!
+Speriamo che i prodotti siano di tuo gradimento.
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data di consegna: {last_update}
+
+Se hai riscontrato problemi con la consegna o con i prodotti ricevuti, ti preghiamo di contattarci il prima possibile.
+
+Puoi visualizzare i dettagli completi del tuo ordine nel tuo account cliente: {my_account_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

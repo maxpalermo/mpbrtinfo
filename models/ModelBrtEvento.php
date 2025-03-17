@@ -22,23 +22,14 @@ if (!defined('_PS_VERSION_')) {
 }
 class ModelBrtEvento extends ObjectModel
 {
-    const EVENT_TRANSIT = 'is_transit=1';
-    const EVENT_DELIVERED = 'is_delivered=1';
-    const EVENT_ERROR = 'is_error=1';
-    const EVENT_FERMOPOINT = 'is_fermopoint=1 and is_delivered=0';
-    const EVENT_REFUSED = 'is_refused=1';
-    const EVENT_WAITING = 'is_waiting=1 and is_fermopoint=0';
-    const EVENT_SENT = 'is_sent=1';
-
     public $id_evento;
     public $name;
-    public $is_error;
+    public $id_order_state;
+    public $email;
+    public $icon;
+    public $color;
+    public $is_shipped;
     public $is_delivered;
-    public $is_transit;
-    public $is_fermopoint;
-    public $is_waiting;
-    public $is_refused;
-    public $is_sent;
     public $date_add;
     public $date_upd;
     protected static $model_name = 'ModelBrtEvento';
@@ -60,37 +51,35 @@ class ModelBrtEvento extends ObjectModel
                 'size' => 255,
                 'required' => true,
             ],
-            'is_error' => [
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
+            'id_order_state' => [
+                'type' => self::TYPE_INT,
+                'validate' => 'isInt',
                 'required' => false,
             ],
-            'is_transit' => [
+            'email' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
+                'size' => 255,
+                'required' => false,
+            ],
+            'icon' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
+                'size' => 255,
+                'required' => false,
+            ],
+            'color' => [
+                'type' => self::TYPE_STRING,
+                'validate' => 'isGenericName',
+                'size' => 255,
+                'required' => false,
+            ],
+            'is_shipped' => [
                 'type' => self::TYPE_BOOL,
                 'validate' => 'isBool',
                 'required' => false,
             ],
             'is_delivered' => [
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => false,
-            ],
-            'is_fermopoint' => [
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => false,
-            ],
-            'is_waiting' => [
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => false,
-            ],
-            'is_refused' => [
-                'type' => self::TYPE_BOOL,
-                'validate' => 'isBool',
-                'required' => false,
-            ],
-            'is_sent' => [
                 'type' => self::TYPE_BOOL,
                 'validate' => 'isBool',
                 'required' => false,
@@ -108,60 +97,71 @@ class ModelBrtEvento extends ObjectModel
         ],
     ];
 
-    public function isError()
+    public static function getList()
     {
-        return (int) $this->is_error;
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('e.*')
+            ->select('COALESCE(osl.name, "Non cambiare stato") as order_state_name')
+            ->select('os.color as order_state_color')
+            ->from(self::$definition['table'], 'e')
+            ->leftJoin('order_state', 'os', 'e.id_order_state = os.id_order_state')
+            ->leftJoin('order_state_lang', 'osl', 'e.id_order_state = osl.id_order_state AND osl.id_lang = ' . (int) Context::getContext()->language->id)
+            ->orderBy('name');
+        $rows = $db->executeS($sql);
+
+        if (!$rows) {
+            return [];
+        }
+
+        return $rows;
     }
 
-    public function isRefused()
+    /**
+     * Restituisce un oggetto Evento dal codice Evento Bartolini
+     *
+     * @param string $id Id evento Bartolini
+     *
+     * @return bool|ModelBrtEvento
+     */
+    public static function getEvento($id)
     {
-        return (int) $this->is_refused;
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select(self::$definition['primary'])
+            ->from(self::$definition['table'])
+            ->where('id_evento = ' . (int) $id);
+        $id_evt = (int) $db->getValue($sql);
+        if ($id_evt) {
+            return new ModelBrtEvento($id_evt);
+        }
+
+        return false;
     }
 
-    public function isTransit()
+    public static function getEventi($groupBy = '')
     {
-        return (int) $this->is_transit;
-    }
-
-    public function isDelivered()
-    {
-        return (int) $this->is_delivered;
-    }
-
-    public function isFermopoint()
-    {
-        return (int) $this->is_fermopoint;
-    }
-
-    public function isWaiting()
-    {
-        return (int) $this->is_waiting;
-    }
-
-    public function isSent()
-    {
-        return (int) $this->is_sent;
-    }
-
-    public static function getEventi($type = '')
-    {
+        $groupByList = [
+            'icon',
+            'color',
+            'email',
+            'id_order_state',
+        ];
         $db = Db::getInstance();
         $sql = new DbQuery();
         $sql->select('*')
             ->from(self::$definition['table'])
             ->orderBy('name');
-        switch ($type) {
-            case self::EVENT_DELIVERED:
-            case self::EVENT_ERROR:
-            case self::EVENT_FERMOPOINT:
-            case self::EVENT_TRANSIT:
-            case self::EVENT_WAITING:
-            case self::EVENT_SENT:
-                $sql->where($type);
 
-                break;
-        }
         $rows = $db->executeS($sql);
+        if ($groupBy && in_array($groupBy, $groupByList)) {
+            $groups = [];
+            foreach ($rows as $row) {
+                $groups[$row[$groupBy]][] = new ModelBrtEvento($row[self::$definition['primary']]);
+            }
+
+            return $groups;
+        }
 
         $eventi = [];
         foreach ($rows as $row) {
@@ -171,13 +171,13 @@ class ModelBrtEvento extends ObjectModel
         return $eventi;
     }
 
-    public static function getIdByEvento($evento)
+    public static function getIdByEventName($eventName)
     {
         $db = Db::getInstance();
         $sql = new DbQuery();
         $sql->select(self::$definition['primary'])
             ->from(self::$definition['table'])
-            ->where('name = \'' . pSQL($evento) . '\'');
+            ->where('name = \'' . pSQL($eventName) . '\'');
         $id = $db->getValue($sql);
 
         if (!$id) {
@@ -185,28 +185,6 @@ class ModelBrtEvento extends ObjectModel
         }
 
         return $id;
-    }
-
-    public static function getOrderStatesByBrtState($brtState)
-    {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
-        $sql->select('*')
-            ->from(self::$definition['table'])
-            ->where($brtState)
-            ->orderBy('name');
-        $rows = $db->executeS($sql);
-
-        if ($rows) {
-            $id_states = array_column($rows, 'id_evento');
-            $id_states = array_map(function ($item) {
-                return "'" . pSQL($item) . "'";
-            }, $id_states);
-
-            return $id_states;
-        }
-
-        return [];
     }
 
     public static function getById($id)
@@ -234,31 +212,218 @@ class ModelBrtEvento extends ObjectModel
         throw new Exception('Event already exists with id ' . $exists->id, 1001);
     }
 
-    public function setFlag($flag, $value)
+    public static function getEmail($event_id)
     {
-        $flags = [
-            'is_error',
-            'is_delivered',
-            'is_transit',
-            'is_fermopoint',
-            'is_refused',
-            'is_waiting',
-            'is_sent',
-        ];
-        if (!in_array($flag, $flags)) {
-            throw new Exception('Flag unknown', 1003);
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('email')
+            ->from(self::$definition['table'])
+            ->where("id_evento = '{$event_id}'");
+        $email = $db->getValue($sql);
+
+        return $email;
+    }
+
+    public static function getEventFull($id_order, $id_event = null)
+    {
+        $evento = [];
+        $order = self::getOrder($id_order);
+        if (!$order) {
+            return false;
         }
-        $object = new ModelBrtEvento($this->id);
-        if (!Validate::isLoadedObject($object)) {
-            throw new Exception('Event ' . $this->name . ' not exists.', 1002);
+        $carrier = self::getCarrier($order['id_carrier']);
+        if (!$carrier) {
+            return false;
+        }
+        if (!$id_event) {
+            $evt = self::getLastEventHistory($id_order);
+            if ($evt) {
+                $id_event = $evt['event_id'];
+            } else {
+                return false;
+            }
+        }
+        $event = self::getEvent($id_event);
+        if (!$event) {
+            return false;
+        }
+        $event_note = '';
+        $lastEventHistory = self::getLastEventHistory($id_order, $id_event);
+        if ($lastEventHistory) {
+            // Se ancora non c'è un id_collo, cerco nella tabella oder_carrier
+            if (!$lastEventHistory['id_collo']) {
+                $sql = new DbQuery();
+                $sql->select('tracking_number')
+                    ->from('order_carrier')
+                    ->where('id_order=' . (int) $id_order)
+                    ->where('id_carrier=' . (int) $carrier['id_carrier'])
+                    ->orderBy('id_order_carrier DESC');
+                $lastEventHistory['id_collo'] = (int) Db::getInstance()->getValue($sql);
+            }
+            if ($lastEventHistory['note']) {
+                $event_note = json_decode($lastEventHistory['note'], true);
+            }
         }
 
-        return Db::getInstance()->update(
-            self::$definition['table'],
-            [
-                $flag . '=' . (int) $value,
-            ],
-            self::$definition['primary'] . '=' . (int) $this->id
-        );
+        $evento = [
+            'event_id' => $event['id_evento'],
+            'event_name' => $event['name'],
+            'event_id_order_state' => $event['id_order_state'],
+            'event_email' => $event['email'],
+            'event_icon' => $event['icon'],
+            'event_color' => $event['color'],
+            'event_is_shipped' => $event['is_shipped'],
+            'event_is_delivered' => $event['is_delivered'],
+            'order_id' => $order['id_order'],
+            'carrier_id' => $carrier['id_carrier'],
+            'carrier_name' => $carrier['name'],
+            'event_filiale_id' => $lastEventHistory['event_filiale_id'] ?? '',
+            'event_filiale_name' => $lastEventHistory['event_filiale_name'] ?? '',
+            'id_collo' => $lastEventHistory['id_collo'] ?? '',
+            'rmn' => $lastEventHistory['rmn'] ?? '',
+            'rma' => $lastEventHistory['rma'] ?? '',
+            'anno_spedizione' => $lastEventHistory['anno_spedizione'] ?? '',
+            'date_shipped' => $lastEventHistory['date_shipped'] ?? '',
+            'date_delivered' => $lastEventHistory['date_delivered'] ?? '',
+            'days' => $lastEventHistory['days'] ?? '',
+            'is_shipped' => $event['is_shipped'],
+            'is_delivered' => $event['is_delivered'],
+            'note' => $event_note,
+        ];
+
+        return $evento;
+    }
+
+    public static function getOrder($id_order)
+    {
+        $order = new Order($id_order, Context::getContext()->language->id);
+        if (Validate::isLoadedObject($order)) {
+            return [
+                'id_order' => $order->id,
+                'current_state' => $order->current_state,
+                'id_carrier' => $order->id_carrier,
+                'total_paid_tax_incl' => $order->total_paid_tax_incl,
+                'date_add' => $order->date_add,
+            ];
+        }
+
+        return false;
+    }
+
+    public static function getCarrier($id_carrier)
+    {
+        $carrier = new Carrier($id_carrier, Context::getContext()->language->id);
+        if (Validate::isLoadedObject($carrier)) {
+            return [
+                'id_carrier' => $carrier->id,
+                'name' => $carrier->name,
+            ];
+        }
+
+        return false;
+    }
+
+    public static function getEvent($id_event)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from(self::$definition['table'])
+            ->where('id_evento = \'' . PSQL($id_event) . '\'');
+        $row = $db->getRow($sql);
+
+        if ($row) {
+            return [
+                'id_evento' => $row['id_evento'],
+                'name' => $row['name'],
+                'id_order_state' => $row['id_order_state'],
+                'email' => $row['email'],
+                'icon' => $row['icon'],
+                'color' => $row['color'],
+                'is_shipped' => $row['is_shipped'],
+                'is_delivered' => $row['is_delivered'],
+            ];
+        }
+
+        return false;
+    }
+
+    public static function getLastEventHistory($id_order, $id_event = null)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from(ModelBrtHistory::$definition['table'])
+            ->where('id_order = ' . (int) $id_order)
+            ->orderBy(ModelBrtHistory::$definition['primary'] . ' DESC');
+        if ($id_event) {
+            $sql->where('event_id = ' . (int) $id_event);
+        }
+        $row = $db->getRow($sql);
+
+        if (!$row) {
+            return false;
+        }
+
+        return $row;
+    }
+
+    public static function getOrderStatesTypeShipped()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('a.id_order_state, b.name')
+            ->from(ModelBrtEvento::$definition['table'], 'a')
+            ->leftJoin('order_state_lang', 'b', 'a.id_order_state = b.id_order_state AND b.id_lang = ' . (int) Context::getContext()->language->id)
+            ->where('a.is_shipped = 1');
+        $rows = $db->executeS($sql);
+
+        return $rows;
+    }
+
+    public static function getOrderStatesTypeDelivered()
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('a.id_order_state, b.name')
+            ->from(ModelBrtEvento::$definition['table'], 'a')
+            ->leftJoin('order_state_lang', 'b', 'a.id_order_state = b.id_order_state AND b.id_lang = ' . (int) Context::getContext()->language->id)
+            ->where('a.is_delivered = 1')
+            ->orderBy('b.name ASC');
+        $rows = $db->executeS($sql);
+
+        return $rows;
+    }
+
+    public static function getEventsByIdOrderState($id_order_state)
+    {
+        $db = Db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from(self::$definition['table'])
+            ->where('id_order_state = ' . (int) $id_order_state);
+        $rows = $db->executeS($sql);
+
+        return $rows;
+    }
+
+    public function isShipped()
+    {
+        return (bool) $this->is_shipped;
+    }
+
+    public function isDelivered()
+    {
+        return (bool) $this->is_delivered;
+    }
+
+    public static function getIdOrderStateByIdEvent($id_event)
+    {
+        $event = self::getEvento($id_event);
+        if (Validate::isLoadedObject($event)) {
+            return (int) $event->id_order_state;
+        }
+
+        return false;
     }
 }

@@ -20,14 +20,12 @@
 
 namespace MpSoft\MpBrtInfo\Fetch;
 
-use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByRMA;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByRMN;
 use MpSoft\MpBrtInfo\WSDL\GetLegendaEsiti;
 use MpSoft\MpBrtInfo\WSDL\GetLegendaEventi;
 use MpSoft\MpBrtInfo\WSDL\GetTrackingByBrtShipmentId;
-
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -42,6 +40,7 @@ class FetchHandler
         $data = file_get_contents('php://input');
         $this->sessionJSON = json_decode($data, true);
     }
+
     protected function ajaxRender($message)
     {
         header('Content-Type: application/json');
@@ -68,15 +67,15 @@ class FetchHandler
 
     public function getLegendaEventi($params)
     {
-        $lang = $params['lang'];
-        $last_update = $params['last_update'];
+        $lang = $params['lang'] ?? 'it';
+        $last_update = $params['last_update'] ?? '';
 
         $client = new GetLegendaEventi();
         $risultati = $client->getLegendaEventi($lang, $last_update);
 
         if ($risultati === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             return $risultati;
         }
@@ -92,7 +91,7 @@ class FetchHandler
 
         if ($risultati === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             return $risultati;
         }
@@ -109,7 +108,7 @@ class FetchHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -127,7 +126,7 @@ class FetchHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -138,6 +137,7 @@ class FetchHandler
      * Ottiene l'ID di una spedizione BRT tramite ID collo
      * 
      * @param array $params Parametri della richiesta
+     *
      * @return array Risultato della chiamata SOAP
      */
     protected function getIdSpedizioneByIdCollo($params)
@@ -151,7 +151,7 @@ class FetchHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -162,6 +162,7 @@ class FetchHandler
      * Ottiene le informazioni di tracking di una spedizione BRT tramite l'ID spedizione BRT
      * 
      * @param array $params Parametri della richiesta
+     *
      * @return array Risultato della chiamata SOAP
      */
     protected function getTrackingByBrtShipmentId($params)
@@ -179,7 +180,7 @@ class FetchHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;

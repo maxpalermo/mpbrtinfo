@@ -1,0 +1,19 @@
+Spedizione arrivata al FermoPoint per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+La tua spedizione è disponibile per il ritiro presso il FermoPoint!
+
+Informazioni importanti per il ritiro:
+- Porta con te un documento d'identità valido
+- Se non puoi ritirare personalmente il pacco, la persona delegata dovrà presentare una tua delega scritta e una copia del tuo documento
+- Il pacco rimarrà disponibile per il ritiro per 5 giorni lavorativi
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data di arrivo al FermoPoint: {last_update}
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

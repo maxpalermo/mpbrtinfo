@@ -20,8 +20,6 @@
 
 namespace MpSoft\MpBrtInfo\Bolla;
 
-use PrestaShopLogger;
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -33,17 +31,15 @@ class Evento
     protected $filiale;
     protected $id;
     protected $ora;
+    protected $is_shipped;
     protected $is_delivered;
-    protected $is_error;
-    protected $is_fermopoint;
-    protected $is_refused;
-    protected $is_sent;
-    protected $is_transit;
-    protected $is_waiting;
     protected $row;
+    protected $id_order;
 
-    public function __construct($evento)
+    public function __construct($evento, $id_order = 0)
     {
+        $this->id_order = $id_order;
+
         if (!$evento) {
             $this->data = '';
             $this->descrizione = '';
@@ -58,12 +54,19 @@ class Evento
             $this->ora = $evento['ORA'];
         }
 
-        $this->row = $this->getRow();
+        $this->row = $this->getEventFull();
+    }
+
+    public function getRow()
+    {
+        return $this->row;
     }
 
     /**
      * Restituisce un oggetto EVENTO da una riga evento della tabella
+     *
      * @param array $event_row
+     *
      * @return bool|Evento
      */
     public static function getEventoByEventRow($event_row)
@@ -83,10 +86,11 @@ class Evento
                 'ID' => $event_row['event_id'],
                 'ORA' => $ora,
             ];
-    
+
             return new Evento($event);
         } catch (\Throwable $th) {
-            PrestaShopLogger::addLog($th->getMessage(), 3, $th->getCode(), 'Evento', $th->getLine(), true);
+            \PrestaShopLogger::addLog($th->getMessage(), 3, $th->getCode(), 'Evento', $th->getLine(), true);
+
             return false;
         }
     }
@@ -107,54 +111,16 @@ class Evento
             ->from('mpbrtinfo_evento')
             ->where("is_{$event_type} = 1")
             ->orderBy('id_evento ASC, name ASC');
-            
+
         return $db->executeS($sql);
-    }
-
-    public static function getPrestashopIdOrderStateByIdEvent($eventId)
-    {
-        if (!$eventId) {
-            return false;
-        }
-
-        $event = new \ModelBrtEvento($eventId);
-        $out = [];
-
-        if ($event->is_delivered) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
-        }
-
-        if ($event->is_transit) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
-        }
-
-        if ($event->is_sent) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
-        }
-
-        if ($event->is_fermopoint) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
-        }
-
-        if ($event->is_waiting) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
-        }
-
-        if ($event->is_refused) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
-        }
-
-        if ($event->is_error) {
-            $out[] = (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
-        }
-
-        return $out;
     }
 
     /**
      * Summary of getOrderEventById
+     *
      * @param mixed $id_order
      * @param mixed $event_id
+     *
      * @return bool|Evento
      */
     public static function getOrderEventById($id_order, $event_id)
@@ -238,231 +204,35 @@ class Evento
         $this->ora = $ora;
     }
 
-    protected function getRow()
+    protected function getEventFull()
     {
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('*')
-            ->from('mpbrtinfo_evento')
-            ->where('id_evento=' . (int) $this->id)
-            ->where("name='" . pSQL($this->descrizione) . "'");
+        $eventFull = \ModelBrtEvento::getEventFull($this->id_order, $this->id);
 
-        $row = $db->getRow($sql);
-        if ($row) {
-            $this->is_delivered = $row['is_delivered'];
-            $this->is_error = $row['is_error'];
-            $this->is_fermopoint = $row['is_fermopoint'];
-            $this->is_refused = $row['is_refused'];
-            $this->is_sent = $row['is_sent'];
-            $this->is_transit = $row['is_transit'];
-            $this->is_waiting = $row['is_waiting'];
-        }
-
-        return $row;
-    }
-
-    public function getOrderStateIdByEventId()
-    {
-        if ($this->is_delivered) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED);
-        }
-
-        if ($this->is_transit) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_TRANSIT);
-        }
-
-        if ($this->is_sent) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
-        }
-
-        if ($this->is_fermopoint) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_FERMOPOINT);
-        }
-
-        if ($this->is_waiting) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_WAITING);
-        }
-
-        if ($this->is_refused) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_REFUSED);
-        }
-
-        if ($this->is_error) {
-            return (int) \Configuration::get(\ModelBrtConfig::MP_BRT_INFO_EVENT_ERROR);
-        }
-
-        return null;
-    }
-
-    public function getColor($html = false)
-    {
-        $row = $this->row;
-        if (!$row) {
-            if ($html) {
-                return '#6c757d';
-            }
-
-            return 'secondary';
-        }
-        if ($row['is_fermopoint'] && $row['is_delivered'] ) {
-            if ($html) {
-                return '#28a745';
-            }
-
-            return 'success';
-        }
-        if ($row['is_fermopoint'] && $row['is_error']) {
-            if ($html) {
-                return '#dc3545';
-            }
-
-            return 'danger';
-        }
-        if ($row['is_fermopoint'] && $row['is_waiting']) {
-            if ($html) {
-                return '#ffc107';
-            }
-
-            return 'warning';
-        }
-
-        if ($row['is_fermopoint'] && $row['is_transit']) {
-            if ($html) {
-                return '#ffc107';
-            }
-
-            return 'warning';
-        }
-
-        if ($row['is_delivered']) {
-            if ($html) {
-                return '#28a745';
-            }
-
-            return 'success';
-        }
-        if ($row['is_fermopoint']) {
-            if ($html) {
-                return '#ffc107';
-            }
-
-            return 'warning';
-        }
-        if ($row['is_error']) {
-            if ($html) {
-                return '#dc3545';
-            }
-
-            return 'danger';
-        }
-        if ($row['is_transit']) {
-            if ($html) {
-                return '#28a745';
-            }
-
-            return 'info';
-        }
-        if ($row['is_waiting']) {
-            if ($html) {
-                return '#ffc107';
-            }
-
-            return 'warning';
-        }
-        if ($row['is_refused']) {
-            if ($html) {
-                return '#dc3545';
-            }
-
-            return 'danger';
-        }
-        if ($row['is_sent']) {
-            if ($html) {
-                return '#17a2b8';
-            }
-
-            return 'info';
-        }
-
-        return 'secondary';
-    }
-
-    public function getIcon()
-    {
-        $row = $this->row;
-        if (!$row) {
-            return 'help';
-        }
-        if ($row['is_delivered'] && $row['is_fermopoint']) {
-            return 'check_circle';
-        }
-        if ($row['is_fermopoint'] && $row['is_error']) {
-            return 'report';
-        }
-        if ($row['is_fermopoint'] && $row['is_waiting']) {
-            return 'warning';
-        }
-        if ($row['is_error'] && $row['is_refused']) {
-            return 'block';
-        }
-        if ($row['is_delivered']) {
-            return 'check_circle';
-        }
-        if ($row['is_fermopoint']) {
-            return 'warning';
-        }
-        if ($row['is_error']) {
-            return 'priority_high';
-        }
-        if ($row['is_transit']) {
-            return 'speed';
-        }
-        if ($row['is_waiting']) {
-            return 'pending';
-        }
-        if ($row['is_refused']) {
-            return 'block';
-        }
-        if ($row['is_sent']) {
-            return 'local_shipping';
-        }
-
-        return 'secondary';
+        return $eventFull;
     }
 
     public function isDelivered()
     {
-        return $this->is_delivered;
+        $event = \ModelBrtEvento::getEvento($this->id);
+        if (\Validate::isLoadedObject($event)) {
+            $this->is_delivered = (int) $event->is_delivered;
+
+            return $this->is_delivered;
+        }
+
+        return false;
     }
 
-    public function isError()
+    public function isShipped()
     {
-        return $this->is_error;
-    }
+        $event = \ModelBrtEvento::getEvento($this->id);
+        if (\Validate::isLoadedObject($event)) {
+            $this->is_shipped = (int) $event->is_shipped;
 
-    public function isFermopoint()
-    {
-        return $this->is_fermopoint;
-    }
+            return $this->is_shipped;
+        }
 
-    public function isRefused()
-    {
-        return $this->is_refused;
-    }
-
-    public function isSent()
-    {
-        return $this->is_sent;
-    }
-
-    public function isTransit()
-    {
-        return $this->is_transit;
-    }
-
-    public function isWaiting()
-    {
-        return $this->is_waiting;
+        return false;
     }
 
     public function getRowData()
@@ -470,64 +240,272 @@ class Evento
         return $this->row;
     }
 
-    public function getLabel()
+    public function getListEventi()
     {
+        $ps_mpbrtinfo_evento = [
+            ['id_evento' => 'ZAC', 'name' => 'ACQUA ALTA', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'ZAL', 'name' => 'ALLUVIONE/NUBIFRAGIO', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => '722', 'name' => 'ARRIVATA AL BRT-fermopoint', 'icon' => 'local_shipping', 'color' => '#FB8C00'],
+            ['id_evento' => '703', 'name' => 'ARRIVATA IN FILIALE', 'icon' => 'store', 'color' => '#4CAF50'],
+            ['id_evento' => '017', 'name' => 'ASSENTE DOPO LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'ZBC', 'name' => 'BLOCCO CIRCOLAZIONE', 'icon' => 'block', 'color' => '#EF5350'],
+            ['id_evento' => 'ZBS', 'name' => 'BLOCCO STRADALE', 'icon' => 'block', 'color' => '#EF5350'],
+            ['id_evento' => 'ZFM', 'name' => 'CAUSA FORZA MAGGIORE', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '019', 'name' => 'CESSATA ATTIVITA\' DESTINATARIO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '026', 'name' => 'CHIESTA CONSEGNA ALTRO INDIR.', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'T', 'name' => 'CHIUSO PER TURNO', 'icon' => 'schedule', 'color' => '#9E9E9E'],
+            ['id_evento' => 'MAN', 'name' => 'COLLO/I MANCANTE/I', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '704', 'name' => 'CONSEGNATA', 'icon' => 'check_circle', 'color' => '#4CAF50'],
+            ['id_evento' => 'P', 'name' => 'CONSEGNATA PARZIALMENTE', 'icon' => 'check_circle', 'color' => '#4CAF50'],
+            ['id_evento' => 'IDD', 'name' => 'CONTATTARE FILIALE', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'N', 'name' => 'DA CONSEGNARE', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => 'DPU', 'name' => 'DA RITIRARE AL PARCEL SHOP', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => '045', 'name' => 'DATI MANCANTI PER LA FATTURA', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '700', 'name' => 'DATI SPEDIZ. TRASMESSI A BRT', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => 'AVV', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'AV2', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'AV3', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'AV5', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'AV7', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'AV9', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'RIC', 'name' => 'Destin.Assente:LASCIATO AVVISO', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => '021', 'name' => 'DESTINATAR.SCONOSC./INCOMPLETO', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'A23', 'name' => 'DESTINATARIO CHIUSO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '023', 'name' => 'DESTINATARIO CHIUSO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '024', 'name' => 'DESTINATARIO CHIUSO PER FERIE', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => 'ZDM', 'name' => 'DISAGI DOPO MANIFESTAZIONE', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'DDC', 'name' => 'DISTRUTTA/REQUISITA DA DOGANA', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'DDB', 'name' => 'DOCUMENTI DOGANALI MANCANTI', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '035', 'name' => 'DOCUMENTI INCOMPLETI/MANCANTI', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '028', 'name' => 'ESERCIZIO NON IN ATTIVITA\'', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => 'DDS', 'name' => 'FERMA PER CONTROLLI DOGANALI', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '032', 'name' => 'FERMO DEPOSITO:NESSUNO RITIRA', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'ZFR', 'name' => 'FESTIVITA REGIONALE', 'icon' => 'event', 'color' => '#9E9E9E'],
+            ['id_evento' => 'PAT', 'name' => 'FESTIVITA\' PATRONALE', 'icon' => 'event', 'color' => '#9E9E9E'],
+            ['id_evento' => 'ZSF', 'name' => 'GIORNATA SEMI-FESTIVA', 'icon' => 'event', 'color' => '#9E9E9E'],
+            ['id_evento' => 'G02', 'name' => 'IN ATTESA APERTURA GIACENZA 2G', 'icon' => 'schedule', 'color' => '#9E9E9E'],
+            ['id_evento' => 'G03', 'name' => 'IN ATTESA APERTURA GIACENZA 3G', 'icon' => 'schedule', 'color' => '#9E9E9E'],
+            ['id_evento' => 'G05', 'name' => 'IN ATTESA APERTURA GIACENZA 5G', 'icon' => 'schedule', 'color' => '#9E9E9E'],
+            ['id_evento' => 'G09', 'name' => 'IN ATTESA APERTURA GIACENZA 9G', 'icon' => 'schedule', 'color' => '#9E9E9E'],
+            ['id_evento' => 'MIC', 'name' => 'IN CONSEGNA', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => 'G', 'name' => 'IN GIACENZA', 'icon' => 'inventory', 'color' => '#9E9E9E'],
+            ['id_evento' => 'GEN', 'name' => 'IN GIACENZA', 'icon' => 'inventory', 'color' => '#9E9E9E'],
+            ['id_evento' => '022', 'name' => 'INDIRIZ.INESISTENTE/INCOMPLETO', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'DIR', 'name' => 'INOLTRO ALTRA FILIALE', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => '707', 'name' => 'INOLTRO ALTRA FILIALE', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => 'ZEE', 'name' => 'INTERRUZIONE ENERGIA ELETTRICA', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '055', 'name' => 'LOCKER GUASTO', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '056', 'name' => 'LOCKER PIENO', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'ZMP', 'name' => 'MANIFESTAZIONE PUBBLICA', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'ZMS', 'name' => 'MANIFESTAZIONE SPORTIVA', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'ZMM', 'name' => 'MARE MOLTO MOSSO', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'ZNV', 'name' => 'NEVICATA ECCEZIONALE', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => '034', 'name' => 'NON CONSEGNAB.FORZA MAGGIORE', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'DPP', 'name' => 'NON RITIRATA AL PARCEL SHOP', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '702', 'name' => 'PARTITA', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => '044', 'name' => 'PINCODE ERRATO O MANCANTE', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => '710', 'name' => 'PREAVVISO DI DANNO', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => '709', 'name' => 'PROPOSTA LIQUID.NE TRANSATTIVA', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => 'ZRO', 'name' => 'RALLENTAMENTI OPERATIVI', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => 'SIP', 'name' => 'REINDIRIZZATA A BRT-fermopoint', 'icon' => 'local_shipping', 'color' => '#FB8C00'],
+            ['id_evento' => '708', 'name' => 'RESO AL MITTENTE', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '037', 'name' => 'RIFIUTA CONSEGNA TASSATIVA', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '001', 'name' => 'RIFIUTA SENZA MOTIVAZIONE', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '009', 'name' => 'RIFIUTA:CHIEDE CONTROLLO MERCE', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '004', 'name' => 'RIFIUTA:MERCE GIA\' RICEVUTA', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '002', 'name' => 'RIFIUTA:MERCE NON ORDINATA', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => 'DDR', 'name' => 'RIFIUTA:NON PAGA DAZI DOGANALI', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '012', 'name' => 'RIFIUTA:NON PAGA TRASPORTO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '008', 'name' => 'RIFIUTA:NON RICEVE C/ASSEGNO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '006', 'name' => 'RIFIUTA:RESO NON AUTORIZZATO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '005', 'name' => 'RIFIUTA:SPEDITA IN ANTICIPO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '003', 'name' => 'RIFIUTA:SPEDITA IN RITARDO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '050', 'name' => 'RIFIUTATA DAL BRT-fermopoint', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '051', 'name' => 'RIFIUTATA DAL DESTINATARIO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => '007', 'name' => 'RIFIUTO PER COLLO DANNEGGIATO', 'icon' => 'cancel', 'color' => '#D32F2F'],
+            ['id_evento' => 'A16', 'name' => 'RIMANDA LA CONSEGNA', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => '016', 'name' => 'RIMANDA LA CONSEGNA', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => '100', 'name' => 'RIMANDA LA CONSEGNA', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => '101', 'name' => 'RIMANDA LA CONSEGNA', 'icon' => 'info', 'color' => '#FFEB3B'],
+            ['id_evento' => '701', 'name' => 'RITIRATA', 'icon' => 'check_circle', 'color' => '#4CAF50'],
+            ['id_evento' => '724', 'name' => 'RITIRATA AL BRT-fermopoint', 'icon' => 'local_shipping', 'color' => '#FB8C00'],
+            ['id_evento' => '052', 'name' => 'SCADUTI TERMINI PER IL RITIRO', 'icon' => 'error', 'color' => '#EF5350'],
+            ['id_evento' => 'ZSC', 'name' => 'SCIOPERO', 'icon' => 'warning', 'color' => '#FFA726'],
+            ['id_evento' => '027', 'name' => 'SPEDIZIONE IN TRANSITO', 'icon' => 'local_shipping', 'color' => '#2196F3'],
+            ['id_evento' => 'ZTR', 'name' => 'TERREMOTO', 'icon' => 'warning', 'color' => '#FFA726'],
+        ];
+
+        return $ps_mpbrtinfo_evento;
+    }
+
+    public static function getLastEventByOrderId($id_order)
+    {
+        $context = \Context::getContext();
         $db = \Db::getInstance();
+        // Cerco l'id carrier dell'ordine
+        $sql = new \DbQuery();
+        $sql->select('c.id_carrier, c.name')
+            ->from ('carrier', 'c')
+            ->innerJoin('orders', 'o', 'o.id_carrier = c.id_carrier')
+            ->where('o.id_order=' . (int) $id_order);
+        $carrier = $db->getRow($sql);
+        if (!$carrier) {
+            return false;
+        }
+
+        // Cerco nello storico l'ultimo evento dell'ordine
         $sql = new \DbQuery();
         $sql->select('*')
-            ->from('mpbrtinfo_evento')
-            ->where('id_evento = ' . (int) $this->id);
+            ->from(\ModelBrtHistory::$definition['table'])
+            ->where('id_order=' . (int) $id_order)
+            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
+        $last_event = $db->getRow($sql);
 
-        $result = $db->getRow($sql);
-
-        if (!$result) {
-            return 'N/A';
+        // Se esiste un evento prelevo le informazioni
+        if ($last_event) {
+            unset($last_event['json']);
+            $sql = new \DbQuery();
+            $sql->select('*')
+                ->from(\ModelBrtEvento::$definition['table'])
+                ->where('id_evento = ' . (int) $last_event['event_id']);
+            $evento = $db->getRow($sql);
+            if ($evento) {
+                $evento = array_merge($last_event, $evento);
+            }
+            $evento['carrier_name'] = $carrier['name'];
+            $evento['id_carrier'] = $carrier['id_carrier'];
+            $evento['link'] = '';
+            $evento['image'] = '';
+        } else {
+            $evento = [
+                'id_evento' => 0,
+                'id_order' => $id_order,
+                'id_carrier' => $carrier['id_carrier'],
+                'id_collo' => 0,
+                'carrier_name' => $carrier['name'],
+                'event_id' => 0,
+                'event_name' => '',
+                'event_date' => '',
+                'rmn' => '',
+                'rma' => '',
+                'title' => $carrier['name'],
+                'link' => '',
+                'image' => $context->link->getMediaLink('/img/s/' . $carrier['id_carrier'] . '.jpg'),
+                'icon' => '',
+                'color' => '#ACACAC',
+                'date_shipped' => '',
+                'date_delivered' => '',
+                'days' => 0,
+                'anno_spedizione' => '',
+            ];
         }
 
-        if ($result['is_fermopoint'] && $result['is_delivered']) {
-            return 'Ritirato Fermopoint';
+        return $evento;
+
+        // Se esiste uno stato associato cerco l'evento corrispondente
+        if ($id_mpbrtinfo_evento) {
+            $sql = new DbQuery();
+            $sql->select('*')
+                ->from(ModelBrtEvento::$definition['table'])
+                ->where('id_order = ' . (int) $id_order)
+                ->orderBy('id_mpbrtinfo_evento DESC');
         }
 
-        if ($result['is_fermopoint'] && $result['is_waiting']) {
-            return 'Attesa Fermopoint';
+        $icon = $this->displayCarrier->display($id_order);
+
+        return $icon;
+    }
+
+    public static function getEventByIdEvent($id_event, $id_order)
+    {
+        $context = \Context::getContext();
+        $db = \Db::getInstance();
+        // Cerco l'id carrier dell'ordine
+        $sql = new \DbQuery();
+        $sql->select('c.id_carrier, c.name')
+            ->from ('carrier', 'c')
+            ->innerJoin('orders', 'o', 'o.id_carrier = c.id_carrier')
+            ->where('o.id_order=' . (int) $id_order);
+        $carrier = $db->getRow($sql);
+        if (!$carrier) {
+            return false;
         }
 
-        if ($result['is_fermopoint'] && $result['is_transit']) {
-            return 'Arrivato Fermopoint';
+        // Cerco nello storico l'ultimo evento dell'ordine
+        $sql = new \DbQuery();
+        $sql->select('*')
+            ->from(\ModelBrtHistory::$definition['table'])
+            ->where('id_order=' . (int) $id_order)
+            ->where('event_id=' . (int) $id_event)
+            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
+        $last_event = $db->getRow($sql);
+
+        // Se esiste un evento prelevo le informazioni
+        if ($last_event) {
+            unset($last_event['json']);
+            $sql = new \DbQuery();
+            $sql->select('*')
+                ->from(\ModelBrtEvento::$definition['table'])
+                ->where('id_evento = ' . (int) $last_event['event_id']);
+            $evento = $db->getRow($sql);
+            if ($evento) {
+                $evento = array_merge($last_event, $evento);
+            }
+            $evento['carrier_name'] = $carrier['name'];
+            $evento['id_carrier'] = $carrier['id_carrier'];
+            $evento['link'] = '';
+            $evento['image'] = '';
+        } else {
+            // prelevo le informazioni dalla tabella degli eventi
+            $sql = new \DbQuery();
+            $sql->select('*')
+                ->from(\ModelBrtEvento::$definition['table'])
+                ->where('id_evento = ' . (int) $last_event['event_id']);
+            $evento = $db->getRow($sql);
+            if (!$evento) {
+                return false;
+            }
+            $evento['carrier_name'] = $carrier['name'];
+            $evento['id_carrier'] = $carrier['id_carrier'];
+            $evento['link'] = '';
+            $evento['image'] = '';
+
+            $evento = [
+                'id_evento' => 0,
+                'id_order' => $id_order,
+                'id_carrier' => $carrier['id_carrier'],
+                'id_collo' => 0,
+                'carrier_name' => $carrier['name'],
+                'event_id' => 0,
+                'event_name' => '',
+                'event_date' => '',
+                'rmn' => '',
+                'rma' => '',
+                'title' => $carrier['name'],
+                'link' => '',
+                'image' => $context->link->getMediaLink('/img/s/' . $carrier['id_carrier'] . '.jpg'),
+                'icon' => '',
+                'color' => '#ACACAC',
+                'date_shipped' => '',
+                'date_delivered' => '',
+                'days' => 0,
+                'anno_spedizione' => '',
+            ];
         }
 
-        if ($result['is_fermopoint'] && $result['is_refused']) {
-            return 'Non Prelevato';
+        return $evento;
+
+        // Se esiste uno stato associato cerco l'evento corrispondente
+        if ($id_mpbrtinfo_evento) {
+            $sql = new DbQuery();
+            $sql->select('*')
+                ->from(ModelBrtEvento::$definition['table'])
+                ->where('id_order = ' . (int) $id_order)
+                ->orderBy('id_mpbrtinfo_evento DESC');
         }
 
-        if ($result['is_error'] && $result['is_refused']) {
-            return 'Rifiutato';
-        }
+        $icon = $this->displayCarrier->display($id_order);
 
-        if ($result['is_error']) {
-            return 'Errore';
-        }
-
-        if ($result['is_transit']) {
-            return 'Transito';
-        }
-
-        if ($result['is_sent']) {
-            return 'Spedito';
-        }
-
-        if ($result['is_waiting']) {
-            return 'Attesa';
-        }
-
-        if ($result['is_refused']) {
-            return 'Rifiutato';
-        }
-
-        if ($result['is_delivered']) {
-            return 'Consegnato';
-        }
-
-        return 'N/A';
+        return $icon;
     }
 }

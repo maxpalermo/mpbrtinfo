@@ -16,10 +16,11 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
+
 <div class="panel">
     <div class="panel-heading">
         <i class="icon icon-list"></i>
-        <span>{l s='Events list' mod='mpbrtinfo'}</span>
+        <span>{l s='Elenco Eventi BRT' mod='mpbrtinfo'}</span>
     </div>
     <div class="panel-body">
         <table class="table table-dark" id="table-eventi">
@@ -28,45 +29,44 @@
                     <th>#</th>
                     <th>ID</th>
                     <th>ID EV</th>
-                    <th class="text-center">EVENTO</th>
-                    <th class="text-center">ERRORE</th>
-                    <th class="text-center">TRANSITO</th>
-                    <th class="text-center">CONSEGNATO</th>
-                    <th class="text-center">RIFIUTATO</th>
-                    <th class="text-center">GIACENZA</th>
-                    <th class="text-center">FERMO POINT</th>
-                    <th class="text-center">PARTITA</th>
+                    <th>EVENTO</th>
+                    <th>CAMBIO STATO</th>
+                    <th>EMAIL</th>
+                    <th>ICONA</th>
+                    <th>COLORE</th>
+                    <th>SPEDITO</th>
+                    <th>CONSEGNATO</th>
                 </tr>
             </thead>
             <tbody>
                 {assign var="counter" value=1}
                 {foreach $eventi as $evento}
                     <tr>
-                        <td><span class="badge badge-info">{$counter++}</span></td>
-                        <td>{$evento.id_mpbrtinfo_evento}</td>
-                        <td>{$evento.id_evento}</td>
-                        <td>{$evento.name}</td>
+                        <td class="text-center" style="width: 64px;"><span class="badge badge-info">{$counter++}</span></td>
+                        <td class="text-left cell-id_mpbrtinfo_evento" style="width: 64px;">{$evento.id_mpbrtinfo_evento}</td>
+                        <td class="text-left cell-id_evento" style="width: 64px;">{$evento.id_evento}</td>
+                        <td style="width: 24rem;">{$evento.name}</td>
                         {assign var=ev value=$evento.id_mpbrtinfo_evento}
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_error" {if $evento.is_error}checked {/if} value="{$evento.is_error}">
+                        <td class="text-left cell-id_order_state pointer" style="width: auto;">
+                            <span class="badge badge-default" name="id_order_state_change" style="border-color: {$evento.order_state_color};" data-id_evento="{$ev}" data-id_order_state="{$evento.id_order_state}">{$evento.order_state_name}</span>
                         </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_transit" {if $evento.is_transit}checked {/if} value="{$evento.is_transit}">
+                        <td class="text-left cell-email pointer" style="width: auto;">
+                            {assign var="email" value={$evento.email|replace:'.html':''}}
+                            <span class="badge badge-default" name="email_template" data-id_evento="{$ev}" data-email="{$evento.email}">{$email}</span>
                         </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_delivered" {if $evento.is_delivered}checked {/if} value="{$evento.is_delivered}">
+                        <td class="text-left cell-icon pointer" style="width: auto;">
+                            <div class="btn btn-default d-flex justify-content-center align-items-center" style="border: 4px double {$evento.color} !important;">
+                                <span class="material-icons" style="color: {$evento.color}" name="icon" data-id_evento="{$ev}" data-icon="{$evento.icon}">{$evento.icon}</span>
+                            </div>
                         </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_refused" {if $evento.is_refused}checked {/if} value="{$evento.is_refused}">
+                        <td class="text-left cell-color pointer" style="width: auto;">
+                            <span class="badge badge-default" name="color" style="border-color: {$evento.color}; color: {$evento.color}" data-id_evento="{$ev}" data-color="{$evento.color}">{$evento.color}</span>
                         </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_waiting" {if $evento.is_waiting}checked {/if} value="{$evento.is_waiting}">
+                        <td class="text-left cell-is_sent pointer" style="width: auto;">
+                            <span class="material-icons is_shipped {if $evento.is_shipped}text-success{else}text-danger{/if}" name="is_shipped" data-id_evento="{$ev}" data-field="is_shipped" data-value="{$evento.is_shipped}">{if $evento.is_shipped}check_circle{else}close{/if}</span>
                         </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_fermopoint" {if $evento.is_fermopoint}checked {/if} value="{$evento.is_fermopoint}">
-                        </td>
-                        <td>
-                            <input data-id_evento="{$ev}" type="checkbox" class="form-control text-center" name="is_sent" {if $evento.is_sent}checked {/if} value="{$evento.is_sent}">
+                        <td class="text-left cell-is_delivered pointer" style="width: auto;">
+                            <span class="material-icons is_delivered {if $evento.is_delivered}text-success{else}text-danger{/if}" name="is_delivered" data-id_evento="{$ev}" data-field="is_delivered" data-value="{$evento.is_delivered}">{if $evento.is_delivered}check_circle{else}close{/if}</span>
                         </td>
                     </tr>
                 {/foreach}
@@ -81,91 +81,272 @@
         </table>
     </div>
     <div class="panel-footer">
-        <a class="btn btn-default pull-right ml-4" href="javascript:updateEventi();" title="{l s='Update Eventi' mod='mpbrtinfo'}">
-            <i class="process-icon-save"></i>
-            <span>{l s='Update' mod='mpbrtinfo'}</span>
-        </a>
-        <a class="btn btn-default pull-right mr-4" href="javascript:insertEventiSQL();" title="{l s='Insert Eventi from Sql file' mod='mpbrtinfo'}">
-            <i class="process-icon-download"></i>
-            <span>{l s='Insert SQL' mod='mpbrtinfo'}</span>
-        </a>
-        <a class="btn btn-default pull-right" href="javascript:insertEventiSOAP();" title="{l s='Import Eventi from Brt Database' mod='mpbrtinfo'}">
-            <i class="process-icon-database"></i>
-            <span>{l s='Insert SOAP' mod='mpbrtinfo'}</span>
-        </a>
+        <button id="updateEventi" class="btn btn-default pull-right ml-4" title="{l s='Update Eventi' mod='mpbrtinfo'}">
+            <div class="material-icons mr-1">save</div>
+            <span>{l s='Aggiorna' mod='mpbrtinfo'}</span>
+        </button>
+        <button id="insertEventiSQL" class="btn btn-default pull-right mr-4" title="{l s='Insert Eventi from Sql file' mod='mpbrtinfo'}">
+            <div class="material-icons mr-1">download</div>
+            <span>{l s='Inserisci da SQL' mod='mpbrtinfo'}</span>
+        </button>
+        <button id="insertEventiSOAP" class="btn btn-default pull-right" title="{l s='Import Eventi from Brt Database' mod='mpbrtinfo'}">
+            <div class="material-icons mr-1">web</div>
+            <span>{l s='Importa da SOAP' mod='mpbrtinfo'}</span>
+        </button>
     </div>
 </div>
 
 <script type="text/javascript">
-    async function insertEventiSQL() {
-        eventi = await fetch(adminControllerURL, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'insertEventiSQL',
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if ("inserted" in data) {
-                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi eventi.");
-                }
-                if ("error" in data && data.error.length > 0) {
-                    alert("Errori durante l'inserimento: " + data.errors.length);
-                }
-            });
-    }
+    const adminControllerURL = "{Context::getContext()->link->getModuleLink('mpbrtinfo', 'Config')}";
+    let selectOrderStates = null;
+    let selectEmails = null;
+    let currentOrderStateInstance = null;
+    let currentEmailInstance = null;
 
-    async function insertEventiSOAP() {
-        eventi = await fetch(adminControllerURL, {
-                method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
-                body: JSON.stringify({
-                    ajax: 1,
-                    action: 'insertEventiSOAP',
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if ("inserted" in data) {
-                    alert("Operazione eseguita. Inseriti " + data.inserted.length + " nuovi eventi.");
-                }
-                if ("error" in data && data.error.length > 0) {
-                    alert("Errori durante l'inserimento: " + data.errors.length);
-                }
-            });
-    }
-
-    async function updateEventi() {
-        if (!confirm("Confermi l'aggiornamento degli eventi?")) return;
-
-        let chk_eventi = $("#table-eventi tbody tr input[type=checkbox]:checked").map(function() {
-            return { name: $(this).attr("name"), checked: $(this).is(":checked"), id: $(this).data("id_evento") };
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.cell-id_order_state').forEach((el) => {
+            el.addEventListener('click', () => { handleOrderStateClick(el); });
         });
-        eventi = await fetch(adminControllerURL, {
+
+        document.querySelectorAll('.cell-email').forEach((el) => {
+            el.addEventListener('click', () => { handleEmailClick(el); });
+        });
+
+        document.querySelectorAll('.is_shipped, .is_delivered').forEach((el) => {
+            el.addEventListener('click', () => { handleChangeStatusClick(el); });
+        });
+    })
+
+    async function showSwalOrderStates(tr, id_event, id_order_state) {
+        if (!selectOrderStates) {
+            const select = document.createElement("select");
+            const response = await fetch(adminControllerURL, {
                 method: 'POST',
-                headers: new Headers({
-                    'Content-Type': 'application/json; charset=UTF-8'
-                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-PS-Module': 'mpbrtinfo',
+                    'X-PS-Action': 'getOrderStates',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
                 body: JSON.stringify({
+                    id_evento: id_event,
                     ajax: 1,
-                    action: 'updateEventi',
-                    eventi: chk_eventi
+                    action: "getOrderStates"
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if ("updated" in data) {
-                    alert("Operazione eseguita. Modificati " + data.updated + " eventi.");
-                }
-                if ("error" in data && data.error.length > 0) {
-                    alert("Errori durante l'aggiornamento: " + data.errors.length);
-                }
             });
+            const data = await response.json();
+            const optionNull = document.createElement("option");
+            optionNull.value = "";
+            optionNull.textContent = "Non cambiare stato";
+            select.appendChild(optionNull);
+            data.options.forEach(option => {
+                const optionElement = document.createElement("option");
+                optionElement.value = option.id_order_state;
+                optionElement.textContent = option.name;
+                select.appendChild(optionElement);
+            });
+
+            select.classList.add("id_order_states", "select2");
+            select.style.width = "95%";
+            select.style.margin = "0 auto";
+            select.name = "id_order_state";
+            select.id = "id_order_state";
+            select.value = id_order_state;
+            selectOrderStates = select;
+        } else {
+            selectOrderStates.value = id_order_state;
+        }
+
+        const brtStateName = tr.querySelector('td:nth-child(5)').textContent.trim();
+        Swal.fire({
+            title: 'Aggiorna lo stato <br>' + brtStateName,
+            html: selectOrderStates,
+            showCancelButton: true,
+            confirmButtonText: 'Aggiorna',
+            cancelButtonText: 'Annulla',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                const response = await fetch(adminControllerURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-PS-Module': 'mpbrtinfo',
+                        'X-PS-Action': 'updateOrderState',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        id_evento: id_event,
+                        id_order_state: selectOrderStates.value,
+                        ajax: 1,
+                        action: "updateOrderState"
+                    })
+                });
+                const data = await response.json();
+                return data;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (result.value.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Aggiornato',
+                        text: result.value.message,
+                    });
+
+                    tr.querySelector('td.cell-id_order_state').innerHTML = result.value.state;
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Errore',
+                        text: result.value.message,
+                    });
+                }
+            }
+        });
+    }
+
+    async function showSwalEmails(tr, id_event, email) {
+        if (!selectEmails) {
+            const select = document.createElement("select");
+            const response = await fetch(adminControllerURL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-PS-Module': 'mpbrtinfo',
+                    'X-PS-Action': 'getEmails',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({
+                    id_evento: id_event,
+                    ajax: 1,
+                    action: "getEmails"
+                })
+            });
+            const data = await response.json();
+            const optionNull = document.createElement("option");
+            optionNull.value = "";
+            optionNull.textContent = "Non inviare Email";
+            select.appendChild(optionNull);
+            data.options.forEach(option => {
+                const optionElement = document.createElement("option");
+                optionElement.value = option.value;
+                optionElement.textContent = option.text;
+                select.appendChild(optionElement);
+            });
+
+            select.classList.add("chosen", "id_order_states");
+            select.name = "email_template";
+            select.id = "email_template";
+            select.value = email;
+            selectEmails = select;
+        } else {
+            selectEmails.value = email;
+        }
+
+        const brtEmail = tr.querySelector('td:nth-child(6)').textContent.trim();
+        Swal.fire({
+            title: 'Aggiorna l\'email <br>' + brtEmail,
+            html: selectEmails,
+            showCancelButton: true,
+            confirmButtonText: 'Aggiorna',
+            cancelButtonText: 'Annulla',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                const response = await fetch(adminControllerURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-PS-Module': 'mpbrtinfo',
+                        'X-PS-Action': 'updateEmail',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        id_evento: id_event,
+                        email: selectEmails.value,
+                        ajax: 1,
+                        action: "updateEmail"
+                    })
+                });
+                const data = await response.json();
+                return data;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (result.value.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Aggiornato',
+                        text: result.value.message,
+                    });
+
+                    tr.querySelector('td.cell-email').innerHTML = result.value.state;
+
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Errore',
+                        text: result.value.message,
+                    });
+                }
+            }
+        });
+    }
+
+    async function handleOrderStateClick(el) {
+        const span = el.querySelector('span');
+        if (span) {
+            const tr = el.closest('tr');
+            const id_evento = span.dataset.id_evento;
+            const id_order_state = span.dataset.id_order_state || 0;
+            const order_state_name = span.textContent || '';
+            await showSwalOrderStates(tr, id_evento, id_order_state, order_state_name);
+        }
+    }
+
+    async function handleEmailClick(el) {
+        const span = el.querySelector('span');
+        if (span) {
+            const tr = el.closest('tr');
+            const id_evento = span.dataset.id_evento;
+            const email = span.dataset.email || '';
+            await showSwalEmails(tr, id_evento, email);
+        }
+    }
+
+    async function handleChangeStatusClick(el) {
+        const id_evento = el.dataset.id_evento;
+        const field = el.dataset.field;
+        const value = el.dataset.value;
+        const response = await fetch(adminControllerURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-PS-Module': 'mpbrtinfo',
+                'X-PS-Action': 'updateStatus',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({
+                id_evento: id_evento,
+                field: field,
+                value: value,
+                ajax: 1,
+                action: "updateStatus"
+            })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            el.textContent = data.icon;
+            el.classList.remove('text-success', 'text-danger');
+            el.classList.add(data.color);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Errore',
+                text: data.message,
+            });
+        }
+        return data;
     }
 </script>

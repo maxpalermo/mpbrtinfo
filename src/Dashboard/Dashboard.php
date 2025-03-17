@@ -43,17 +43,19 @@ class Dashboard
     const ICON_REFUSED = 'block';
     const ICON_WAITING = 'pending';
     const ICON_ERROR = 'error';
+    const ICON_ALERT = 'warning';
 
     public function __construct($module)
     {
         $this->module = $module;
         $this->context = \Context::getContext();
     }
+
     public function renderDashboard()
     {
         $tpl = $this->context->smarty->createTemplate($this->getDashboardPath());
         $tpl->assign([
-            'panels' => $this->panels
+            'panels' => $this->panels,
         ]);
 
         return $tpl->fetch();

@@ -20,8 +20,6 @@
 
 namespace MpSoft\MpBrtInfo\Order;
 
-use MpSoft\MpBrtInfo\Bolla\Evento;
-
 if (!defined('_PS_VERSION_')) {
     exit;
 }
@@ -37,31 +35,23 @@ class GetOrderShippingDate
 
     protected function run($type = 'date')
     {
-        $events = Evento::getEventRowsByEventType('shipped');
+        $shippedOrderStates = \ModelBrtEvento::getOrderStatesTypeShipped();
         $date = date('Y-m-d H:i:s');
 
-        if ($events) {
-            $id_events = array_column($events, \ModelBrtEvento::$definition['primary']);
-            $id_order_states = [];
-            foreach ($id_events as $id_event) {
-                $result = Evento::getPrestashopIdOrderStateByIdEvent($id_event);
-                if ($result) {
-                    $id_order_states = array_merge($id_order_states, $result);
-                }
-            }
-            $id_state_shipped = implode(',', array_unique($id_order_states));
+        if ($shippedOrderStates) {
+            $id_state_shipped = implode(',', array_unique(array_column($shippedOrderStates, 'id_order_state')));
 
             $db = \Db::getInstance();
             $sql = new \DbQuery();
-    
+
             $sql->select('date_add')
                 ->from('order_history')
                 ->where('id_order = ' . (int) $this->id_order)
                 ->where('id_order_state IN (' . $id_state_shipped . ')')
                 ->orderBy('date_add DESC');
-    
+
             $date = $db->getValue($sql);
-    
+
             if (!$date) {
                 $date = date('Y-m-d H:i:s');
             }

@@ -16,12 +16,11 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  *}
-<a
-   id="brt-fetch-orders"
-   class="btn toolbar_btn pointer"
-   href="javascript:void(0);"
-   title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}"
-   style="background-color: #27ae60; color: #fcfcfc;">
+<button
+        id="brt-fetch-orders"
+        class="btn toolbar_btn pointer mr-3 ml-3"
+        title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}"
+        style="background-color: #27ae60; color: #fcfcfc;">
     <i class="material-icons">local_shipping</i>
     <span>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</span>
-</a>
+</button>

@@ -1,0 +1,20 @@
+Avviso di passaggio per l'ordine #{id_order}
+
+Gentile {firstname} {lastname},
+
+Il corriere BRT ha tentato di consegnare il tuo ordine oggi, ma non ha trovato nessuno all'indirizzo indicato.
+
+È stato lasciato un avviso di passaggio.
+Il corriere tenterà nuovamente la consegna nei prossimi giorni lavorativi.
+
+Dettagli della spedizione:
+- Numero di tracking: {tracking_number}
+- Data tentativo di consegna: {last_update}
+- Motivo: {reason}
+
+Puoi contattare direttamente BRT per concordare una nuova data di consegna o richiedere il ritiro presso un punto di raccolta.
+
+Puoi seguire la tua spedizione visitando: {tracking_url}
+
+Grazie per aver scelto {shop_name}!
+Per qualsiasi domanda o assistenza, non esitare a contattarci.

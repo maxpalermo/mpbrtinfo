@@ -20,8 +20,8 @@
 
 namespace MpSoft\MpBrtInfo\Fetch;
 
-use ModelBrtConfig;
 use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
+use MpSoft\MpBrtInfo\Mail\Mailer;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByIdCollo;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByRMA;
@@ -29,7 +29,6 @@ use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByRMN;
 use MpSoft\MpBrtInfo\WSDL\GetLegendaEsiti;
 use MpSoft\MpBrtInfo\WSDL\GetLegendaEventi;
 use MpSoft\MpBrtInfo\WSDL\GetTrackingByBrtShipmentId;
-
 
 if (!defined('_PS_VERSION_')) {
     exit;
@@ -48,6 +47,7 @@ class FetchOrdersHandler
         $this->module = \Module::getInstanceByName('mpbrtinfo');
         $this->context = \Context::getContext();
     }
+
     protected function ajaxRender($message)
     {
         header('Content-Type: application/json');
@@ -82,7 +82,7 @@ class FetchOrdersHandler
 
         if ($risultati === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             return $risultati;
         }
@@ -98,7 +98,7 @@ class FetchOrdersHandler
 
         if ($risultati === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             return $risultati;
         }
@@ -115,7 +115,7 @@ class FetchOrdersHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -133,7 +133,7 @@ class FetchOrdersHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -144,6 +144,7 @@ class FetchOrdersHandler
      * Ottiene l'ID di una spedizione BRT tramite ID collo
      * 
      * @param array $params Parametri della richiesta
+     *
      * @return array Risultato della chiamata SOAP
      */
     protected function getIdSpedizioneByIdCollo($params)
@@ -157,7 +158,7 @@ class FetchOrdersHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -168,6 +169,7 @@ class FetchOrdersHandler
      * Ottiene le informazioni di tracking di una spedizione BRT tramite l'ID spedizione BRT
      * 
      * @param array $params Parametri della richiesta
+     *
      * @return array Risultato della chiamata SOAP
      */
     protected function getTrackingByBrtShipmentId($params)
@@ -185,7 +187,7 @@ class FetchOrdersHandler
 
         if ($risultato === false) {
             // Gestione errori
-            return ['error' => implode(", ", $client->getErrors())];
+            return ['error' => implode(', ', $client->getErrors())];
         } else {
             // Elaborazione risultato
             return $risultato;
@@ -194,12 +196,12 @@ class FetchOrdersHandler
 
     protected function parseShippingData($params)
     {
-        //Controlla i dati restituiti e restituisce una tabella HTML
+        // Controlla i dati restituiti e restituisce una tabella HTML
         $data = $params['data'];
         $id_order = $data['id_order'];
         $tracking_number = $data['tracking_number'];
         $year_shipped = (new GetOrderShippingDate($id_order))->getShippingYear();
-        $shipment_data = BrtParseInfo::parseTrackingInfo($data, \ModelBrtConfig::getEsiti());
+        $shipment_data = BrtParseInfo::parseTrackingInfo($data, \ModelBrtConfig::getEsiti(), $id_order);
         $bolla = $this->prepareShipmentData($shipment_data);
         $this->prepareHistory($id_order, $year_shipped, $shipment_data);
 
@@ -211,14 +213,14 @@ class FetchOrdersHandler
                     $bolla['days'] = $this->countDays($id_order);
                 }
                 $events[] = [
-                    'color' => $evento->getColor(),
-                    'icon' => $evento->getIcon(),
+                    'color' => $evento->getRow()['event_color'],
+                    'icon' => $evento->getRow()['event_icon'],
                     'id' => $evento->getId(),
                     'data' => $evento->getData(),
                     'ora' => $evento->getOra(),
                     'descrizione' => $evento->getDescrizione(),
                     'filiale' => $evento->getFiliale(),
-                    'label' => $evento->getLabel(),
+                    'label' => '(' . $evento->getRow()['event_id'] . ') ' . $evento->getRow()['event_name'],
                 ];
             }
         }
@@ -306,20 +308,35 @@ class FetchOrdersHandler
         $date_delivered = '';
         $days = 0;
 
+        $date_shipped = '';
+        $date_delivered = '';
         foreach (array_reverse($bolla->getEventi()) as $evento) {
             $id_order_state = $this->getCurrentOrderState($id_order);
             $filiale = $evento->getFiliale();
             $filiale_id = preg_match('/\((.*?)\)/', $filiale, $matches) ? trim($matches[1]) : '';
             $filiale_name = preg_match('/(.*)\(/', $filiale, $matches) ? trim($matches[1]) : '';
             $data_evento = $evento->getData() . ' ' . $evento->getOra();
-            $date = \DateTime::createFromFormat('d.m.Y H.i', $data_evento);
+            $date_event_iso = \DateTime::createFromFormat('d.m.Y H.i', $data_evento)->format('Y-m-d H:i:s');
+            $evento_date_shipped = '';
+            $evento_date_delivered = '';
 
-            if ($evento->getId() == 701 && !$date_shipped) {
-                $date_shipped = $date->format('Y-m-d H:i:s');
+            if ($evento->isShipped()) {
+                $evento_date_shipped = $date_event_iso;
+            }
+            if ($evento->isDelivered()) {
+                $evento_date_delivered = $date_event_iso;
             }
 
-            if ($evento->isDelivered() && !$date_delivered) {
-                $date_delivered = $date->format('Y-m-d H:i:s');
+            if ($evento_date_shipped && !$date_shipped) {
+                if ($evento_date_shipped != '0000-00-00 00:00:00') {
+                    $date_shipped = $evento_date_shipped;
+                }
+            }
+
+            if ($evento_date_delivered && !$date_delivered) {
+                if ($evento_date_delivered != '0000-00-00 00:00:00') {
+                    $date_delivered = $evento_date_delivered;
+                }
             }
 
             if ($date_shipped && $date_delivered) {
@@ -331,7 +348,7 @@ class FetchOrdersHandler
                 'id_order_state' => $id_order_state,
                 'event_id' => $evento->getId(),
                 'event_name' => $evento->getDescrizione(),
-                'event_date' => $date->format('Y-m-d H:i:s'),
+                'event_date' => $date_event_iso,
                 'event_filiale_id' => $filiale_id,
                 'event_filiale_name' => $filiale_name,
                 'id_collo' => $bolla->getTrackingNumber(),
@@ -364,15 +381,34 @@ class FetchOrdersHandler
                 try {
                     $model->add();
 
-                    $id_order_state = $evento->getOrderStateIdByEventId();
-                    $order = new \Order($id_order);
-                    if (\Validate::isLoadedObject($order)) {
-                        if ($order->current_state != $id_order_state) {
-                            $order->setCurrentState($id_order_state);
+                    $id_order_state = (int) \ModelBrtEvento::getIdOrderStateByIdEvent((int) $fields['event_id']);
+                    // Se bisogna cambiare stato, ci deve essere un id_stato valido
+                    if ($id_order_state) {
+                        $order = new \Order($id_order);
+                        if (\Validate::isLoadedObject($order)) {
+                            if ($order->current_state != $id_order_state) {
+                                $order->setCurrentState($id_order_state);
+                            }
                         }
                     }
                 } catch (\Throwable $th) {
                     $errors[] = sprintf('Ordine %s: Errore %s', $model->id_order, $th->getMessage());
+                }
+
+                // Controllo se devo spedire un email associata all'evento
+                $sendEmail = \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, false);
+                if ($sendEmail) {
+                    $email = \ModelBrtEvento::getEmail($fields['event_id']);
+                    if ($email) {
+                        $trackingData = [
+                            'tracking_number' => $fields['id_collo'],
+                            'last_update' => $fields['event_date'],
+                            'reason' => "({$fields['event_id']}) {$fields['event_name']}",
+                            'id_event' => $fields['event_id'],
+                        ];
+                        $mailer = new Mailer();
+                        $mailer->sendEmail($email, $id_order, $trackingData);
+                    }
                 }
             }
         }
@@ -423,9 +459,9 @@ class FetchOrdersHandler
 
     public function getTotalShippings($params)
     {
-        $id_carriers = ModelBrtConfig::getCarriers();
-        $id_delivered = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_EVENT_DELIVERED, 0);
-        $id_state_skip = ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_OS_SKIP, []);
+        $id_carriers = \ModelBrtConfig::getBrtCarriersId();
+        $id_delivered = \ModelBrtConfig::getBrtOsDelivered();
+        $id_state_skip = \ModelBrtConfig::getBrtOsSkip();
         $max_date = date('Y-m-d', strtotime('-30 days'));
 
         if (!$id_carriers) {
@@ -467,10 +503,16 @@ class FetchOrdersHandler
             ->from('order_carrier', 'oc')
             ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
             ->where('o.id_carrier IN (' . $id_carriers . ')')
-            ->where('o.date_add >= "' . $max_date . '"')
             ->groupBy('oc.id_order')
             ->having('MAX(oc.tracking_number) IS NULL OR MAX(oc.tracking_number) = ""')
             ->orderBy('o.id_order DESC');
+
+        $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
+        if ($startsFrom) {
+            $sql->where('o.id_order >= ' . $startsFrom);
+        } else {
+            $sql->where('o.date_add >= "' . $max_date . '"');
+        }
 
         if ($id_delivered) {
             $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
@@ -491,10 +533,16 @@ class FetchOrdersHandler
             ->from('order_carrier', 'oc')
             ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
             ->where('o.id_carrier IN (' . $id_carriers . ')')
-            ->where('o.date_add >= "' . $max_date . '"')
             ->groupBy('oc.id_order')
             ->having('MAX(oc.tracking_number) IS NOT NULL AND MAX(oc.tracking_number) != ""')
             ->orderBy('o.id_order DESC');
+
+        $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
+        if ($startsFrom) {
+            $sql->where('o.id_order >= ' . $startsFrom);
+        } else {
+            $sql->where('o.date_add >= "' . $max_date . '"');
+        }
 
         if ($id_delivered) {
             $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
@@ -522,34 +570,37 @@ class FetchOrdersHandler
     public function getTrackingNumbers($params)
     {
         $processed = 0;
-        $brt_customer_id = (int) ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+        $brt_customer_id = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
         $list = $params['list'];
 
-        $getTrackingBy = ModelBrtConfig::getConfigValue(
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE,
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN
+        $getTrackingBy = \ModelBrtConfig::getConfigValue(
+            \ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE,
+            'RMN'
         );
 
-        $getTrackingWhere = ModelBrtConfig::getConfigValue(
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE,
-            ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID,
+        $getTrackingWhere = \ModelBrtConfig::getConfigValue(
+            \ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE,
+            'ID'
         );
 
         switch ($getTrackingBy) {
-            case ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMN:
+            case 'RMN':
                 $getTrackingBy = new GetIdSpedizioneByRMN();
+
                 break;
-            case ModelBrtConfig::MP_BRT_INFO_SEARCH_BY_RMA:
+            case 'RMA':
                 $getTrackingBy = new GetIdSpedizioneByRMA();
+
                 break;
             default:
                 $getTrackingBy = new GetIdSpedizioneByIdCollo();
+
                 break;
         }
 
-        if (!$getTrackingWhere == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_ID) {
+        if (!$getTrackingWhere == 'ID') {
             $field = 'id';
-        } elseif ($getTrackingWhere == ModelBrtConfig::MP_BRT_INFO_SEARCH_ON_REFERENCE) {
+        } elseif ($getTrackingWhere == 'REFERENCE') {
             $field = 'reference';
         } else {
             $field = 'id';
@@ -564,6 +615,7 @@ class FetchOrdersHandler
                 if (!\Validate::isLoadedObject($order)) {
                     $item['status'] = 'error';
                     $item['message'] = 'Ordine non trovato';
+
                     continue;
                 }
 
@@ -598,12 +650,13 @@ class FetchOrdersHandler
      * Ottiene le informazioni di tracking di una spedizione BRT tramite l'ID spedizione BRT
      * 
      * @param array $params Parametri della richiesta
+     *
      * @return array Risultato della chiamata SOAP
      */
     protected function getTrackingsByBrtShipmentId($params)
     {
         $processed = 0;
-        $brt_customer_id = (int) ModelBrtConfig::getConfigValue(ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
+        $brt_customer_id = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
         $list = $params['list'];
         $lingua_iso639_alpha2 = isset($params['lingua']) ? $params['lingua'] : '';
 
@@ -617,6 +670,7 @@ class FetchOrdersHandler
                 if (!\Validate::isLoadedObject($order)) {
                     $item['status'] = 'error';
                     $item['message'] = 'Ordine non trovato';
+
                     continue;
                 }
 
@@ -627,14 +681,15 @@ class FetchOrdersHandler
                     // Esegui la chiamata al servizio
                     $response = $client->getTracking($tracking_number, $id_order, $lingua_iso639_alpha2, $shipping_year);
 
-                    //Controlla che l'esito sia andato a buon fine
+                    // Controlla che l'esito sia andato a buon fine
                     if ($response['ESITO'] < 0) {
                         $item['status'] = 'error';
                         $item['message'] = 'Informazione spedizione non presente';
+
                         continue;
                     }
 
-                    //Controlla l'esito, aggiorna lo stato, invia l'email
+                    // Controlla l'esito, aggiorna lo stato, invia l'email
                     $response['id_order'] = $id_order;
                     $response['tracking_number'] = $tracking_number;
 

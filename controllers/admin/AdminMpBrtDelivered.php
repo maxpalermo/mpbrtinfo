@@ -26,7 +26,6 @@ require_once _PS_MODULE_DIR_ . '/mpbrtinfo/models/autoload.php';
 
 use MpSoft\MpBrtInfo\Dashboard\ChartPanel;
 use MpSoft\MpBrtInfo\Dashboard\Dashboard;
-use MpSoft\MpBrtInfo\Soap\BrtSoapAlerts;
 
 class AdminMpBrtDeliveredController extends ModuleAdminController
 {
@@ -55,7 +54,6 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
         $this->id_lang = (int) $this->context->language->id;
         $this->id_shop = (int) $this->context->shop->id;
         $this->id_employee = (int) $this->context->employee->id;
-        $this->soapAlerts = BrtSoapAlerts::getInstance();
     }
 
     public function setMedia($isNewTheme = false)
@@ -68,14 +66,13 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
         $this->addCSS([
             'https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css',
         ]);
-
     }
 
     public function initContent()
     {
         $options = [
             'responsive' => true,
-            'maintainAspectRatio' => false
+            'maintainAspectRatio' => false,
         ];
         $colors = [
             'rgba(255, 99, 132, 0.5)',
@@ -94,7 +91,6 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             'rgba(100, 200, 100, 0.5)',
             'rgba(50, 150, 200, 0.5)',
             'rgba(200, 150, 50, 0.5)',
-
         ];
 
         $borderColors = [
@@ -132,24 +128,23 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             'Dicembre',
         ];
 
-
         $dashboard = new MpSoft\MpBrtInfo\Dashboard\Dashboard($this->module);
         $panel = new MpSoft\MpBrtInfo\Dashboard\Panel($this->module);
         $chartPanel = new MpSoft\MpBrtInfo\Dashboard\ChartPanel($this->module);
 
-        $totalDelivered = $this->getTotalShippedByType(['delivered=1', 'fermopoint=0']);
-        $totalFermoPoint = $this->getTotalShippedByType(['fermopoint=1', 'delivered=0']);
-        $totalInTransit = $this->getTotalShippedByType(['transit=1', 'delivered=0', 'fermopoint=0']);
-        $totalRefused = $this->getTotalShippedByType(['refused=1', 'delivered=0', 'fermopoint=0', 'transit=0']);
-        $totalWaiting = $this->getTotalShippedByType(['waiting=1', 'delivered=0', 'fermopoint=0', 'transit=0', 'refused=0']);
-        $totalError = $this->getTotalShippedByType(['error=1', 'delivered=0', 'fermopoint=0', 'transit=0', 'refused=0', 'waiting=0']);
+        $totalDelivered = $this->getTotalShippedByType(['%CONSEGNAT%']);
+        $totalFermoPoint = $this->getTotalShippedByType(['RITIRATA%FERMOPOINT']);
+        $totalInTransit = $this->getTotalShippedByType(['PARTITA']);
+        $totalRefused = $this->getTotalShippedByType(['%RIFIUTA%']);
+        $totalWaiting = $this->getTotalShippedByType(['%ATTESA%']);
+        $totalAlerts = $this->getTotalShippedByType(['%AVVISO%']);
 
         $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_GREEN, Dashboard::ICON_DELIVERED, $totalDelivered, 'Consegnati', 'Spedizioni'));
         $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_BLUE, Dashboard::ICON_FERMOPOINT, $totalFermoPoint, 'FermoPoint', 'Spedizioni'));
         $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_ORANGE, Dashboard::ICON_TRANSIT, $totalInTransit, 'In transito', 'Spedizioni'));
         $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_BROWN, Dashboard::ICON_REFUSED, $totalRefused, 'Rifiutati', 'Spedizioni'));
         $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_YELLOW, Dashboard::ICON_WAITING, $totalWaiting, 'In attesa', 'Spedizioni'));
-        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_RED, Dashboard::ICON_ERROR, $totalError, 'Errore', 'Spedizioni'));
+        $dashboard->addPanel($panel->renderPanel(Dashboard::COLOR_RED, Dashboard::ICON_ALERT, $totalAlerts, 'Avvisi', 'Spedizioni'));
 
         $this->content = $dashboard->renderDashboard();
 
@@ -167,7 +162,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
                 $shippedDaysData['datasets'][0]['borderWidth'][] = 1;
             }
         }
-        $dashboard->addPanel($chartPanel->renderChartPanel("Massimo giorni di consegna", $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
+        $dashboard->addPanel($chartPanel->renderChartPanel('Massimo giorni di consegna', $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
 
         $shippedDays = $this->getShippedDays('min');
         $shippedDaysData = [];
@@ -181,7 +176,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
                 $shippedDaysData['datasets'][0]['borderWidth'][] = 1;
             }
         }
-        $dashboard->addPanel($chartPanel->renderChartPanel("Minimo giorni di consegna", $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
+        $dashboard->addPanel($chartPanel->renderChartPanel('Minimo giorni di consegna', $shippedDaysData, $options, ChartPanel::CHART_TYPE_PIE, 'col-md-4'));
 
         $shippedMonths = $this->getShippedOrdersByMonth();
         $shippedMonthsData = [];
@@ -196,7 +191,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
                 $shippedMonthsData['datasets'][0]['borderWidth'][] = 1;
             }
         }
-        $dashboard->addPanel($chartPanel->renderChartPanel("Ordini consegnati per mese", $shippedMonthsData, $options, ChartPanel::CHART_TYPE_BAR, 'col-md-4'));
+        $dashboard->addPanel($chartPanel->renderChartPanel('Ordini consegnati per mese', $shippedMonthsData, $options, ChartPanel::CHART_TYPE_BAR, 'col-md-4'));
 
         $this->content .= $dashboard->renderDashboard();
 
@@ -287,6 +282,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
         foreach ($states as $state) {
             $options[$state['id_order_state']] = $state['name'];
         }
+
         return $options;
     }
 
@@ -300,7 +296,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             ->orderBy('b.id_mpbrtinfo_history DESC');
 
         foreach ($types as $type) {
-            $query->where('e.is_' . $type);
+            $query->where('e.name LIKE \'%' . pSQL($type) . '\'');
         }
 
         $sql = $query->build();
@@ -311,6 +307,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             foreach ($result as $row) {
                 $total += (int) $row['total'];
             }
+
             return $total;
         }
 
@@ -330,6 +327,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             ->orderBy('b.id_mpbrtinfo_history DESC');
 
         $result = $db->executeS($sql);
+
         return $result ? $result : [];
     }
 
@@ -346,6 +344,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             ->orderBy('b.id_mpbrtinfo_history DESC');
 
         $result = $db->executeS($sql);
+
         return $result ? $result : [];
     }
 
@@ -355,7 +354,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             return "<span class='label label-success'>{$value}</span>";
         }
 
-        return "--";
+        return '--';
     }
 
     public function callbackFormatEventId($value)
@@ -364,7 +363,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             return "<span class='label label-info'>{$value}</span>";
         }
 
-        return "--";
+        return '--';
     }
 
     public function callbackFormatEventName($value)
@@ -387,6 +386,7 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
      * 
      * @param string $charset The character set to use
      * @param string $collation The collation to use
+     *
      * @return void
      */
     private function setCollationForAllTables($charset = 'utf8mb4', $collation = 'utf8mb4_unicode_ci')
@@ -425,5 +425,4 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
             $this->errors[] = $this->module->l('Error updating database charset and collation');
         }
     }
-
 }
