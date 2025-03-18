@@ -15,7 +15,7 @@ window.addEventListener("modulesReady", function () {
             const rmn = btn.dataset.rmn;
             const rma = btn.dataset.rma;
 
-            window.BrtEsitiInstance.loadAndShowPanel(id_order, tracking);
+            window.BrtEsitiInstance.loadAndShowPanel(id_order, tracking, btn);
 
             e.preventDefault();
             e.stopImmediatePropagation();

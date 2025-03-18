@@ -38,13 +38,16 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
         $table = ModelBrtHistory::$definition['table'];
         $primary = ModelBrtHistory::$definition['primary'];
 
+        $this->module = Module::getInstanceByName('mpbrtinfo');
         $this->bootstrap = true;
         $this->table = $table;
-        $this->className = 'ModelBrtHistory';
         $this->identifier = $primary;
+        $this->className = 'ModelBrtHistory';
         $this->multilang = false;
         $this->translator = Context::getContext()->getTranslator();
+
         parent::__construct();
+
         $this->toolbar_title = $this->module->l('Storico spedizioni');
 
         $this->_defaultOrderBy = $primary;
@@ -59,12 +62,13 @@ class AdminMpBrtDeliveredController extends ModuleAdminController
     public function setMedia($isNewTheme = false)
     {
         parent::setMedia($isNewTheme);
+        $path = $this->module->getLocalPath() . 'views/js/';
         $this->addJS([
-            'https://cdn.jsdelivr.net/npm/chart.js',
+            $path . 'chart.js/node_modules/chart.js/dist/chart.js',
         ]);
 
         $this->addCSS([
-            'https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css',
+            $path . 'chart.css',
         ]);
     }
 

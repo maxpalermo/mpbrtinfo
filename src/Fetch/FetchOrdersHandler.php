@@ -713,4 +713,23 @@ class FetchOrdersHandler
             'list' => $list,
         ];
     }
+
+    public function updateIcon($params)
+    {
+        $id_order = $params['id_order'];
+        $lastEvent = \ModelBrtEvento::getLastEventHistory($id_order);
+        $event = \ModelBrtEvento::getEvento($lastEvent['event_id']);
+
+        if ($event) {
+            return [
+                'color' => $event->color,
+                'icon' => $event->icon,
+            ];
+        }
+
+        return [
+            'color' => 'red',
+            'icon' => 'error',
+        ];
+    }
 }

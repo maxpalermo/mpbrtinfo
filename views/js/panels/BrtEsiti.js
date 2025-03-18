@@ -29,7 +29,7 @@ export class BrtEsiti {
      * @param {Array} data.storico - Storico degli eventi
      * @param {number} data.id_order - ID dell'ordine
      */
-    showPanel(html) {
+    async showPanel(html, btn) {
         // Configurazione e visualizzazione di SweetAlert2
         Swal.fire({
             title: "Dettagli Spedizione BRT",
@@ -48,6 +48,39 @@ export class BrtEsiti {
                 popup: "brt-swal-popup",
                 content: "brt-swal-content"
             }
+        }).then(async () => {
+            const response = await fetch(this.adminControllerURL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({
+                    ajax: true,
+                    action: "updateIcon",
+                    id_order: btn.dataset.id_order
+                })
+            });
+            const json = await response.json();
+
+            //se c'è l'elemento img in btn lo elimino e lo cambio con l'icona
+            const img = btn.querySelector("img");
+            if (img) {
+                img.remove();
+            }
+            //se c'è lelemento div in btn lo elimino e lo cambio con l'icona
+            const div = btn.querySelector("div");
+            if (div) {
+                div.remove();
+            }
+            //sostituisco l'icona
+            btn.innerHTML = `
+                <div style="width: 48px; height: 48px; border: 4px double ${json.color}; display: flex; justify-content: center; align-items: center;">
+                    <div class="material-icons" style="color: ${json.color};">
+                        ${json.icon}
+                    </div>
+                </div>
+            `;
         });
     }
 
@@ -56,7 +89,7 @@ export class BrtEsiti {
      * @param {number} id_order - ID dell'ordine
      * @param {string} spedizione_id - Numero di tracking
      */
-    async loadAndShowPanel(id_order, spedizione_id) {
+    async loadAndShowPanel(id_order, spedizione_id, btn) {
         // Mostra un loader mentre si caricano i dati
         Swal.fire({
             title: "Caricamento in corso...",
@@ -106,7 +139,7 @@ export class BrtEsiti {
             if (jsonParse.success) {
                 // Chiudi il loader e mostra il pannello con i dati
                 Swal.close();
-                this.showPanel(jsonParse.html);
+                this.showPanel(jsonParse.html, btn);
             } else {
                 Swal.fire({
                     title: "Errore",

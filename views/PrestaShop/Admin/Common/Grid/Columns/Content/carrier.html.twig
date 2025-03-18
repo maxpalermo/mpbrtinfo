@@ -8,7 +8,7 @@
     {% set carrier_name = attribute(class, 'getCarrierName', {id_order:id_order}) %}
     {% set tracking_number = attribute(class, 'getTrackingNumber', [id_order]) %}
     <div 
-        class="brt-info-button d-flex justify-content-center align-items-center" 
+        class="brt-info-button d-flex justify-content-center align-items-center pointer" 
         data-id_order="{{ id_order }}" 
         data-id_collo="{{ tracking_number }}" 
         data-tippy-content="

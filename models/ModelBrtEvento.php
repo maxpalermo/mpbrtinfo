@@ -97,21 +97,77 @@ class ModelBrtEvento extends ObjectModel
         ],
     ];
 
+    public static function getOS()
+    {
+        $id_lang = (int) Context::getContext()->language->id;
+        $db = db::getInstance();
+        $sql = new DbQuery();
+        $sql->select('os.*')
+            ->select('osl.name')
+            ->from('order_state', 'os')
+            ->leftJoin('order_state_lang', 'osl', 'osl.id_order_state = os.id_order_state AND osl.id_lang = ' . (int) $id_lang)
+            ->orderBy('osl.name');
+
+        try {
+            if ($os = $db->executeS($sql)) {
+                $out = [];
+                foreach ($os as &$o) {
+                    $out[$o['id_order_state']] = $o;
+                }
+
+                return $out;
+            }
+        } catch (\Throwable $th) {
+            Context::getContext()->controller->errors[] = $th->getMessage();
+            Context::getContext()->controller->errors[] = $sql;
+
+            return [];
+        }
+    }
+
     public static function getList()
     {
+        $os = self::getOS();
+        $table = self::$definition['table'];
+        $id_lang = (int) Context::getContext()->language->id;
         $db = Db::getInstance();
         $sql = new DbQuery();
-        $sql->select('e.*')
+        /*
+        $sql->select('ev.*')
             ->select('COALESCE(osl.name, "Non cambiare stato") as order_state_name')
             ->select('os.color as order_state_color')
-            ->from(self::$definition['table'], 'e')
-            ->leftJoin('order_state', 'os', 'e.id_order_state = os.id_order_state')
-            ->leftJoin('order_state_lang', 'osl', 'e.id_order_state = osl.id_order_state AND osl.id_lang = ' . (int) Context::getContext()->language->id)
+            ->from($table, 'ev')
+            ->leftJoin('order_state', 'os', 'os.id_order_state = ev.id_order_state')
+            ->leftJoin('order_state_lang', 'osl', 'osl.id_order_state = os.id_order_state AND osl.id_lang = ' . (int) $id_lang)
+            ->orderBy('ev.name');
+        */
+
+        $sql = new DbQuery();
+        $sql->select('*')
+            ->from($table)
             ->orderBy('name');
-        $rows = $db->executeS($sql);
+
+        try {
+            $rows = $db->executeS($sql);
+        } catch (\Throwable $th) {
+            Context::getContext()->controller->errors[] = $th->getMessage();
+            Context::getContext()->controller->errors[] = $sql;
+
+            return [];
+        }
 
         if (!$rows) {
             return [];
+        }
+
+        foreach ($rows as &$row) {
+            if (isset($os[$row['id_order_state']])) {
+                $row['order_state_name'] = $os[$row['id_order_state']]['name'];
+                $row['order_state_color'] = $os[$row['id_order_state']]['color'];
+            } else {
+                $row['order_state_name'] = 'Non cambiare stato';
+                $row['order_state_color'] = '#505050';
+            }
         }
 
         return $rows;
