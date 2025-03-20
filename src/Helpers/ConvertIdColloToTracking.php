@@ -17,12 +17,31 @@
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 
-header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Cache-Control: post-check=0, pre-check=0', false);
-header('Pragma: no-cache');
+namespace MpSoft\MpBrtInfo\Helpers;
 
-header('Location: ../');
-exit;
+use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByIdCollo;
+
+class ConvertIdColloToTracking
+{
+    public static function convert($idCollo)
+    {
+        if ($idCollo && strlen($idCollo) == 12) {
+            return $idCollo;
+        }
+
+        if ($idCollo && strlen($idCollo) == 15) {
+            // cerco il tracking number dall'ID COLLO
+            $id_brt = \ModelBrtConfig::getBrtCustomerId();
+            $id_collo = $idCollo;
+            $class = new GetIdSpedizioneByIdCollo();
+            $class->id_collo = $id_collo;
+            $tracking_number = $class->getIdSpedizione($id_brt, $id_collo);
+            if ($tracking_number) {
+                return $tracking_number;
+            }
+        }
+
+        return '';
+    }
+}

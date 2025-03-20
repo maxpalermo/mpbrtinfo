@@ -34,6 +34,7 @@ class ModelBrtConfig
     const MP_BRT_INFO_SEARCH_TYPE = 'MP_BRT_INFO_SEARCH_TYPE';
     const MP_BRT_INFO_SEARCH_WHERE = 'MP_BRT_INFO_SEARCH_WHERE';
     const MP_BRT_INFO_SEND_EMAIL = 'MP_BRT_INFO_SEND_EMAIL';
+    const MP_BRT_INFO_UPDATE_TRACKING_TABLE = 'MP_BRT_INFO_UPDATE_TRACKING_TABLE';
 
     public static function getRootConfig()
     {
@@ -242,6 +243,11 @@ class ModelBrtConfig
         return (int) self::getConfigValue(self::MP_BRT_INFO_SEND_EMAIL);
     }
 
+    public static function getUpdateTrackingTable()
+    {
+        return (int) self::getConfigValue(self::MP_BRT_INFO_UPDATE_TRACKING_TABLE);
+    }
+
     public static function toArray($value)
     {
         if (!is_array($value) && self::isJson($value)) {
@@ -269,6 +275,7 @@ class ModelBrtConfig
             self::MP_BRT_INFO_SEARCH_TYPE => self::getBrtSearchType(),
             self::MP_BRT_INFO_SEARCH_WHERE => self::getBrtSearchWhere(),
             self::MP_BRT_INFO_SEND_EMAIL => self::getBrtSendEmail(),
+            self::MP_BRT_INFO_UPDATE_TRACKING_TABLE => (int) self::getUpdateTrackingTable(),
         ];
 
         return $config;
@@ -286,6 +293,7 @@ class ModelBrtConfig
         Configuration::updateValue(self::MP_BRT_INFO_SEARCH_TYPE, 'RMN');
         Configuration::updateValue(self::MP_BRT_INFO_SEARCH_WHERE, 'ID');
         Configuration::updateValue(self::MP_BRT_INFO_SEND_EMAIL, 0);
+        Configuration::updateValue(self::MP_BRT_INFO_UPDATE_TRACKING_TABLE, 0);
     }
 
     public static function updateConfigValue($key, $value)

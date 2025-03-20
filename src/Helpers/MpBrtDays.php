@@ -18,7 +18,7 @@
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
 
-namespace MpSoft\MpBrtInfo\Brt;
+namespace MpSoft\MpBrtInfo\Helpers;
 
 if (!defined('_PS_VERSION_')) {
     exit;

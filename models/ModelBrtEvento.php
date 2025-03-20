@@ -1,4 +1,8 @@
 <?php
+
+use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
+use MpSoft\MpBrtInfo\Helpers\GetTrackingFromOrderCarrier;
+
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -306,15 +310,10 @@ class ModelBrtEvento extends ObjectModel
         $event_note = '';
         $lastEventHistory = self::getLastEventHistory($id_order, $id_event);
         if ($lastEventHistory) {
-            // Se ancora non c'è un id_collo, cerco nella tabella oder_carrier
+            // Se ancora non c'è un id_collo, cerco nella tabella order_carrier
             if (!$lastEventHistory['id_collo']) {
-                $sql = new DbQuery();
-                $sql->select('tracking_number')
-                    ->from('order_carrier')
-                    ->where('id_order=' . (int) $id_order)
-                    ->where('id_carrier=' . (int) $carrier['id_carrier'])
-                    ->orderBy('id_order_carrier DESC');
-                $lastEventHistory['id_collo'] = (int) Db::getInstance()->getValue($sql);
+                $id_collo = GetTrackingFromOrderCarrier::get($carrier['id_carrier'], $id_order);
+                $lastEventHistory['id_collo'] = ConvertIdColloToTracking::convert($id_collo);
             }
             if ($lastEventHistory['note']) {
                 $event_note = json_decode($lastEventHistory['note'], true);

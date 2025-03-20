@@ -21,6 +21,7 @@
 namespace MpSoft\MpBrtInfo\Fetch;
 
 use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
+use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
 use MpSoft\MpBrtInfo\Mail\Mailer;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByIdCollo;
@@ -498,61 +499,95 @@ class FetchOrdersHandler
         $db = \Db::getInstance();
 
         // Tutti gli ordini senza tracking number
-        $sql = new \DbQuery();
-        $sql->select('oc.id_order, oc.tracking_number')
-            ->from('order_carrier', 'oc')
-            ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
-            ->where('o.id_carrier IN (' . $id_carriers . ')')
-            ->groupBy('oc.id_order')
-            ->having('MAX(oc.tracking_number) IS NULL OR MAX(oc.tracking_number) = ""')
-            ->orderBy('o.id_order DESC');
+        $ocTable = _DB_PREFIX_ . 'order_carrier';
+        $oTable = _DB_PREFIX_ . 'orders';
+        $query = "
+            SELECT 
+                t1.id_order, 
+                t1.tracking_number
+            FROM 
+                {$ocTable} t1
+            INNER JOIN 
+                {$oTable} o ON t1.id_order = o.id_order
+            INNER JOIN 
+                (SELECT 
+                    id_order, 
+                    MAX(date_add) AS last_date
+                FROM 
+                    {$ocTable}
+                WHERE 
+                    tracking_number IS NOT NULL AND tracking_number <> ''
+                GROUP BY 
+                    id_order) t2
+            ON 
+                t1.id_order = t2.id_order AND t1.date_add = t2.last_date
+            WHERE 
+                t1.tracking_number IS NULL OR t1.tracking_number = ''
+        ";
 
         $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
         if ($startsFrom) {
-            $sql->where('o.id_order >= ' . $startsFrom);
+            $query .= "\n AND t1.id_order >= {$startsFrom}";
         } else {
-            $sql->where('o.date_add >= "' . $max_date . '"');
+            $query .= "\n AND t1.date_add >= \"{$max_date}\"";
         }
 
         if ($id_delivered) {
-            $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
+            $query .= "\n AND o.current_state NOT IN ({$id_delivered})";
         }
 
         if ($id_state_skip && is_array($id_state_skip)) {
-            $sql->where('o.current_state NOT IN (' . implode(',', $id_state_skip) . ')');
+            $query .= "\n AND o.current_state NOT IN (" . implode(',', $id_state_skip) . ')';
         }
 
-        $noTracking = $db->executeS($sql);
+        $noTracking = $db->executeS($query);
         if (!$noTracking) {
             $noTracking = [];
         }
 
         // Tutti gli ordini con tracking number
-        $sql = new \DbQuery();
-        $sql->select('oc.id_order, oc.tracking_number')
-            ->from('order_carrier', 'oc')
-            ->innerJoin('orders', 'o', 'oc.id_order = o.id_order')
-            ->where('o.id_carrier IN (' . $id_carriers . ')')
-            ->groupBy('oc.id_order')
-            ->having('MAX(oc.tracking_number) IS NOT NULL AND MAX(oc.tracking_number) != ""')
-            ->orderBy('o.id_order DESC');
+        $ocTable = _DB_PREFIX_ . 'order_carrier';
+        $oTable = _DB_PREFIX_ . 'orders';
+        $query = "
+            SELECT 
+                t1.id_order, 
+                t1.tracking_number
+            FROM 
+                {$ocTable} t1
+            INNER JOIN 
+                {$oTable} o ON t1.id_order = o.id_order
+            INNER JOIN 
+                (SELECT 
+                    id_order, 
+                    MAX(date_add) AS last_date
+                FROM 
+                    {$ocTable}
+                WHERE 
+                    tracking_number IS NOT NULL AND tracking_number <> ''
+                GROUP BY 
+                    id_order) t2
+            ON 
+                t1.id_order = t2.id_order AND t1.date_add = t2.last_date
+            WHERE 
+                t1.tracking_number IS NOT NULL AND t1.tracking_number <> ''
+        ";
 
         $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
         if ($startsFrom) {
-            $sql->where('o.id_order >= ' . $startsFrom);
+            $query .= "\n AND t1.id_order >= {$startsFrom}";
         } else {
-            $sql->where('o.date_add >= "' . $max_date . '"');
+            $query .= "\n AND t1.date_add >= \"{$max_date}\"";
         }
 
         if ($id_delivered) {
-            $sql->where('o.current_state NOT IN (' . $id_delivered . ')');
+            $query .= "\n AND o.current_state NOT IN ({$id_delivered})";
         }
 
         if ($id_state_skip && is_array($id_state_skip)) {
-            $sql->where('o.current_state NOT IN (' . implode(',', $id_state_skip) . ')');
+            $query .= "\n AND o.current_state NOT IN (" . implode(',', $id_state_skip) . ')';
         }
 
-        $tracking = $db->executeS($sql);
+        $tracking = $db->executeS($query);
         if (!$tracking) {
             $tracking = [];
         }
@@ -656,7 +691,6 @@ class FetchOrdersHandler
     protected function getTrackingsByBrtShipmentId($params)
     {
         $processed = 0;
-        $brt_customer_id = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
         $list = $params['list'];
         $lingua_iso639_alpha2 = isset($params['lingua']) ? $params['lingua'] : '';
 
@@ -664,7 +698,8 @@ class FetchOrdersHandler
             foreach ($list as &$item) {
                 $id_order = $item['id_order'];
                 $shipping_year = (new GetOrderShippingDate($id_order))->getShippingYear();
-                $tracking_number = $item['tracking_number'];
+                // Mi assicuro che il tracking non sia un ID COLLO
+                $tracking_number = ConvertIdColloToTracking::convert($item['tracking_number']);
 
                 $order = new \Order($id_order);
                 if (!\Validate::isLoadedObject($order)) {

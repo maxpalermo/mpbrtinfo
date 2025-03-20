@@ -4,12 +4,25 @@ namespace MpSoft\MpBrtInfo\Mail;
 
 class Mailer
 {
+    const BRT_URL_ID_COLLO = 'https://vas.brt.it/vas/sped_det_show.hsm?chisono=';
+    const BRT_URL_TRACKING = 'https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&Nspediz=';
+
     /**
      * Costruttore
      */
     public function __construct()
     {
         // Costruttore semplificato senza riferimenti a MailHog
+    }
+
+    public static function getCarrierTrackingURL($tracking)
+    {
+        return self::BRT_URL_TRACKING . $tracking;
+    }
+
+    public static function getCarrierIdColloURL($id_collo)
+    {
+        return self::BRT_URL_ID_COLLO . $id_collo;
     }
 
     /**

@@ -447,28 +447,6 @@ class ModelBrtHistory extends ObjectModel
         return date('Y');
     }
 
-    public static function getDateShipped($id_order)
-    {
-        $sent = ModelBrtConfig::get(ModelBrtConfig::MP_BRT_INFO_EVENT_SENT);
-        if (is_array($sent)) {
-            $sent = array_map('intval', $sent);
-            $sent = implode(',', $sent);
-        }
-
-        $sql = new DbQuery();
-        $sql->select('date_add')
-            ->from('order_history')
-            ->where('id_order = ' . (int) $id_order)
-            ->where('id_order_state in (' . $sent . ')')
-            ->orderBy('date_add ASC');
-        $date = Db::getInstance()->getValue($sql);
-        if ($date) {
-            return $date;
-        }
-
-        return date('Y-m-d H:i:s');
-    }
-
     public static function setDeliveredDays($id, $date, $date_add)
     {
         if ($date == '0000-00-00 00:00:00') {

@@ -1,6 +1,8 @@
 <?php
 
 use Doctrine\ORM\QueryBuilder;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
+use MpSoft\MpBrtInfo\Bolla\Evento;
 
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
@@ -27,10 +29,10 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/models/autoload.php';
 
-use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
-use MpSoft\MpBrtInfo\Bolla\Evento;
 use MpSoft\MpBrtInfo\Core\Grid\Column\Type\CarrierColumn;
 use MpSoft\MpBrtInfo\Fetch\FetchConfigHandler;
+use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
+use MpSoft\MpBrtInfo\Mail\Mailer;
 use PrestaShop\PrestaShop\Core\Grid\Filter\Filter;
 use PrestaShop\PrestaShop\Core\Search\Filters\CustomerFilters;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -52,14 +54,13 @@ class MpBrtInfo extends Module
     protected $config_form = false;
     protected $brtDb;
     protected $InstallMenu;
-    protected $displayCarrier;
     protected $tpl;
 
     public function __construct()
     {
         $this->name = 'mpbrtinfo';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.8.0.2785';
+        $this->version = '1.8.3.5688';
         $this->author = 'Massimiliano Palermo';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -75,7 +76,6 @@ class MpBrtInfo extends Module
         $this->link = $this->context->link;
         $this->InstallMenu = new MpSoft\MpBrtInfo\Helpers\InstallHelper();
         $this->id_lang = (int) Context::getContext()->language->id;
-        $this->displayCarrier = new MpSoft\MpBrtInfo\Carriers\DisplayCarrier($this);
         $this->tpl = new MpSoft\MpBrtInfo\Helpers\SmartyTpl();
     }
 
@@ -501,6 +501,25 @@ class MpBrtInfo extends Module
                         ],
                     ],
                     [
+                        'type' => 'switch',
+                        'label' => $this->l('Aggiorna la tabella del tracking di Prestashop'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_UPDATE_TRACKING_TABLE,
+                        'is_bool' => true,
+                        'desc' => $this->l('Questa operazione aggiorna la tabella del tracking di Prestashop. Lasciala disabilitata se ci sono altri moduli che scrivono su quella tabella.'),
+                        'values' => [
+                            [
+                                'id' => 'tracking_active_on',
+                                'value' => 1,
+                                'label' => $this->l('Yes'),
+                            ],
+                            [
+                                'id' => 'tracking_active_off',
+                                'value' => 0,
+                                'label' => $this->l('No'),
+                            ],
+                        ],
+                    ],
+                    [
                         'col' => 6,
                         'type' => 'html',
                         'label' => $this->l('Automazione'),
@@ -806,6 +825,7 @@ class MpBrtInfo extends Module
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE, 'RMN'));
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, 0));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_UPDATE_TRACKING_TABLE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_UPDATE_TRACKING_TABLE, 0));
 
             return true;
         }
@@ -857,6 +877,14 @@ class MpBrtInfo extends Module
         return $this->context->link->getMediaLink('/404.jpg');
     }
 
+    /**
+     * Cerca il tracking nella tabella OrderCarrier
+     * 
+     * @param int $id_order
+     *
+     * @return string Se trova il tracking, prova a controllare se è un ID SPEDIZIONE (15 cifre) 
+     *                Cerca il tracking number nel database Bartolini e se lo trova lo restituisce
+     */
     public function getTrackingNumber($id_order)
     {
         $order = new Order($id_order);
@@ -871,16 +899,31 @@ class MpBrtInfo extends Module
             ->where('id_carrier=' . (int) $order->id_carrier)
             ->orderBy('id_order_carrier DESC');
 
-        return Db::getInstance()->getValue($sql);
+        $tracking_number = Db::getInstance()->getValue($sql);
+
+        return ConvertIdColloToTracking::convert($tracking_number);
     }
 
+    /**
+     * Restituisce il link canonico di Bartolini al tracking number
+     *
+     * @param int $id_carrier
+     * @param int $id_collo
+     *
+     * @return string
+     */
     public function getCarrierLink($id_carrier, $id_collo)
     {
-        $carrier = new Carrier($id_carrier);
-        if (!Validate::isLoadedObject($carrier)) {
-            return 'javascript:void(0);';
+        // @deprecated version
+        if (1 == 0) {
+            $carrier = new Carrier($id_carrier);
+            if (!Validate::isLoadedObject($carrier)) {
+                return 'javascript:void(0);';
+            }
+
+            return str_replace('@', $id_collo, $carrier->url);
         }
 
-        return str_replace('@', $id_collo, $carrier->url);
+        return Mailer::getCarrierTrackingURL($id_collo);
     }
 }
