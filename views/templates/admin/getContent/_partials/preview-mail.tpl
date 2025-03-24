@@ -47,13 +47,17 @@
                         <div class="form-group">
                             <div class="row">
                                 <div class="d-flex justify-content-start">
-                                    <button id="save-email-template" class="btn btn-success" disabled>
-                                        <div class="material-icons mr-1">save</div>
+                                    <button id="save-email-template" class="btn btn-success mr-2" disabled>
+                                        <div class="material-icons">save</div>
                                         <div>{l s='Salva Template' mod='mpbrtinfo'}</div>
                                     </button>
-                                    <div class="ml-1 mr-1" style="border-left: 1px solid #ddd"></div>
+                                    <button id="save-email-template-with-name" class="btn btn-warning mr-2" disabled>
+                                        <div class="material-icons">save</div>
+                                        <div>{l s='Salva con nome' mod='mpbrtinfo'}</div>
+                                    </button>
+                                    <div class="ml-2 mr-2" style="border-left: 1px solid #ddd"></div>
                                     <button id="preview-email-template" class="btn btn-info" disabled>
-                                        <div class="material-icons mr-1">preview</div>
+                                        <div class="material-icons">preview</div>
                                         <div>{l s='Anteprima' mod='mpbrtinfo'}</div>
                                     </button>
                                 </div>
@@ -117,6 +121,7 @@
 
                     // Abilita i pulsanti
                     document.getElementById('save-email-template').disabled = false;
+                    document.getElementById('save-email-template-with-name').disabled = false;
                     document.getElementById('preview-email-template').disabled = false;
 
                     // Aggiorna il titolo
@@ -207,24 +212,74 @@
             $('#emailPreviewModal').modal('show');
         });
 
-        // Funzioni di utilità per mostrare messaggi
-        function showSuccess(message) {
+        document.getElementById('save-email-template-with-name').addEventListener('click', function() {
+            const template = document.querySelector('.email-template.active').getAttribute('data-template');
+            const content = typeof CKEDITOR !== 'undefined' ?
+                CKEDITOR.instances['email-editor'].getData() :
+                document.getElementById('email-editor').value;
+
             Swal.fire({
-                title: 'Successo',
-                text: message,
-                icon: 'success',
-                confirmButtonText: 'OK'
+                    title: 'Salva template con nome',
+                    input: 'text',
+                    inputLabel: 'Nome del template',
+                    showCancelButton: true,
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Devi inserire un nome per il template!';
+                        }
+                    }
+                })
+                .then(
+                    async (result) => {
+                        if (result.isConfirmed) {
+                            const newTemplateName = result.value;
+                            const responseSave = await fetch(adminControllerURL, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({
+                                    ajax: 1,
+                                    action: 'saveEmailTemplateWithName',
+                                    oldTemplate: template,
+                                    newTemplate: newTemplateName,
+                                    content: content
+                                })
+                            });
+
+                            if (!responseSave.ok) {
+                                throw new Error(`HTTP error! status: ${responseSave.status}`);
+                            }
+
+                            const json = await responseSave.json();
+                            if (json.success) {
+                                showSuccess(json.message || 'Template salvato con successo');
+                            } else {
+                                showError(json.message || 'Errore nel salvataggio del template');
+                            }
+                        }
+                    })
+        });
+    });
+
+    // Funzioni di utilità per mostrare messaggi
+    function showSuccess(message) {
+        Swal.fire({
+            title: 'Successo',
+            text: message,
+            icon: 'success',
+            confirmButtonText: 'OK'
+        });
+    }
+
+    function showError(message) {
+        Swal.fire({
+            title: 'Errore',
+            text: message,
+            icon: 'error',
+            confirmButtonText: 'OK'
             });
         }
-
-        function showError(message) {
-            Swal.fire({
-                title: 'Errore',
-                text: message,
-                icon: 'error',
-                confirmButtonText: 'OK'
-                });
-            }
-        });
     {/literal}
 </script>

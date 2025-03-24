@@ -2,7 +2,7 @@
 <module>
     <name>mpbrtinfo</name>
     <displayName><![CDATA[MP Tracking e info spedizioni per Bartolini]]></displayName>
-    <version><![CDATA[1.6.5]]></version>
+    <version><![CDATA[1.8.3.5688]]></version>
     <description><![CDATA[Gestisce i tracking e le info delle spedizioni tramite SOAP]]></description>
     <author><![CDATA[Massimiliano Palermo]]></author>
     <tab><![CDATA[shipping_logistics]]></tab>

@@ -400,6 +400,11 @@ class MpBrtInfo extends Module
                 $path . 'css/style.css',
                 $path . 'js/tippy/scale.css',
             ]);
+
+            if (ModelBrtConfig::getEnableAjaxTable()) {
+                $this->context->controller->addJS($path . 'js/Ajax/AjaxMonitor.js');
+                $this->context->controller->addJS($path . 'js/Ajax/AjaxMonitorInstance.js');
+            }
         }
     }
 
@@ -415,11 +420,13 @@ class MpBrtInfo extends Module
         }
 
         $fetchController = $this->context->link->getModuleLink($this->name, 'FetchOrders');
+        $frontController = $this->context->link->getModuleLink($this->name, 'Cron');
 
         $data = [
             'id_order' => 0,
             'id_carrier' => 0,
             'fetchController' => $fetchController,
+            'frontController' => $frontController,
             'fetchShippingOrdersPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/WSDL/fetchShippingOrders.js',
             'GetTotalShippingsPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/modules/GetTotalShippings.js',
             'GetOrderTrackingPath' => $this->context->shop->getBaseUri() . 'modules/mpbrtinfo/views/js/modules/GetOrderTracking.js',
@@ -514,6 +521,25 @@ class MpBrtInfo extends Module
                             ],
                             [
                                 'id' => 'tracking_active_off',
+                                'value' => 0,
+                                'label' => $this->l('No'),
+                            ],
+                        ],
+                    ],
+                    [
+                        'type' => 'switch',
+                        'label' => $this->l('Abilita la tabella ajax'),
+                        'name' => ModelBrtConfig::MP_BRT_INFO_ENABLE_AJAX_TABLE,
+                        'is_bool' => true,
+                        'desc' => $this->l('Se usi Ajax per la ricerca o la paginazione della tabella Ordini attiva questa opzione.'),
+                        'values' => [
+                            [
+                                'id' => 'ajax_table_active_on',
+                                'value' => 1,
+                                'label' => $this->l('Yes'),
+                            ],
+                            [
+                                'id' => 'ajax_table_active_off',
                                 'value' => 0,
                                 'label' => $this->l('No'),
                             ],
@@ -695,7 +721,7 @@ class MpBrtInfo extends Module
     {
         $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/cron-job.tpl';
         $tpl = $this->context->smarty->createTemplate($file);
-        $tpl->assign('cronJobUrl', $this->context->link->getModuleLink($this->name, 'Cron'));
+        $tpl->assign('cronJobUrl', $this->context->link->getModuleLink($this->name, 'Cron', ['ajax' => 1, 'action' => 'getOrdersInfo'], true));
 
         return $tpl->fetch();
     }
@@ -803,11 +829,13 @@ class MpBrtInfo extends Module
     protected function renderTestWSDL()
     {
         $importPath = $this->getPathUri() . 'views/js/WSDL/fetchBrtWSDL.js';
-        $adminControllerURL = $this->context->link->getModuleLink($this->name, 'Cron');
+        $cronURL = $this->context->link->getModuleLink($this->name, 'Cron');
         $file = $this->getLocalPath() . 'views/templates/admin/getContent/_partials/test_wsdl.tpl';
         $tpl = $this->context->smarty->createTemplate($file);
-        $tpl->assign('adminControllerURL', $adminControllerURL);
-        $tpl->assign('importPath', $importPath);
+        $tpl->assign([
+            'importPath' => $importPath,
+            'cronURL' => $cronURL,
+        ]);
 
         return $tpl->fetch();
     }
@@ -826,6 +854,7 @@ class MpBrtInfo extends Module
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE, 'ID'));
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_SEND_EMAIL, 0));
             ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_UPDATE_TRACKING_TABLE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_UPDATE_TRACKING_TABLE, 0));
+            ModelBrtConfig::updateConfigValue(ModelBrtConfig::MP_BRT_INFO_ENABLE_AJAX_TABLE, Tools::getValue(ModelBrtConfig::MP_BRT_INFO_ENABLE_AJAX_TABLE, 0));
 
             return true;
         }

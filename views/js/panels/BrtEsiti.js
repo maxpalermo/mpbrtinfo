@@ -108,46 +108,16 @@ export class BrtEsiti {
             },
             body: JSON.stringify({
                 ajax: true,
-                action: "getTrackingByBrtShipmentId",
+                action: "showInfoPanel",
                 id_order: id_order,
                 spedizione_id: spedizione_id
             })
         });
 
         const json = await response.json();
-
-        if ("ESITO" in json && json.ESITO >= 0) {
-            //Parsing dei dati
-            const data = json;
-            data.id_order = id_order;
-            data.tracking_number = spedizione_id;
-
-            const parseData = await fetch(this.adminControllerURL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Requested-With": "XMLHttpRequest"
-                },
-                body: JSON.stringify({
-                    ajax: true,
-                    action: "parseShippingData",
-                    data: data
-                })
-            });
-            const jsonParse = await parseData.json();
-
-            if (jsonParse.success) {
-                // Chiudi il loader e mostra il pannello con i dati
-                Swal.close();
-                this.showPanel(jsonParse.html, btn);
-            } else {
-                Swal.fire({
-                    title: "Errore",
-                    text: jsonParse.message || "Impossibile recuperare i dettagli della spedizione.",
-                    icon: "error",
-                    confirmButtonColor: "#dc3545"
-                });
-            }
+        if (json.success) {
+            Swal.close();
+            this.showPanel(json.html, btn);
         } else {
             Swal.fire({
                 title: "Errore",

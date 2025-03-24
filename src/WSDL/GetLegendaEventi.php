@@ -51,6 +51,7 @@ class GetLegendaEventi extends BrtSoapClient
      * 
      * @param string $language Codice lingua ISO 639 Alpha-2
      * @param string $last_id Ultimo ID ricevuto
+     *
      * @return object Oggetto di richiesta formattato secondo il WSDL
      */
     protected function createRequest(string $language = 'it', string $last_id = '')
@@ -72,6 +73,7 @@ class GetLegendaEventi extends BrtSoapClient
      * 
      * @param string $iso_lang Codice lingua ISO 639 Alpha-2 (default: 'it')
      * @param string $last_id Ultimo ID ricevuto (default: '')
+     *
      * @return array|false Array con i risultati o false in caso di errore
      */
     public function getLegendaEventi($iso_lang = 'it', $last_id = '')
@@ -111,75 +113,28 @@ class GetLegendaEventi extends BrtSoapClient
                             }
                         } else {
                             // Se non ci sono risultati, interrompi il ciclo
-                            $esito = 0;
+                            $esito = 100;
                         }
                     } else {
                         // Output è un array o non ha la proprietà return
-                        $this->errors[] = "Formato di risposta SOAP non valido";
+                        $this->errors[] = 'Formato di risposta SOAP non valido';
+
                         return false;
                     }
                 } else {
-                    $this->errors[] = "Nessun risultato valido dalla chiamata SOAP";
+                    $this->errors[] = 'Nessun risultato valido dalla chiamata SOAP';
+
                     return false;
                 }
             } catch (\Throwable $th) {
                 $this->errors[] = 'getLegendaEventi: request -> ' . print_r($request, 1);
                 $this->errors[] = 'getLegendaEventi: error -> ' . $th->getMessage();
+
                 return false;
             }
-        } while ($esito == 100); // Continua se ci sono altri risultati da recuperare
+        } while ($esito != 100); // Continua se ci sono altri risultati da recuperare
 
         return $legenda;
-    }
-
-    /**
-     * Ottiene un singolo batch di eventi BRT
-     * 
-     * @param string $iso_lang Codice lingua ISO 639 Alpha-2 (default: 'it')
-     * @param string $last_id Ultimo ID ricevuto (default: '')
-     * @return array|false Array con i risultati o false in caso di errore
-     */
-    public function getEventi($iso_lang = 'it', $last_id = '')
-    {
-        try {
-            // Crea la richiesta secondo il formato richiesto dal WSDL
-            $request = $this->createRequest($iso_lang, $last_id);
-
-            // Esegue la chiamata SOAP e ottiene il risultato
-            $output = null;
-            $result_code = null;
-
-            // Chiamata SOAP usando il nome esatto dell'operazione dal WSDL
-            $success = $this->exec('getlegendaeventi', [$request], $output, $result_code);
-
-            if ($success && is_object($output) && property_exists($output, 'return')) {
-                // Converti l'oggetto in array
-                $result = json_decode(json_encode($output->return), true);
-                return $result;
-            } else {
-                $this->errors[] = "Nessun risultato valido dalla chiamata SOAP";
-                return false;
-            }
-        } catch (\Throwable $th) {
-            $this->errors[] = 'getEventi: request -> ' . print_r($request, 1);
-            $this->errors[] = 'getEventi: error -> ' . $th->getMessage();
-            return false;
-        }
-    }
-
-    /**
-     * Aggiunge un separatore (divider) nelle bulk actions di PrestaShop
-     * 
-     * @param string $key Chiave del separatore
-     * @return array Configurazione del separatore
-     */
-    public function addDivider($key = 'divider1')
-    {
-        return [
-            $key => [
-                'text' => 'divider'
-            ]
-        ];
     }
 
     /**

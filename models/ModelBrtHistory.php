@@ -1,8 +1,4 @@
 <?php
-
-use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
-use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
-
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -24,6 +20,10 @@ use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
 if (!defined('_PS_VERSION_')) {
     exit;
 }
+
+use MpSoft\MpBrtInfo\JSON\JsonDecoder;
+use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMA;
+use MpSoft\MpBrtInfo\Soap\BrtSoapClientIdSpedizioneByRMN;
 
 class ModelBrtHistory extends ObjectModel
 {
@@ -99,15 +99,16 @@ class ModelBrtHistory extends ObjectModel
                 'required' => false,
             ],
             'rmn' => [
-                'type' => self::TYPE_INT,
-                'validate' => 'isUnsignedInt',
+                'type' => self::TYPE_STRING,
+                'validate' => 'isAnything',
+                'size' => 32,
                 'required' => false,
             ],
             'rma' => [
                 'type' => self::TYPE_STRING,
                 'validate' => 'isAnything',
+                'size' => 32,
                 'required' => false,
-                'size' => 128,
             ],
             'anno_spedizione' => [
                 'type' => self::TYPE_INT,
@@ -153,6 +154,48 @@ class ModelBrtHistory extends ObjectModel
             ],
         ],
     ];
+
+    public function __construct($id = null, $id_lang = null, $id_shop = null, $translator = null)
+    {
+        parent::__construct($id, $id_lang, $id_shop, $translator);
+
+        if (JsonDecoder::isJson($this->note)) {
+            $this->note = json_decode($this->note, true);
+        } else {
+            $this->note = [];
+        }
+        if (JsonDecoder::isJson($this->json)) {
+            $this->json = json_decode($this->json, true);
+        } else {
+            $this->json = [];
+        }
+    }
+
+    public function add($autodate = true, $null_values = false)
+    {
+        if (JsonDecoder::isJson($this->note) || is_array($this->note)) {
+            $this->note = json_encode($this->note);
+        }
+
+        if (JsonDecoder::isJson($this->json) || is_array($this->json)) {
+            $this->json = json_encode($this->json);
+        }
+
+        return parent::add($autodate, $null_values);
+    }
+
+    public function update($null_values = false)
+    {
+        if (JsonDecoder::isJson($this->note) || is_array($this->note)) {
+            $this->note = json_encode($this->note);
+        }
+
+        if (JsonDecoder::isJson($this->json) || is_array($this->json)) {
+            $this->json = json_encode($this->json);
+        }
+
+        return parent::update($null_values);
+    }
 
     public static function getOrderHistory($id_order)
     {

@@ -1,4 +1,5 @@
-{*
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -15,16 +16,23 @@
  * @author    Massimiliano Palermo <maxx.palermo@gmail.com>
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
- *}
+ */
 
-<div class="panel-footer">
-    <button type="submit" class="btn btn-info pull-right" name="submitForm">
-        <i class="process-icon-save"></i>
-        {l s='Save' mod='mpbrtinfo'}
-    </button>
+namespace MpSoft\MpBrtInfo\Helpers;
 
-    <a href="{$url_back}" class="btn btn-default pull-left" name="goBack" style="margin-right: 12px;">
-        <i class="process-icon-back"></i>
-        {l s='Back' mod='mpbrtinfo'}
-    </a>
-</div>
+use MpSoft\MpBrtInfo\WSDL\GetTrackingByBrtShipmentId;
+
+class OrdersInfoGetTrackingInfo
+{
+    /**
+     * Returns tracking info
+     *
+     * @return array tracking info
+     */
+    public static function get($spedizioneid, $spedizioneAnno, $orderId = 0, $lingua_iso639_alpha2 = 'IT')
+    {
+        $info = (new GetTrackingByBrtShipmentId)->getTracking($spedizioneid, $orderId, $lingua_iso639_alpha2, $spedizioneAnno);
+
+        return $info;
+    }
+}

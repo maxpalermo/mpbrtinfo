@@ -35,6 +35,7 @@ class ModelBrtConfig
     const MP_BRT_INFO_SEARCH_WHERE = 'MP_BRT_INFO_SEARCH_WHERE';
     const MP_BRT_INFO_SEND_EMAIL = 'MP_BRT_INFO_SEND_EMAIL';
     const MP_BRT_INFO_UPDATE_TRACKING_TABLE = 'MP_BRT_INFO_UPDATE_TRACKING_TABLE';
+    const MP_BRT_INFO_ENABLE_AJAX_TABLE = 'MP_BRT_INFO_ENABLE_AJAX_TABLE';
 
     public static function getRootConfig()
     {
@@ -67,6 +68,16 @@ class ModelBrtConfig
     public static function useSSL()
     {
         return (int) self::getConfigValue(self::MP_BRT_INFO_USE_SSL);
+    }
+
+    public static function getEnableAjaxTable()
+    {
+        return (int) self::getConfigValue(self::MP_BRT_INFO_ENABLE_AJAX_TABLE);
+    }
+
+    public static function setEnableAjaxTable($value)
+    {
+        return self::updateConfigValue(self::MP_BRT_INFO_ENABLE_AJAX_TABLE, $value);
     }
 
     public static function getIcon($id_event)
@@ -276,6 +287,7 @@ class ModelBrtConfig
             self::MP_BRT_INFO_SEARCH_WHERE => self::getBrtSearchWhere(),
             self::MP_BRT_INFO_SEND_EMAIL => self::getBrtSendEmail(),
             self::MP_BRT_INFO_UPDATE_TRACKING_TABLE => (int) self::getUpdateTrackingTable(),
+            self::MP_BRT_INFO_ENABLE_AJAX_TABLE => (int) self::getEnableAjaxTable(),
         ];
 
         return $config;
@@ -294,6 +306,7 @@ class ModelBrtConfig
         Configuration::updateValue(self::MP_BRT_INFO_SEARCH_WHERE, 'ID');
         Configuration::updateValue(self::MP_BRT_INFO_SEND_EMAIL, 0);
         Configuration::updateValue(self::MP_BRT_INFO_UPDATE_TRACKING_TABLE, 0);
+        Configuration::updateValue(self::MP_BRT_INFO_ENABLE_AJAX_TABLE, 0);
     }
 
     public static function updateConfigValue($key, $value)

@@ -20,8 +20,16 @@
 
 namespace MpSoft\MpBrtInfo\Fetch;
 
-use MpSoft\MpBrtInfo\Bolla\BrtParseInfo;
 use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
+use MpSoft\MpBrtInfo\Helpers\OrderEventExists;
+use MpSoft\MpBrtInfo\Helpers\OrderEventsCount;
+use MpSoft\MpBrtInfo\Helpers\OrderEventsCountDays;
+use MpSoft\MpBrtInfo\Helpers\OrdersInfoCountDays;
+use MpSoft\MpBrtInfo\Helpers\OrdersInfoGetCurrentOrderState;
+use MpSoft\MpBrtInfo\Helpers\OrdersInfoGetTotalShippings;
+use MpSoft\MpBrtInfo\Helpers\OrdersInfoGetTrackingNumbers;
+use MpSoft\MpBrtInfo\Helpers\OrdersInfoParseShippingData;
+use MpSoft\MpBrtInfo\Helpers\Validate;
 use MpSoft\MpBrtInfo\Mail\Mailer;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 use MpSoft\MpBrtInfo\WSDL\GetIdSpedizioneByIdCollo;
@@ -166,6 +174,34 @@ class FetchOrdersHandler
         }
     }
 
+    protected function showInfoPanel($params)
+    {
+        $id_order = (int) $params['id_order'];
+        $tracking_number = $params['spedizione_id'];
+
+        $info = $this->getTrackingByBrtShipmentId($params);
+        if (isset($info['error'])) {
+            return $info;
+        }
+
+        if (isset($info['ESITO']) && $info['ESITO'] >= 0) {
+            $data = [
+                'id_order' => $id_order,
+                'tracking_number' => $tracking_number,
+                'data' => $info,
+            ];
+            $parsedData = OrdersInfoParseShippingData::run($data);
+
+            return $parsedData;
+        }
+
+        return $info;
+    }
+
+    protected function getHtmlPanel($data)
+    {
+    }
+
     /**
      * Ottiene le informazioni di tracking di una spedizione BRT tramite l'ID spedizione BRT
      * 
@@ -197,57 +233,7 @@ class FetchOrdersHandler
 
     protected function parseShippingData($params)
     {
-        // Controlla i dati restituiti e restituisce una tabella HTML
-        $data = $params['data'];
-        $id_order = $data['id_order'];
-        $tracking_number = $data['tracking_number'];
-        $year_shipped = (new GetOrderShippingDate($id_order))->getShippingYear();
-        $shipment_data = BrtParseInfo::parseTrackingInfo($data, \ModelBrtConfig::getEsiti(), $id_order);
-        $bolla = $this->prepareShipmentData($shipment_data);
-        $this->prepareHistory($id_order, $year_shipped, $shipment_data);
-
-        $events = [];
-        if ($bolla['eventi']) {
-            $eventi = $bolla['eventi'];
-            foreach ($eventi as $evento) {
-                if ($evento->isDelivered()) {
-                    $bolla['days'] = $this->countDays($id_order);
-                }
-                $events[] = [
-                    'color' => $evento->getRow()['event_color'],
-                    'icon' => $evento->getRow()['event_icon'],
-                    'id' => $evento->getId(),
-                    'data' => $evento->getData(),
-                    'ora' => $evento->getOra(),
-                    'descrizione' => $evento->getDescrizione(),
-                    'filiale' => $evento->getFiliale(),
-                    'label' => '(' . $evento->getRow()['event_id'] . ') ' . $evento->getRow()['event_name'],
-                ];
-            }
-        }
-        // Prepara la risposta
-        $response = [
-            'success' => true,
-            'data' => [
-                'id_order' => $id_order,
-                'tracking_number' => $tracking_number,
-                'data_spedizione' => $bolla['data_spedizione'] ?? date('d/m/Y'),
-                'porto' => $bolla['porto'] ?? 'Franco',
-                'servizio' => $bolla['servizio'] ?? 'Standard',
-                'colli' => $bolla['colli'] ?? 1,
-                'peso' => $bolla['peso'] ?? '0 Kg',
-                'natura' => $bolla['natura'] ?? 'Merce',
-                'stato_attuale' => $this->getCurrentOrderState($id_order),
-                'storico' => $events,
-                'days' => $bolla['days'] ?? '--',
-            ],
-        ];
-
-        $tplPath = $this->getAdminTemplatePath('FetchOrdersHandler/ParseShippingInfo.tpl');
-        $tpl = $this->context->smarty->createTemplate($tplPath);
-        $tpl->assign(['data' => $response['data']]);
-
-        return ['success' => true, 'html' => $tpl->fetch()];
+        return OrdersInfoParseShippingData::run($params);
     }
 
     protected function getAdminTemplatePath($name)
@@ -312,7 +298,7 @@ class FetchOrdersHandler
         $date_shipped = '';
         $date_delivered = '';
         foreach (array_reverse($bolla->getEventi()) as $evento) {
-            $id_order_state = $this->getCurrentOrderState($id_order);
+            $id_order_state = OrdersInfoGetCurrentOrderState::run($id_order);
             $filiale = $evento->getFiliale();
             $filiale_id = preg_match('/\((.*?)\)/', $filiale, $matches) ? trim($matches[1]) : '';
             $filiale_name = preg_match('/(.*)\(/', $filiale, $matches) ? trim($matches[1]) : '';
@@ -321,10 +307,14 @@ class FetchOrdersHandler
             $evento_date_shipped = '';
             $evento_date_delivered = '';
 
-            if ($evento->isShipped()) {
+            $orderEventCount = OrderEventsCount::get($id_order);
+
+            if ($orderEventCount == 0) {
+                // è il primo evento da inserire, aggiorno la data di spedizione
                 $evento_date_shipped = $date_event_iso;
             }
             if ($evento->isDelivered()) {
+                // l'ordine è stato consegnato, aggiorno la data di consegna
                 $evento_date_delivered = $date_event_iso;
             }
 
@@ -341,7 +331,7 @@ class FetchOrdersHandler
             }
 
             if ($date_shipped && $date_delivered) {
-                $days = \ModelBrtHistory::countDays($date_shipped, $date_delivered);
+                $days = OrderEventsCountDays::get($id_order, $date_shipped, $date_delivered);
             }
 
             $fields = [
@@ -363,16 +353,14 @@ class FetchOrdersHandler
                 'date_add' => date('Y-m-d H:i:s'),
             ];
 
-            // Controllo che l'evento non sia già stato inserito
-            $db = \Db::getInstance();
-            $sql = new \DbQuery();
-            $sql->select(\ModelBrtHistory::$definition['primary'])
-                ->from(\ModelBrtHistory::$definition['table'])
-                ->where('id_order = ' . (int) $id_order)
-                ->where('event_date = \'' . $fields['event_date'] . '\'')
-                ->where('event_id = \'' . pSQL($fields['event_id']) . '\'');
+            if ($fields['rmn'] && !Validate::isNumeric($fields['rmn'])) {
+                $errors[] = 'RMN deve essere un numero';
 
-            $id = $db->getValue($sql);
+                return false;
+            }
+
+            // Controllo che l'evento non sia già stato inserito
+            $id = OrderEventExists::get($id_order, $fields['event_id'], $fields['event_date']);
 
             // Se l'evento non esiste, lo inserisco
             if (!$id) {
@@ -430,13 +418,7 @@ class FetchOrdersHandler
      */
     protected function getCurrentOrderState($id_order)
     {
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('current_state')
-            ->from('orders')
-            ->where('id_order = ' . (int) $id_order);
-
-        return (int) $db->getValue($sql);
+        return OrdersInfoGetCurrentOrderState::run($id_order);
     }
 
     /**
@@ -448,237 +430,19 @@ class FetchOrdersHandler
      */
     protected function countDays($id_order)
     {
-        $db = \Db::getInstance();
-        $sql = new \DbQuery();
-        $sql->select('days')
-            ->from(\ModelBrtHistory::$definition['table'])
-            ->where('id_order = ' . (int) $id_order)
-            ->orderBy(\ModelBrtHistory::$definition['primary'] . ' DESC');
-
-        return (int) $db->getValue($sql);
+        return OrdersInfoCountDays::run($id_order);
     }
 
     public function getTotalShippings($params)
     {
-        $id_carriers = \ModelBrtConfig::getBrtCarriersId();
-        $id_delivered = \ModelBrtConfig::getBrtOsDelivered();
-        $id_state_skip = \ModelBrtConfig::getBrtOsSkip();
-        $max_date = date('Y-m-d', strtotime('-30 days'));
-
-        if (!$id_carriers) {
-            return [
-                'success' => false,
-                'message' => 'Nessun carrier configurato',
-            ];
-        }
-
-        if ($id_carriers) {
-            if (!is_array($id_carriers)) {
-                $id_carriers = json_decode($id_carriers, true);
-            }
-
-            if (!is_array($id_carriers)) {
-                $id_carriers = [$id_carriers];
-            }
-
-            $id_carriers = implode(',', $id_carriers);
-        }
-
-        if ($id_delivered) {
-            if (!is_array($id_delivered)) {
-                $id_delivered = json_decode($id_delivered, true);
-            }
-
-            if (!is_array($id_delivered)) {
-                $id_delivered = [$id_delivered];
-            }
-
-            $id_delivered = implode(',', $id_delivered);
-        }
-
-        $db = \Db::getInstance();
-
-        // Tutti gli ordini senza tracking number
-        $ocTable = _DB_PREFIX_ . 'order_carrier';
-        $oTable = _DB_PREFIX_ . 'orders';
-        $query = "
-            SELECT 
-                t1.id_order, 
-                t1.tracking_number
-            FROM 
-                {$ocTable} t1
-            INNER JOIN 
-                {$oTable} o ON t1.id_order = o.id_order
-            INNER JOIN 
-                (SELECT 
-                    id_order, 
-                    MAX(date_add) AS last_date
-                FROM 
-                    {$ocTable}
-                WHERE 
-                    tracking_number IS NOT NULL AND tracking_number <> ''
-                GROUP BY 
-                    id_order) t2
-            ON 
-                t1.id_order = t2.id_order AND t1.date_add = t2.last_date
-            WHERE 
-                t1.tracking_number IS NULL OR t1.tracking_number = ''
-        ";
-
-        $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
-        if ($startsFrom) {
-            $query .= "\n AND t1.id_order >= {$startsFrom}";
-        } else {
-            $query .= "\n AND t1.date_add >= \"{$max_date}\"";
-        }
-
-        if ($id_delivered) {
-            $query .= "\n AND o.current_state NOT IN ({$id_delivered})";
-        }
-
-        if ($id_state_skip && is_array($id_state_skip)) {
-            $query .= "\n AND o.current_state NOT IN (" . implode(',', $id_state_skip) . ')';
-        }
-
-        $noTracking = $db->executeS($query);
-        if (!$noTracking) {
-            $noTracking = [];
-        }
-
-        // Tutti gli ordini con tracking number
-        $ocTable = _DB_PREFIX_ . 'order_carrier';
-        $oTable = _DB_PREFIX_ . 'orders';
-        $query = "
-            SELECT 
-                t1.id_order, 
-                t1.tracking_number
-            FROM 
-                {$ocTable} t1
-            INNER JOIN 
-                {$oTable} o ON t1.id_order = o.id_order
-            INNER JOIN 
-                (SELECT 
-                    id_order, 
-                    MAX(date_add) AS last_date
-                FROM 
-                    {$ocTable}
-                WHERE 
-                    tracking_number IS NOT NULL AND tracking_number <> ''
-                GROUP BY 
-                    id_order) t2
-            ON 
-                t1.id_order = t2.id_order AND t1.date_add = t2.last_date
-            WHERE 
-                t1.tracking_number IS NOT NULL AND t1.tracking_number <> ''
-        ";
-
-        $startsFrom = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_START_FROM);
-        if ($startsFrom) {
-            $query .= "\n AND t1.id_order >= {$startsFrom}";
-        } else {
-            $query .= "\n AND t1.date_add >= \"{$max_date}\"";
-        }
-
-        if ($id_delivered) {
-            $query .= "\n AND o.current_state NOT IN ({$id_delivered})";
-        }
-
-        if ($id_state_skip && is_array($id_state_skip)) {
-            $query .= "\n AND o.current_state NOT IN (" . implode(',', $id_state_skip) . ')';
-        }
-
-        $tracking = $db->executeS($query);
-        if (!$tracking) {
-            $tracking = [];
-        }
-
-        return [
-            'status' => 'success',
-            'totalShippings' => count($noTracking) + count($tracking),
-            'list' => [
-                'getTracking' => $noTracking,
-                'getShipment' => $tracking,
-            ],
-        ];
+        return OrdersInfoGetTotalShippings::run();
     }
 
     public function getTrackingNumbers($params)
     {
-        $processed = 0;
-        $brt_customer_id = (int) \ModelBrtConfig::getConfigValue(\ModelBrtConfig::MP_BRT_INFO_ID_BRT_CUSTOMER);
-        $list = $params['list'];
+        $list = $params['list'] ?? [];
 
-        $getTrackingBy = \ModelBrtConfig::getConfigValue(
-            \ModelBrtConfig::MP_BRT_INFO_SEARCH_TYPE,
-            'RMN'
-        );
-
-        $getTrackingWhere = \ModelBrtConfig::getConfigValue(
-            \ModelBrtConfig::MP_BRT_INFO_SEARCH_WHERE,
-            'ID'
-        );
-
-        switch ($getTrackingBy) {
-            case 'RMN':
-                $getTrackingBy = new GetIdSpedizioneByRMN();
-
-                break;
-            case 'RMA':
-                $getTrackingBy = new GetIdSpedizioneByRMA();
-
-                break;
-            default:
-                $getTrackingBy = new GetIdSpedizioneByIdCollo();
-
-                break;
-        }
-
-        if (!$getTrackingWhere == 'ID') {
-            $field = 'id';
-        } elseif ($getTrackingWhere == 'REFERENCE') {
-            $field = 'reference';
-        } else {
-            $field = 'id';
-        }
-
-        if ($list && is_array($list)) {
-            foreach ($list as &$item) {
-                $id_order = $item['id_order'];
-                $tracking_number = $item['tracking_number'];
-
-                $order = new \Order($id_order);
-                if (!\Validate::isLoadedObject($order)) {
-                    $item['status'] = 'error';
-                    $item['message'] = 'Ordine non trovato';
-
-                    continue;
-                }
-
-                $id_spedizione = $order->$field;
-
-                if (!$tracking_number) {
-                    $tracking = $getTrackingBy->getIdSpedizione($brt_customer_id, $id_spedizione);
-                    if ($tracking) {
-                        $item['status'] = 'success';
-                        $item['esito'] = $tracking['esito'];
-                        $item['versione'] = $tracking['versione'];
-                        $item['tracking_number'] = $tracking['spedizione_id'];
-                        $item['message'] = 'Tracking number ottenuto';
-                        $processed++;
-                    } else {
-                        $item['status'] = 'error';
-                        $item['message'] = 'Tracking number non ottenuto';
-                    }
-                }
-            }
-        }
-
-        return [
-            'status' => 'success',
-            'processed' => $processed,
-            'total' => count($list),
-            'list' => $list,
-        ];
+        return OrdersInfoGetTrackingNumbers::run($list);
     }
 
     /**
@@ -691,7 +455,7 @@ class FetchOrdersHandler
     protected function getTrackingsByBrtShipmentId($params)
     {
         $processed = 0;
-        $list = $params['list'];
+        $list = $params['list'] ?? [];
         $lingua_iso639_alpha2 = isset($params['lingua']) ? $params['lingua'] : '';
 
         if ($list && is_array($list)) {
@@ -725,10 +489,13 @@ class FetchOrdersHandler
                     }
 
                     // Controlla l'esito, aggiorna lo stato, invia l'email
-                    $response['id_order'] = $id_order;
-                    $response['tracking_number'] = $tracking_number;
-
-                    $parsedData = $this->parseShippingData(['data' => $response]);
+                    $parsedData = $this->parseShippingData(
+                        [
+                            'id_order' => $id_order,
+                            'tracking_number' => $tracking_number,
+                            'data' => $response,
+                        ]
+                    );
 
                     if ($parsedData['success'] == 'true') {
                         $item['status'] = 'success';

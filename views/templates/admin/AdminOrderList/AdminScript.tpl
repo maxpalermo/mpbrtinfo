@@ -40,6 +40,7 @@
     window.GetOrderInfoInstance = new GetOrderInfo(fetchController);
 
     document.addEventListener("DOMContentLoaded", () => {
+        window.frontController = "{$frontController}";
         window.dispatchEvent(new Event('modulesReady'));
     });
 </script>

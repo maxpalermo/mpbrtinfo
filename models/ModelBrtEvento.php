@@ -2,6 +2,7 @@
 
 use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
 use MpSoft\MpBrtInfo\Helpers\GetTrackingFromOrderCarrier;
+use MpSoft\MpBrtInfo\JSON\JsonDecoder;
 
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
@@ -307,7 +308,7 @@ class ModelBrtEvento extends ObjectModel
         if (!$event) {
             return false;
         }
-        $event_note = '';
+        $event_note = [];
         $lastEventHistory = self::getLastEventHistory($id_order, $id_event);
         if ($lastEventHistory) {
             // Se ancora non c'è un id_collo, cerco nella tabella order_carrier
@@ -316,7 +317,7 @@ class ModelBrtEvento extends ObjectModel
                 $lastEventHistory['id_collo'] = ConvertIdColloToTracking::convert($id_collo);
             }
             if ($lastEventHistory['note']) {
-                $event_note = json_decode($lastEventHistory['note'], true);
+                $event_note = JsonDecoder::decodeJson($lastEventHistory['note'], []);
             }
         }
 

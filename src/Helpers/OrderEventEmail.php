@@ -1,4 +1,5 @@
-{*
+<?php
+/**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
  *
@@ -15,21 +16,37 @@
  * @author    Massimiliano Palermo <maxx.palermo@gmail.com>
  * @copyright Since 2016 Massimiliano Palermo
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
- *}
-<div class="col-md-6">
-    <div class="panel">
-        <div class="panel-heading">
-            <i class="icon icon-puzzle-piece"></i>&nbsp;{l s='Bartolini User' mod='mpbrtinfo'}
-        </div>
-        <div class="panel-body">
-            <div class="form-group">
-                <label><i class="icon icon-user"></i>&nbsp;
-                    {l s='User id' mod='mpbrtinfo'}</label><br>
-                <input type="text" name="{$controls.ID_BRT_CUSTOMER}" value="{$values.ID_BRT_CUSTOMER}">
-                <sub>
-                    {l s='Insert your Bartolini customer ID.' mod='mpbrtinfo' }</sub>
-            </div>
-        </div>
-        {include file="./panel-footer.tpl"}
-    </div>
-</div>
+ */
+
+namespace MpSoft\MpBrtInfo\Helpers;
+
+class OrderEventEmail
+{
+    /**
+     * Returns email of the order event
+     *
+     * @param int $eventId
+     *
+     * @return string|null email of the order event or null
+     */
+    public static function get($eventId)
+    {
+        $table = \ModelBrtEvento::$definition['table'];
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+
+        $eventId = pSQL($eventId);
+
+        if (!$eventId) {
+            return null;
+        }
+
+        $sql->select('email')
+            ->from($table)
+            ->where("id_evento = '{$eventId}'");
+
+        $email = $db->getValue($sql);
+
+        return $email;
+    }
+}

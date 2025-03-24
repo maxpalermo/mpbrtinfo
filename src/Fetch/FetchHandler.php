@@ -186,4 +186,9 @@ class FetchHandler
             return $risultato;
         }
     }
+
+    protected function getShippingsInfo($params)
+    {
+        return $params;
+    }
 }

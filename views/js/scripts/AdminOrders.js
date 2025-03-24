@@ -1,4 +1,6 @@
-window.addEventListener("modulesReady", function () {
+window.addEventListener("modulesReady", async (e) => {
+    console.log("Starting AdminOrders Script");
+
     //Tooltip con tippy
 
     tippy(".brt-info-button", {
@@ -162,7 +164,7 @@ window.addEventListener("modulesReady", function () {
                     });
                 } while (infoOrdersList.length > 0);
 
-                let infoProcessed = window.GetOrderInfoInstance.getProcessed();
+                let infoProcessed = window.GetOrderInfoInstance.getProcessed() / 2;
                 let infoTotal = window.GetOrderInfoInstance.getTotalOrders();
                 Swal.update({
                     html: `<div class="alert alert-success">${infoProcessed} spedizioni sono state aggiornate su un totale di ${infoTotal}!</div>`,

@@ -38,7 +38,7 @@ class ConvertIdColloToTracking
             $class->id_collo = $id_collo;
             $tracking_number = $class->getIdSpedizione($id_brt, $id_collo);
             if ($tracking_number) {
-                return $tracking_number;
+                return $tracking_number['spedizione_id'] ?? '';
             }
         }
 

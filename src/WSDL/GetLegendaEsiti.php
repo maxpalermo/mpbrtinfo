@@ -46,6 +46,7 @@ class GetLegendaEsiti extends BrtSoapClient
      * 
      * @param string $language Codice lingua ISO 639 Alpha-2
      * @param string|int $last_id Ultimo ID ricevuto
+     *
      * @return object Oggetto di richiesta formattato secondo il WSDL
      */
     protected function createRequest(string $language = 'it', $last_id = 0)
@@ -66,6 +67,7 @@ class GetLegendaEsiti extends BrtSoapClient
      * Ottiene la legenda degli esiti BRT utilizzando SOAP
      * 
      * @param string $iso_lang Codice lingua ISO 639 Alpha-2 (default: 'it')
+     *
      * @return array|false Array con i risultati o false in caso di errore
      */
     public function getLegendaEsiti($iso_lang = 'it', $last_id = 0)
@@ -105,41 +107,27 @@ class GetLegendaEsiti extends BrtSoapClient
                             }
                         } else {
                             // Se non ci sono risultati, interrompi il ciclo
-                            $esito = 0;
+                            $esito = 100;
                         }
                     } else {
                         // Output è un array o non ha la proprietà return
-                        $this->errors[] = "Formato di risposta SOAP non valido";
+                        $this->errors[] = 'Formato di risposta SOAP non valido';
+
                         return false;
                     }
                 } else {
-                    $this->errors[] = "Nessun risultato valido dalla chiamata SOAP";
+                    $this->errors[] = 'Nessun risultato valido dalla chiamata SOAP';
+
                     return false;
                 }
             } catch (\Throwable $th) {
                 $this->errors[] = 'getLegendaEsiti: request -> ' . print_r($request, 1);
                 $this->errors[] = 'getLegendaEsiti: error -> ' . $th->getMessage();
+
                 return false;
             }
-        } while ($esito == 100); // Continua se ci sono altri risultati da recuperare
+        } while ($esito != 100); // Continua se ci sono altri risultati da recuperare
 
         return $legenda;
-    }
-
-    public function getEsiti($iso_lang = '', $last_id = '')
-    {
-        $request = $this->createRequest($iso_lang, $last_id);
-        try {
-            $response = $this->exec('getlegendaesiti', ['arg0' => $request]);
-            if (isset($response['return'])) {
-                return $response['return'];
-            }
-        } catch (\Throwable $th) {
-            $this->errors[] = 'getLegendaEsiti: request -> ' . print_r($request, 1);
-            $this->errors[] = 'getLegendaEsiti: error -> ' . $th->getMessage();
-            return false;
-        }
-
-        return [];
     }
 }

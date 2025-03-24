@@ -160,6 +160,50 @@ class FetchConfigHandler
         }
     }
 
+    protected function saveEmailTemplateWithName($params)
+    {
+        $oldTemplate = $params['oldTemplate'];
+        $newTemplate = $params['newTemplate'];
+        $content = $params['content'];
+
+        if (!$oldTemplate || !$newTemplate || !$content) {
+            return [
+                'success' => false,
+                'message' => 'Parametri mancanti',
+            ];
+        }
+
+        // purify template name
+        $newTemplate = preg_replace('/[^a-zA-Z0-9_]/', '', $newTemplate);
+        // controllo che il file finisca per .html
+        if (!preg_match('/\.html$/', $newTemplate)) {
+            $newTemplate .= '.html';
+        }
+
+        $path = _PS_MODULE_DIR_ . 'mpbrtinfo/mails/it/' . $newTemplate;
+
+        // Verifica che il file non esista prima di sovrascriverlo
+        if (file_exists($path)) {
+            return [
+                'success' => false,
+                'message' => 'Template già esistente',
+            ];
+        }
+
+        // Salva il nuovo contenuto
+        if (file_put_contents($path, $content) !== false) {
+            return [
+                'success' => true,
+                'message' => 'Template salvato con successo',
+            ];
+        } else {
+            return [
+                'success' => false,
+                'message' => 'Errore durante il salvataggio del template',
+            ];
+        }
+    }
+
     public function getEmailTemplate2($template)
     {
         $path = _PS_MODULE_DIR_ . 'mpbrtinfo/mails/it/' . $template;

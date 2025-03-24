@@ -2,9 +2,9 @@
  * Classe per gestire le chiamate SOAP ai servizi BRT
  */
 export class fetchBrtWSDL {
-    constructor() {
-        this.adminControllerURL = "";
-        this.translations = {};
+    constructor(adminControllerURL = null, translations = {}) {
+        this.adminControllerURL = adminControllerURL;
+        this.translations = translations;
     }
 
     /**
@@ -13,7 +13,7 @@ export class fetchBrtWSDL {
      * @param {string} adminControllerURL - URL del controller admin
      * @param {Object} translations - Oggetto contenente le traduzioni
      */
-    init(adminControllerURL, translations = {}) {
+    init(adminControllerURL = null, translations = {}) {
         this.adminControllerURL = adminControllerURL;
         this.translations = translations;
     }

@@ -18,7 +18,7 @@
                         <td>{$data.servizio}</td>
                     </tr>
                     <tr>
-                        <th scope="row">GIORNI</th>
+                        <th scope="row">GIORNI LAV.</th>
                         <td>{$data.days}</td>
                     </tr>
                 </tbody>

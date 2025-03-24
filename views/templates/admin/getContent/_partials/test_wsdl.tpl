@@ -10,14 +10,14 @@
     </select>
     <script type="module">
         import { fetchBrtWSDL } from "{$importPath}";
-        const adminControllerURL = "{$adminControllerURL}";
+        const cronURL = "{$cronURL}";
         const translations = {
             error: '{l s="Errore" d="Modules.Mpbrtinfo.Admin"}',
             success: '{l s="Successo" d="Modules.Mpbrtinfo.Admin"}',
             loading: '{l s="Caricamento in corso..." d="Modules.Mpbrtinfo.Admin"}'
         };
         const brtWsdl = new fetchBrtWSDL();
-        brtWsdl.init(adminControllerURL, translations);
+        brtWsdl.init(cronURL, translations);
 
         {literal}
             function transformToTable(data, type) {

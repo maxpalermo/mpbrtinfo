@@ -40,7 +40,6 @@
         {%else%}
             data-filiale=""
         {%endif%}
-        data-note="{{ event.note }}"
         data-tippy-content="
             {{ 'Corriere'|trans({}, 'Modules.Mpbrtinfo.Admin') }}:{{ event.carrier_name }}
             {% if event.id_collo %} <br>Tracking: {{ event.id_collo }}{% endif %}

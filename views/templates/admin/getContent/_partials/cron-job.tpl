@@ -1,7 +1,7 @@
 <div class="form-group">
     <div class="col-lg-12">
         <div class="input-group">
-            <input type="text" id="cron-job-url" class="form-control" readonly value="{$cronJobUrl|escape:'html':'UTF-8'}&ajax=1&action=getShippingsInfo" style="background-color: #f8f8f8; border-color: #ddd;">
+            <input type="text" id="cron-job-url" class="form-control" readonly value="{$cronJobUrl|escape:'html':'UTF-8'}" style="background-color: #f8f8f8; border-color: #ddd;">
             <span class="input-group-btn">
                 <button class="btn btn-default" type="button" id="copy-cron-url">
                     <i class="icon-copy"></i> {l s='Copy' mod='mpbrtinfo'}
