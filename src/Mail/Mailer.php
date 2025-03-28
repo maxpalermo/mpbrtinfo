@@ -138,14 +138,15 @@ class Mailer
      */
     private function getTrackingUrl($id_carrier, $trackingNumber)
     {
-        $carrier = new \Carrier($id_carrier);
-        if (!\Validate::isLoadedObject($carrier)) {
-            return 'https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&ParNum=' . urlencode($trackingNumber);
-        }
-
-        $url = $carrier->url;
-        if (empty($url)) {
-            return 'https://vas.brt.it/vas/sped_det_show.hsm?referer=sped_numspe_par.htm&ParNum=' . urlencode($trackingNumber);
+        if ($trackingNumber && strlen($trackingNumber) == 15) {
+            // ID COLLO
+            $url = self::BRT_URL_ID_COLLO . $trackingNumber;
+        } elseif ($trackingNumber && strlen($trackingNumber) == 12) {
+            // ID SPEDIZIONE
+            $url = self::BRT_URL_TRACKING . $trackingNumber;
+        } else {
+            // ALTRO
+            return '#';
         }
 
         return str_replace('@', $trackingNumber, $url);

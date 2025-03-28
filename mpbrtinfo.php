@@ -386,9 +386,9 @@ class MpBrtInfo extends Module
 
         if ($this->isAdminOrdersController() || $this->isAdminModulesController()) {
             $this->context->controller->addJS([
-                $path . 'js/XmlBeautify/XmlBeautify.min.js',
+                // $path . 'js/XmlBeautify/XmlBeautify.min.js',
+                // $path . 'js/htmx/htmx.min.js',
                 $path . 'js/swal2/sweetalert2.all.min.js',
-                $path . 'js/htmx/htmx.min.js',
                 $path . 'js/panels/brt-esiti.js',
                 $path . 'js/scripts/AdminOrders.js',
                 $path . 'js/tippy/popper-core2.js',

@@ -20,7 +20,8 @@
         id="brt-fetch-orders"
         class="btn toolbar_btn pointer mr-3 ml-3"
         title="{l s='Cerca Info spedizioni' mod='mpbrtinfo'}"
-        style="background-color: #27ae60; color: #fcfcfc;">
+        style="background-color: #27ae60; color: #fcfcfc;"
+        onclick="onClickBtnFetchOrdersInfo(event)">
     <i class="material-icons">local_shipping</i>
     <span>{l s='Cerca Info spedizioni' mod='mpbrtinfo'}</span>
 </button>

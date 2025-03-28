@@ -46,6 +46,7 @@ tracking_number: "..."
     <a
        {if isset($event.event_icon) and $event.event_icon and isset($event.carrier_link)}
            href="{$event.carrier_link}"
+           target="_blank"
        {else}
            href="javascript:void(0);"
        {/if}
