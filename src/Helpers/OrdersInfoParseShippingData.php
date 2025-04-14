@@ -47,15 +47,18 @@ class OrdersInfoParseShippingData
                 if ($evento->isDelivered()) {
                     $bolla['days'] = OrdersInfoCountDays::run($id_order);
                 }
+
+                $eventoRow = $evento->getRow();
+
                 $events[] = [
-                    'color' => $evento->getRow()['event_color'],
-                    'icon' => $evento->getRow()['event_icon'],
-                    'id' => $evento->getId(),
-                    'data' => $evento->getData(),
-                    'ora' => $evento->getOra(),
-                    'descrizione' => $evento->getDescrizione(),
-                    'filiale' => $evento->getFiliale(),
-                    'label' => '(' . $evento->getRow()['event_id'] . ') ' . $evento->getRow()['event_name'],
+                    'color' => $eventoRow['event_color'] ?? '#000000',
+                    'icon' => $eventoRow['event_icon'] ?? 'info',
+                    'id' => $eventoRow['event_id'] ?? 0,
+                    'data' => $eventoRow['event_date'] ?? '',
+                    'ora' => $eventoRow['event_time'] ?? '',
+                    'descrizione' => $eventoRow['event_name'] ?? '',
+                    'filiale' => $eventoRow['event_filiale_name'] ?? '',
+                    'label' => '(' . ($eventoRow['event_id'] ?? 0) . ') ' . $eventoRow['event_name'] ?? '--',
                 ];
             }
         }

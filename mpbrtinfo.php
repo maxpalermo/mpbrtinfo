@@ -1,9 +1,4 @@
 <?php
-
-use Doctrine\ORM\QueryBuilder;
-use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
-use MpSoft\MpBrtInfo\Bolla\Evento;
-
 /**
  * Copyright since 2007 PrestaShop SA and Contributors
  * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
@@ -29,6 +24,9 @@ if (!defined('_PS_VERSION_')) {
 require_once dirname(__FILE__) . '/vendor/autoload.php';
 require_once dirname(__FILE__) . '/models/autoload.php';
 
+use Doctrine\ORM\QueryBuilder;
+use MpSoft\MpBrtInfo\Ajax\AjaxInsertEsitiSQL;
+use MpSoft\MpBrtInfo\Bolla\Evento;
 use MpSoft\MpBrtInfo\Core\Grid\Column\Type\CarrierColumn;
 use MpSoft\MpBrtInfo\Fetch\FetchConfigHandler;
 use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
@@ -386,9 +384,9 @@ class MpBrtInfo extends Module
 
         if ($this->isAdminOrdersController() || $this->isAdminModulesController()) {
             $this->context->controller->addJS([
-                // $path . 'js/XmlBeautify/XmlBeautify.min.js',
-                // $path . 'js/htmx/htmx.min.js',
+                $path . 'js/XmlBeautify/XmlBeautify.min.js',
                 $path . 'js/swal2/sweetalert2.all.min.js',
+                $path . 'js/htmx/htmx.min.js',
                 $path . 'js/panels/brt-esiti.js',
                 $path . 'js/scripts/AdminOrders.js',
                 $path . 'js/tippy/popper-core2.js',

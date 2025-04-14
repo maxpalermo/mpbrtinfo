@@ -63,10 +63,10 @@
                             <span class="badge badge-default" name="color" style="border-color: {$evento.color}; color: {$evento.color}" data-id_evento="{$ev}" data-color="{$evento.color}">{$evento.color}</span>
                         </td>
                         <td class="text-left cell-is_sent pointer" style="width: auto;">
-                            <span class="material-icons is_shipped {if $evento.is_shipped}text-success{else}text-danger{/if}" name="is_shipped" data-id_evento="{$ev}" data-field="is_shipped" data-value="{$evento.is_shipped}">{if $evento.is_shipped}check_circle{else}close{/if}</span>
+                            <span class="material-icons is_shipped {if isset($evento.is_shipped) && $evento.is_shipped}text-success{else}text-danger{/if}" name="is_shipped" data-id_evento="{$ev}" data-field="is_shipped" data-value="{if isset($evento.is_shipped)}{$evento.is_shipped}{else}0{/if}">{if isset($evento.is_shipped) && $evento.is_shipped}check_circle{else}close{/if}</span>
                         </td>
                         <td class="text-left cell-is_delivered pointer" style="width: auto;">
-                            <span class="material-icons is_delivered {if $evento.is_delivered}text-success{else}text-danger{/if}" name="is_delivered" data-id_evento="{$ev}" data-field="is_delivered" data-value="{$evento.is_delivered}">{if $evento.is_delivered}check_circle{else}close{/if}</span>
+                            <span class="material-icons is_delivered {if isset($evento.is_delivered) && $evento.is_delivered}text-success{else}text-danger{/if}" name="is_delivered" data-id_evento="{$ev}" data-field="is_delivered" data-value="{if isset($evento.is_delivered)}{$evento.is_delivered}{else}0{/if}">{if isset($evento.is_delivered) && $evento.is_delivered}check_circle{else}close{/if}</span>
                         </td>
                     </tr>
                 {/foreach}

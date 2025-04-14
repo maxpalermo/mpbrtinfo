@@ -2,6 +2,10 @@
 {% set method = column.options.callback_method %}
 {% set id_order = record[column.options.field] %}
 {% set event = attribute(class, method, [id_order]) %}
+{% if event is not same as(false) and event is defined %}
+    {% set event = event|merge({'is_delivered': event.is_delivered is defined ? event.is_delivered : 0}) %}
+    {% set event = event|merge({'is_shipped': event.is_shipped is defined ? event.is_shipped : 0}) %}
+{% endif %}
 
 {% if event is same as(false) %}
     {% set carrier_image = attribute(class, 'getCarrierImage', {id_order:id_order}) %}
@@ -24,7 +28,6 @@
     <a
         {%if event.event_icon is defined and event.event_icon %}
             href="{{ carrier_link }}"
-            target="_blank"
         {%else%}
             href="javascript:void(0);"
         {%endif%}

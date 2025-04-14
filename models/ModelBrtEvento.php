@@ -166,6 +166,14 @@ class ModelBrtEvento extends ObjectModel
         }
 
         foreach ($rows as &$row) {
+            // Ensure is_shipped and is_delivered are always defined
+            if (!isset($row['is_shipped'])) {
+                $row['is_shipped'] = 0;
+            }
+            if (!isset($row['is_delivered'])) {
+                $row['is_delivered'] = 0;
+            }
+
             if (isset($os[$row['id_order_state']])) {
                 $row['order_state_name'] = $os[$row['id_order_state']]['name'];
                 $row['order_state_color'] = $os[$row['id_order_state']]['color'];
@@ -187,12 +195,13 @@ class ModelBrtEvento extends ObjectModel
      */
     public static function getEvento($id)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
         $sql->select(self::$definition['primary'])
             ->from(self::$definition['table'])
-            ->where('id_evento = ' . (int) $id);
-        $id_evt = (int) $db->getValue($sql);
+            ->where("id_evento = '{$id}'");
+        $query = $sql->build();
+        $id_evt = (int) $db->getValue($query);
         if ($id_evt) {
             return new ModelBrtEvento($id_evt);
         }
@@ -208,8 +217,8 @@ class ModelBrtEvento extends ObjectModel
             'email',
             'id_order_state',
         ];
-        $db = Db::getInstance();
-        $sql = new DbQuery();
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
         $sql->select('*')
             ->from(self::$definition['table'])
             ->orderBy('name');
@@ -234,12 +243,13 @@ class ModelBrtEvento extends ObjectModel
 
     public static function getIdByEventName($eventName)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
         $sql->select(self::$definition['primary'])
             ->from(self::$definition['table'])
-            ->where('name = \'' . pSQL($eventName) . '\'');
-        $id = $db->getValue($sql);
+            ->where("name = '{$eventName}'");
+        $query = $sql->build();
+        $id = (int) $db->getValue($query);
 
         if (!$id) {
             return false;
@@ -250,11 +260,11 @@ class ModelBrtEvento extends ObjectModel
 
     public static function getById($id)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
         $sql->select(self::$definition['primary'])
             ->from(self::$definition['table'])
-            ->where('id_evento = \'' . pSQL($id) . '\'');
+            ->where("id_evento = '{$id}'");
         $id_row = (int) $db->getValue($sql);
         if ($id_row) {
             return new ModelBrtEvento($id_row);
@@ -275,8 +285,8 @@ class ModelBrtEvento extends ObjectModel
 
     public static function getEmail($event_id)
     {
-        $db = Db::getInstance();
-        $sql = new DbQuery();
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
         $sql->select('email')
             ->from(self::$definition['table'])
             ->where("id_evento = '{$event_id}'");

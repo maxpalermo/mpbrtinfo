@@ -179,6 +179,11 @@ class FetchOrdersHandler
         $id_order = (int) $params['id_order'];
         $tracking_number = $params['spedizione_id'];
 
+        // se tracking_number è un id collo prima controllo se esiste il tracking reale
+        if (is_numeric($tracking_number)) {
+            $tracking_number = ConvertIdColloToTracking::convert($tracking_number);
+        }
+
         $info = $this->getTrackingByBrtShipmentId($params);
         if (isset($info['error'])) {
             return $info;

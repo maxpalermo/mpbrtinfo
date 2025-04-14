@@ -26,6 +26,7 @@ if (!defined('_PS_VERSION_')) {
 
 require_once _PS_MODULE_DIR_ . 'mpbrtinfo/models/autoload.php';
 
+use MpSoft\MpBrtInfo\Helpers\ConvertIdColloToTracking;
 use MpSoft\MpBrtInfo\Order\GetOrderShippingDate;
 
 /**
@@ -72,6 +73,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
      * @param string $spedizione_anno Anno della spedizione
      * @param string $spedizione_brt_id ID della spedizione BRT
      * @param string $lingua_iso639_alpha2 Codice lingua ISO639 (default: IT)
+     *
      * @return object Oggetto di richiesta formattato secondo il WSDL
      */
     protected function createRequest($spedizione_anno, $spedizione_brt_id, $lingua_iso639_alpha2 = 'IT')
@@ -95,6 +97,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
      * @param string $spedizione_brt_id ID della spedizione BRT
      * @param int $id_order ID dell'ordine PrestaShop (per ricavare l'anno di spedizione)
      * @param string $lingua_iso639_alpha2 Codice lingua ISO639 (default: IT)
+     *
      * @return array|false Array con le informazioni di tracking o false in caso di errore
      */
     public function getTracking($spedizione_brt_id, $id_order, $lingua_iso639_alpha2 = 'IT', $spedizione_anno = '')
@@ -102,7 +105,13 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
         // Verifica i parametri obbligatori
         if (empty($spedizione_brt_id)) {
             $this->errors[] = 'ID spedizione BRT non valido';
+
             return false;
+        }
+
+        // controllo che spedizione_id sia un tracking e non un id_collo
+        if (is_numeric($spedizione_brt_id)) {
+            $spedizione_brt_id = ConvertIdColloToTracking::convert($spedizione_brt_id);
         }
 
         try {
@@ -118,6 +127,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
 
             if (!$spedizione_anno) {
                 $this->errors[] = 'Impossibile determinare l\'anno di spedizione per l\'ordine ' . $id_order;
+
                 return false;
             }
 
@@ -134,6 +144,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
 
                 if (!$success) {
                     $this->errors[] = 'Errore nella chiamata SOAP';
+
                     return false;
                 }
 
@@ -141,6 +152,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
                 $output = $success;
             } else {
                 $this->errors[] = 'Client SOAP non inizializzato correttamente';
+
                 return false;
             }
 
@@ -151,6 +163,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
             } else {
                 // Output è un array o non ha la proprietà return
                 $this->errors[] = 'Risposta SOAP non valida: campo "return" mancante';
+
                 return false;
             }
 
@@ -168,6 +181,7 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
                 $error_message = isset($error_messages[$error_code]) ? $error_messages[$error_code] : 'Errore sconosciuto';
 
                 $this->errors[] = "Errore BRT (codice {$error_code}): {$error_message}";
+
                 return false;
             }
 
@@ -175,9 +189,11 @@ class GetTrackingByBrtShipmentId extends BrtSoapClient
             return $response;
         } catch (\SoapFault $e) {
             $this->errors[] = 'Errore SOAP: ' . $e->getMessage();
+
             return false;
         } catch (\Throwable $th) {
             $this->errors[] = 'getTracking: error -> ' . $th->getMessage();
+
             return false;
         }
     }

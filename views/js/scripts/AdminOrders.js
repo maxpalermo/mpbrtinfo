@@ -26,72 +26,97 @@ window.addEventListener("modulesReady", async (e) => {
 
     // CONTROLLO LE SPEDIZIONI PER IL TRACKING E I CONSEGNATI
     document.getElementById("brt-fetch-orders").addEventListener("click", async (e) => {
-        //nothing
-    });
-});
+        Swal.fire({
+            title: "Aggiornare le spedizioni Bartolini?",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Sì",
+            cancelButtonText: "No"
+        }).then(async (result) => {
+            if (!result.isConfirmed) {
+                e.preventDefault();
+                return false;
+            }
 
-async function onClickBtnFetchOrdersInfo(e) {
-    Swal.fire({
-        title: "Aggiornare le spedizioni Bartolini?",
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Sì",
-        cancelButtonText: "No"
-    }).then(async (result) => {
-        if (!result.isConfirmed) {
-            e.preventDefault();
-            return false;
-        }
+            // Recupera il totale delle spedizioni
+            signal = window.GetTotalShippingsInstance.setAbortSignal();
+            await window.GetTotalShippingsInstance.fetchTotalShippings();
+            console.log("GetTotalShippingsInstance", window.GetTotalShippingsInstance);
+            // Se tutto va bene procedi
+            if (window.GetTotalShippingsInstance.getStatus() == "success") {
+                totalShippings = window.GetTotalShippingsInstance.getTotalShippings();
+                Swal.fire({
+                    title: "Ricerca spedizioni",
+                    icon: "info",
+                    text: `Trovate ${totalShippings} spedizioni`,
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    loading: true,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    },
+                    willClose: () => {
+                        Swal.fire({
+                            title: "Operazione fermata",
+                            icon: "warning",
+                            text: "L'operazione è stata annullata dall'utente.",
+                            showConfirmButton: false,
+                            showCloseButton: true
+                        });
+                        return false;
+                    }
+                });
 
-        // Recupera il totale delle spedizioni
-        signal = window.GetTotalShippingsInstance.setAbortSignal();
-        await window.GetTotalShippingsInstance.fetchTotalShippings();
-        console.log("GetTotalShippingsInstance", window.GetTotalShippingsInstance);
-        // Se tutto va bene procedi
-        if (window.GetTotalShippingsInstance.getStatus() == "success") {
-            totalShippings = window.GetTotalShippingsInstance.getTotalShippings();
-            Swal.fire({
-                title: "Ricerca spedizioni",
-                icon: "info",
-                text: `Trovate ${totalShippings} spedizioni`,
-                showConfirmButton: false,
-                showCloseButton: true,
-                loading: true,
-                didOpen: () => {
-                    Swal.showLoading();
-                },
-                willClose: () => {
-                    Swal.fire({
-                        title: "Operazione fermata",
-                        icon: "warning",
-                        text: "L'operazione è stata annullata dall'utente.",
-                        showConfirmButton: false,
-                        showCloseButton: true
-                    });
-                    return false;
-                }
-            });
+                // Recupera la lista delle spedizioni con tracking
+                let trackingOrdersList = window.GetTotalShippingsInstance.getListTracking();
+                window.GetOrderTrackingInstance.initProcess(trackingOrdersList.length);
+                do {
+                    let abortController = await window.GetOrderTrackingInstance.setAbortSignal();
 
-            // Recupera la lista delle spedizioni con tracking
-            let trackingOrdersList = window.GetTotalShippingsInstance.getListTracking();
-            window.GetOrderTrackingInstance.initProcess(trackingOrdersList.length);
-            do {
-                let abortController = await window.GetOrderTrackingInstance.setAbortSignal();
+                    trackingOrdersList = await window.GetOrderTrackingInstance.fetchOrdersTracking(trackingOrdersList);
 
-                trackingOrdersList = await window.GetOrderTrackingInstance.fetchOrdersTracking(trackingOrdersList);
-
-                let totalOrders = window.GetOrderTrackingInstance.getTotalOrders();
-                let processed = window.GetOrderTrackingInstance.getProcessed();
-                let percentage = window.GetOrderTrackingInstance.getPercentage();
-                let alert = `<div class="alert alert-info"> 
+                    let totalOrders = window.GetOrderTrackingInstance.getTotalOrders();
+                    let processed = window.GetOrderTrackingInstance.getProcessed();
+                    let percentage = window.GetOrderTrackingInstance.getPercentage();
+                    let alert = `<div class="alert alert-info"> 
                                 <p>Processate ${processed}/${totalOrders} spedizioni</p>
                                 <p>Percentuale: ${percentage}%</p>
                             </div>`;
 
+                    Swal.update({
+                        title: "Ricerca Tracking",
+                        icon: "info",
+                        html: alert,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        },
+                        willClose: () => {
+                            if (abortController) abortController.abort();
+                        }
+                    });
+                } while (trackingOrdersList.length > 0);
+
+                let processed = window.GetOrderTrackingInstance.getProcessed();
+                let total = window.GetOrderTrackingInstance.getTotalOrders();
                 Swal.update({
-                    title: "Ricerca Tracking",
+                    html: `<div class="alert alert-success">${processed} spedizioni sono state aggiornate su un totale di ${total}!</div>`,
+                    icon: "success",
+                    showCloseButton: true,
+                    showConfirmButton: false,
+                    willClose: () => {
+                        if (abortController) abortController.abort();
+                    }
+                });
+
+                //aspetto 2 secondi
+                await new Promise((resolve) => setTimeout(resolve, 2000));
+
+                Swal.fire({
+                    title: "Ricerca info spedizioni",
                     icon: "info",
-                    html: alert,
+                    text: "Ricerca info spedizioni in corso...",
                     showCloseButton: true,
                     showConfirmButton: false,
                     didOpen: () => {
@@ -101,93 +126,64 @@ async function onClickBtnFetchOrdersInfo(e) {
                         if (abortController) abortController.abort();
                     }
                 });
-            } while (trackingOrdersList.length > 0);
 
-            let processed = window.GetOrderTrackingInstance.getProcessed();
-            let total = window.GetOrderTrackingInstance.getTotalOrders();
-            Swal.update({
-                html: `<div class="alert alert-success">${processed} spedizioni sono state aggiornate su un totale di ${total}!</div>`,
-                icon: "success",
-                showCloseButton: true,
-                showConfirmButton: false,
-                willClose: () => {
-                    if (abortController) abortController.abort();
-                }
-            });
+                //Recupero le informazioni delle spedizioni
+                let infoOrdersList = window.GetTotalShippingsInstance.getListShipment();
+                window.GetOrderInfoInstance.initProcess(infoOrdersList.length);
+                do {
+                    infoOrdersList = await window.GetOrderInfoInstance.fetchOrdersInfo(infoOrdersList);
 
-            //aspetto 2 secondi
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-
-            Swal.fire({
-                title: "Ricerca info spedizioni",
-                icon: "info",
-                text: "Ricerca info spedizioni in corso...",
-                showCloseButton: true,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                },
-                willClose: () => {
-                    if (abortController) abortController.abort();
-                }
-            });
-
-            //Recupero le informazioni delle spedizioni
-            let infoOrdersList = window.GetTotalShippingsInstance.getListShipment();
-            window.GetOrderInfoInstance.initProcess(infoOrdersList.length);
-            do {
-                infoOrdersList = await window.GetOrderInfoInstance.fetchOrdersInfo(infoOrdersList);
-
-                let totalOrders = window.GetOrderInfoInstance.getTotalOrders();
-                let processed = window.GetOrderInfoInstance.getProcessed();
-                let percentage = window.GetOrderInfoInstance.getPercentage();
-                let alert = `<div class="alert alert-info"> 
+                    let totalOrders = window.GetOrderInfoInstance.getTotalOrders();
+                    let processed = window.GetOrderInfoInstance.getProcessed();
+                    let percentage = window.GetOrderInfoInstance.getPercentage();
+                    let alert = `<div class="alert alert-info"> 
                                 <p>Processate ${processed}/${totalOrders} spedizioni</p>
                                 <p>Percentuale: ${percentage}%</p>
                             </div>`;
 
+                    Swal.update({
+                        title: "Ricerca Info Spedizioni",
+                        icon: "info",
+                        html: alert,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        },
+                        willClose: async () => {
+                            await window.GetOrderInfoInstance.abortFetch();
+                            infoOrdersList = [];
+                            Swal.fire({
+                                title: "Operazione fermata",
+                                icon: "warning",
+                                text: "L'operazione è stata annullata dall'utente.",
+                                showConfirmButton: false,
+                                showCloseButton: true
+                            });
+                        }
+                    });
+                } while (infoOrdersList.length > 0);
+
+                let infoProcessed = window.GetOrderInfoInstance.getProcessed() / 2;
+                let infoTotal = window.GetOrderInfoInstance.getTotalOrders();
                 Swal.update({
-                    title: "Ricerca Info Spedizioni",
-                    icon: "info",
-                    html: alert,
+                    html: `<div class="alert alert-success">${infoProcessed} spedizioni sono state aggiornate su un totale di ${infoTotal}!</div>`,
+                    icon: "success",
                     showCloseButton: true,
                     showConfirmButton: false,
                     didOpen: () => {
-                        Swal.showLoading();
+                        Swal.hideLoading();
                     },
-                    willClose: async () => {
-                        await window.GetOrderInfoInstance.abortFetch();
-                        infoOrdersList = [];
-                        Swal.fire({
-                            title: "Operazione fermata",
-                            icon: "warning",
-                            text: "L'operazione è stata annullata dall'utente.",
-                            showConfirmButton: false,
-                            showCloseButton: true
-                        });
+                    willClose: () => {
+                        //Nothing
                     }
                 });
-            } while (infoOrdersList.length > 0);
+            }
 
-            let infoProcessed = window.GetOrderInfoInstance.getProcessed() / 2;
-            let infoTotal = window.GetOrderInfoInstance.getTotalOrders();
-            Swal.update({
-                html: `<div class="alert alert-success">${infoProcessed} spedizioni sono state aggiornate su un totale di ${infoTotal}!</div>`,
-                icon: "success",
-                showCloseButton: true,
-                showConfirmButton: false,
-                didOpen: () => {
-                    Swal.hideLoading();
-                },
-                willClose: () => {
-                    //Nothing
-                }
-            });
-        }
-
-        return;
+            return;
+        });
     });
-}
+});
 
 /**
  * Mostra un pannello SweetAlert2 con barra di progresso

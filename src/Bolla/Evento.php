@@ -189,6 +189,30 @@ class Evento
         return $this->id;
     }
 
+    public function getIcon()
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('icon')
+            ->from(\ModelBrtEvento::$definition['table'])
+            ->where("id_evento = '{$this->id}'");
+        $icon = $db->getValue($sql);
+
+        return $icon ? $icon : 'info';
+    }
+
+    public function getColor()
+    {
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('color')
+            ->from(\ModelBrtEvento::$definition['table'])
+            ->where("id_evento = '{$this->id}'");
+        $color = $db->getValue($sql);
+
+        return $color ? $color : '#000000';
+    }
+
     public function setId($id)
     {
         $this->id = $id;
@@ -213,26 +237,26 @@ class Evento
 
     public function isDelivered()
     {
-        $event = \ModelBrtEvento::getEvento($this->id);
-        if (\Validate::isLoadedObject($event)) {
-            $this->is_delivered = (int) $event->is_delivered;
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('is_delivered')
+            ->from(\ModelBrtEvento::$definition['table'])
+            ->where("id_evento = '{$this->id}'");
+        $is_delivered = $db->getValue($sql);
 
-            return $this->is_delivered;
-        }
-
-        return false;
+        return (int) $is_delivered;
     }
 
     public function isShipped()
     {
-        $event = \ModelBrtEvento::getEvento($this->id);
-        if (\Validate::isLoadedObject($event)) {
-            $this->is_shipped = (int) $event->is_shipped;
+        $db = \Db::getInstance();
+        $sql = new \DbQuery();
+        $sql->select('is_shipped')
+            ->from(\ModelBrtEvento::$definition['table'])
+            ->where("id_evento = '{$this->id}'");
+        $is_shipped = $db->getValue($sql);
 
-            return $this->is_shipped;
-        }
-
-        return false;
+        return (int) $is_shipped;
     }
 
     public function getRowData()
@@ -404,7 +428,7 @@ class Evento
 
         // Se esiste uno stato associato cerco l'evento corrispondente
         if ($id_mpbrtinfo_evento) {
-            $sql = new DbQuery();
+            $sql = new \DbQuery();
             $sql->select('*')
                 ->from(ModelBrtEvento::$definition['table'])
                 ->where('id_order = ' . (int) $id_order)
@@ -497,7 +521,7 @@ class Evento
 
         // Se esiste uno stato associato cerco l'evento corrispondente
         if ($id_mpbrtinfo_evento) {
-            $sql = new DbQuery();
+            $sql = new \DbQuery();
             $sql->select('*')
                 ->from(ModelBrtEvento::$definition['table'])
                 ->where('id_order = ' . (int) $id_order)
